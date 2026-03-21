@@ -1,5 +1,5 @@
 - **Getting Started**
-  - [Overview](/)
+  - [Overview](README.md)
   - [Vision & Why](north-star.md)
   - [One-Pager & Market](one-pager.md)
 
