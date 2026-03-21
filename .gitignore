@@ -1,0 +1,23 @@
+# Environment & secrets
+.env
+.env.*
+*.key
+
+# Firecrawl research cache
+.firecrawl/
+
+# Node
+node_modules/
+.expo/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code local settings (not project rules)
+.claude/settings.local.json

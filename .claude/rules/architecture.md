@@ -1,0 +1,43 @@
+# Architecture Rules
+
+These decisions are locked. Do NOT change without explicit discussion.
+
+## Locked Decisions
+1. **Messages API with tool_use** — not Agent SDK (Edge Functions are stateless)
+2. **Claude Haiku 4.5 only** for MVP — no Sonnet/Opus in production paths
+3. **Cross-platform from MVP** — Android + iOS simultaneously
+4. **Telegram only** for MVP messaging
+5. **NativeWind v4** — not Gluestack-UI, not StyleSheet
+6. **8 tools for MVP** — get_crs, get_sleep, get_stress_events, get_activity, send_message, read_memory, update_memory, get_user_profile
+7. **3-step onboarding** — wearable permissions, Telegram link, basic profile
+8. **On-phone CRS** — TypeScript, offline-capable, no server round-trip for CRS
+9. **Rules-based pre-filter** — skip Claude when CRS > 60 and stress confidence < 0.3
+10. **op-sqlite + SQLCipher** for local DB — not WatermelonDB, not Realm
+
+## Data Flow (Do Not Deviate)
+```
+Wearable → HealthKit/Health Connect → Native Module → op-sqlite (encrypted)
+  → CRS computation (on-phone, TypeScript) → Supabase sync (health_snapshots)
+  → pg_cron trigger check → rules pre-filter → Claude Haiku (if needed)
+  → Telegram message → user feedback → agent learns
+```
+
+## Build Order
+Data connectors FIRST (Phase B), dashboard SECOND (Phase C), agent THIRD (Phase D).
+Never build agent features before the data pipeline is solid.
+
+## Cost Constraints
+- Rules pre-filter eliminates ~60-80% of Claude calls
+- Max 3 agent iterations per invocation
+- 50s hard timeout on Edge Functions
+- Dynamic tool loading: 3-4 tools per call, not all 8
+- Prompt caching: 1h TTL for soul files, 5min for profiles
+
+## Source of Truth
+When in doubt, read these docs (in priority order):
+1. `Docs/ONESYNC_MASTER_REFERENCE.md`
+2. `Docs/ONESYNC_NORTHSTAR.md`
+3. `Docs/ONESYNC_ONEPAGER.md`
+4. `Docs/ONESYNC_RESEARCH_AND_ALGORITHMS.md`
+
+Anything in `Docs/archive/` is superseded by these four.
