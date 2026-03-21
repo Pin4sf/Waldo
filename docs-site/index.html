@@ -3,6 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <title>OneSync — Documentation</title>
+  <script>
+  (function(){
+    var k='onesync_auth',h='5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8';
+    if(sessionStorage.getItem(k)==='1')return;
+    function s(t){var e=new TextEncoder().encode(t);return crypto.subtle.digest('SHA-256',e).then(function(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('')})}
+    function go(){
+      var p=prompt('Enter password to view OneSync docs:');
+      if(!p){document.documentElement.innerHTML='';return}
+      s(p).then(function(d){if(d===h){sessionStorage.setItem(k,'1')}else{alert('Wrong password.');document.documentElement.innerHTML=''}})
+    }
+    go();
+  })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="OneSync — The biological intelligence layer for the agentic economy">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css">
