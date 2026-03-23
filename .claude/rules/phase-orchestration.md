@@ -43,7 +43,7 @@ This loop is non-negotiable. No feature ships without qa-breaker approval.
 - **qa-breaker** → break it (all null data, stale snapshots, rapid CRS changes)
 
 ### Phase D: Agent Core + Messaging
-- **workflow-mapper** → map agent trigger → Claude → Telegram flow with ALL failure modes
+- **workflow-mapper** → map agent trigger → LLM Provider → Channel Adapter flow with ALL failure modes
 - **soul-file-reviewer** → review soul files BEFORE deploying
 - [build] → Dev-QA loop
 - **security-reviewer** → JWT validation, prompt injection, tool abuse
@@ -52,14 +52,14 @@ This loop is non-negotiable. No feature ships without qa-breaker approval.
 - **qa-breaker** → break it (API timeout, 3 alerts in 10 min, adversarial prompts)
 
 ### Phase E: Proactive Delivery
-- **workflow-mapper** → map pg_cron → pre-filter → Claude → Telegram with timing edge cases
+- **workflow-mapper** → map pg_cron → pre-filter → LLM Provider → Channel Adapter with timing edge cases
 - [build] → Dev-QA loop
 - **e2e-pipeline-tester** → full pipeline with scheduled triggers
 - **qa-breaker** → break it (cooldown bypass, max messages/day, stale triggers)
 
 ### Phase F: Onboarding + Polish
 - [build] → Dev-QA loop
-- **security-reviewer** → permission flows, Telegram linking security
+- **security-reviewer** → permission flows, channel linking security
 - **qa-breaker** → break it (partial onboarding, permission revocation, re-onboarding)
 
 ### Phase G: Self-Test + Tuning

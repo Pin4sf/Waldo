@@ -2,7 +2,7 @@
 
 > **What this document is:** The consolidated agent architecture for OneSync — a personal cognitive operating system that combines **body intelligence** (health signals from wearables), **task intelligence** (planning, organization, getting things done), and **proactive agency** (acts before you ask). This is the definitive reference for HOW the agent thinks, learns, communicates, and evolves.
 >
-> **Sources:** 14 production-grade agent systems — Pi Mono, OpenClaw, PicoClaw, OpenFang, CoPaw, Paperclip, OpenViking (ByteDance), Swarms, Agency-Agents, Agent-Skills-for-Context-Engineering, context-hub (Andrew Ng), Context Engineering (HumanLayer/YC), a **Production Agent Platform** (enterprise-grade Brain + Orchestrator + Execution architecture, running on Pi Mono), and **NemoClaw** (NVIDIA's enterprise agent governance framework — versioned blueprints, declarative policies, operator-in-the-loop escalation, multi-model routing)
+> **Sources:** 14 production-grade agent systems — Pi Mono, OpenClaw, PicoClaw, OpenFang, CoPaw, Paperclip, OpenViking (ByteDance), Swarms, Agency-Agents, Agent-Skills-for-Context-Engineering, context-hub (Andrew Ng), Context Engineering (HumanLayer/YC), **Production Agent Platform** (enterprise-grade Brain + Orchestrator + Execution architecture, running on Pi Mono), and **NemoClaw** (NVIDIA's enterprise agent governance framework — versioned blueprints, declarative policies, operator-in-the-loop escalation, multi-model routing)
 >
 > **Relationship to Master Reference:** Master Reference defines WHAT to build. This document defines HOW the agent should behave. Use BOTH when building Phase D (Agent Core) and Phase E (Proactive Delivery).
 >
@@ -15,7 +15,7 @@
 OneSync is **not just a health app**. It is a **personal cognitive operating system** with three pillars:
 
 ### Pillar 1: Body Intelligence (MVP)
-Reads HRV, HR, sleep, activity from any wearable. Computes CRS. Detects stress. Proactively messages you via Telegram before you crash. All health data encrypted, on-device computation, personal baselines.
+Reads HRV, HR, sleep, activity from any wearable. Computes CRS. Detects stress. Proactively messages you — via your preferred channel — before you crash. All health data encrypted, on-device computation, personal baselines.
 
 ### Pillar 2: Task Intelligence (Phase 2+)
 Connects to your calendar, email, Slack, task manager. Understands your workload. Prioritizes tasks based on your cognitive state. "Your CRS is 87 — tackle the P0 bug now, save admin for the afternoon dip." Reschedules, blocks time, manages your day.
@@ -99,7 +99,7 @@ Synthesized from all 12 repos into OneSync's serverless health agent:
 ┌──────────────────────────────────────────────────────────────┐
 │  AGENT LOOP (ReAct — max 3 iterations, 50s timeout)           │
 │                                                               │
-│  Claude Haiku 4.5 via Messages API + tool_use                 │
+│  LLM Provider [Claude Haiku 4.5] via Messages API + tool_use  │
 │  Model Router: Rules-skip → Haiku (MVP) → Sonnet (Phase 2)   │
 │  Provider Failover: Primary → Fallback → Template (PicoClaw)  │
 │  Loop Guard: SHA256 hash of (tool+params+result) — block at 3 │
@@ -480,7 +480,7 @@ PLAYBOOK:
     Include followup result if relevant ("yesterday's early bedtime worked — +12% efficiency")
 
   Phase 4 — Deliver + Log
-    Send via Telegram with feedback buttons
+    Send via channel adapter with feedback buttons
     Log: delivery time, CRS, zone, data confidence
     Update last_interaction
 ```
@@ -514,7 +514,7 @@ PLAYBOOK:
     Cognitive load awareness: CRS < 40 → max 2 lines, simpler language
 
   Phase 4 — Deliver + Track
-    Send via Telegram with [Helpful] [Not helpful] [Too frequent] buttons
+    Send via channel adapter with [Helpful] [Not helpful] [Too frequent] buttons
     Add to pending_followups (check CRS in 2h to see if it recovered)
     Log everything
 ```
@@ -680,6 +680,27 @@ interface ChannelAdapter {
 // Phase 3: InAppChatAdapter, VoiceAdapter
 ```
 
+```typescript
+// LLM Provider Adapter — abstracts AI model calls
+interface LLMProvider {
+  id: string;                    // 'anthropic', 'deepseek', 'openai', 'qwen'
+  createCompletion(params: {
+    model: string;
+    system: string;
+    messages: Message[];
+    tools?: Tool[];
+    max_tokens: number;
+  }): Promise<CompletionResult>;
+
+  estimateCost(inputTokens: number, outputTokens: number): number;
+  supportsToolUse: boolean;
+  supportsCaching: boolean;
+}
+
+// MVP: Single provider (Anthropic/Claude Haiku)
+// Phase 2: Multi-provider routing via LLMProvider adapter
+```
+
 ---
 
 ## 11. Skills System — Progressive Loading
@@ -819,7 +840,7 @@ No new infrastructure. It's the existing agent with:
 - Soul file: `SOUL_ONBOARDING`
 - Tools: `update_memory` (writes profile in real-time) + `get_user_profile` (reads what we know so far)
 - Mode: interview mode (one question at a time, waits, adapts)
-- Delivery: Telegram chat (MVP) or voice (Phase 2) or in-app form (Phase 2)
+- Delivery: Channel adapter [Telegram first] (MVP) or voice (Phase 2) or in-app form (Phase 2)
 
 ---
 
@@ -893,7 +914,7 @@ Brain (always-on, persistent)
 │   │   ├── "Wind down" → dim lights + queue sleep playlist + set morning alarm
 │   │   └── Any user-defined automation
 │   │
-│   └── Code Execution (arbitrary tasks via sandboxed capsules)
+│   └── Capsule Execution (arbitrary tasks via code)
 │       ├── Research tasks → web search + summarize + deliver at peak CRS
 │       ├── Data analysis → run Python/JS, generate charts
 │       ├── Content creation → draft, review, polish
@@ -981,7 +1002,7 @@ Claude Code (dev agent)
 
 **Source:** Pi Mono dual-queue pattern
 
-In a Telegram context:
+In a messaging context:
 - **Steering:** User sends urgent message while agent is processing → interrupt, escalate immediately
   - Detection: "STOP", "help", "emergency", "chest pain", "actually I meant..."
 - **Follow-up:** User sends non-urgent message while agent is processing → queue for after current run
@@ -1236,455 +1257,6 @@ The agent becomes a full personal operating system that can handle virtually any
 
 **The Endgame:**
 OneSync as the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with Lindy, Manus, or Claude Code — **powering them** with the one signal they don't have: your cognitive state. The agent that makes every other agent smarter.
-
----
-
-## 19. The Complete Agent OS — Directory, Database & Invocation Reference
-
-This section consolidates the full Agent OS into three views: (1) the file structure that defines the agent, (2) the database that stores what it knows, and (3) the complete flow of a single invocation. Everything above describes the pieces — this shows how they fit together.
-
-### The Three Layers
-
-The agent operates across three layers:
-
-| Layer | What It Is | Where It Lives | What Changes It |
-|-------|-----------|---------------|----------------|
-| **Brain** (Config Files) | Soul files, rules, calibration, skills, hands — defines WHO the agent is | Git repo, loaded into prompts | Developer edits, A/B tests |
-| **Memory** (Database) | core_memory, patterns, baselines, followups — what the agent KNOWS about each user | Supabase Postgres (RLS) + on-phone SQLCipher | Agent self-modifies via tools, daily computation |
-| **Hands** (Tools + Integrations) | 8 MVP tools → 16+ Phase 2 → unlimited via MCP — what the agent CAN DO | Edge Functions + external APIs | New phases unlock new tools |
-
-### 19.1 Agent OS File Structure
-
-Every file the agent reads to construct its identity, voice, rules, and capabilities:
-
-```
-agent-os/
-|
-|-- souls/                              # WHO the agent is
-|   |-- SOUL_BASE.md                    # Core personality (never changes per-call)
-|   |                                   # "You are OneSync, a personal cognitive agent..."
-|   |                                   # Voice principles, medical disclaimers, tone
-|   |
-|   |-- SOUL_ONBOARDING.md             # Day 0 interview mode
-|   |                                   # Curious, warm, one-question-at-a-time
-|   |                                   # Writes to core_memory in real-time
-|   |
-|   |-- zones/                          # HOW the voice adapts to CRS
-|   |   |-- ENERGIZED.md               # CRS 80+  -- coach pushing athlete
-|   |   |-- STEADY.md                  # CRS 60-79 -- trusted friend
-|   |   |-- FLAGGING.md               # CRS 40-59 -- wise advisor, short messages
-|   |   |-- DEPLETED.md               # CRS <40   -- caretaker, minimal, zero pressure
-|   |   +-- CRISIS.md                 # No data   -- honest, transparent, never alarming
-|   |
-|   +-- modes/                          # WHAT type of message
-|       |-- MORNING_BRIEF.md           # Template for daily morning message
-|       |-- STRESS_ALERT.md            # Template for stress interventions
-|       |-- CONVERSATIONAL.md          # Template for user-initiated chat
-|       +-- WEEKLY_REVIEW.md           # Sunday evening summary (Phase 2)
-|
-|-- rules/                              # BOUNDARIES -- what the agent must never do
-|   |-- SAFETY.md                       # Banned medical phrases, emergency keywords
-|   |                                   # "never say 'you are stressed'"
-|   |                                   # "say 'your body is showing stress signals'"
-|   |                                   # Emergency: chest pain, suicidal, can't breathe
-|   |
-|   |-- HEALTH_LANGUAGE.md             # No "always/never" about health
-|   |                                   # No population comparisons
-|   |                                   # Confidence-tier language rules
-|   |
-|   +-- PRIVACY.md                     # What the agent can/can't store or share
-|
-|-- calibration/                        # TUNING -- numbers that change without code
-|   |-- CRS_WEIGHTS.md                 # Sleep: 0.35, HRV: 0.25, Circadian: 0.25, Activity: 0.15
-|   |-- STRESS_THRESHOLDS.md           # Confidence >= 0.60, cooldown 2h, max 3/day
-|   |-- TIME_OF_DAY_RATIOS.md          # HRV baseline multipliers by 6 time blocks
-|   +-- TOKEN_BUDGETS.md              # System: 1200, User: 800, Tools: 500, Total: 2500
-|
-|-- skills/                             # WHAT the agent knows how to do
-|   |-- sleep-analysis/
-|   |   +-- SKILL.md                   # When to use, assessment steps, response guidelines
-|   |-- stress-management/
-|   |   +-- SKILL.md                   # Breathing, breaks, reframing decision tree
-|   |-- morning-briefing/
-|   |   +-- SKILL.md                   # Morning report generation protocol
-|   |
-|   |   # Phase 2+:
-|   |-- calendar-optimizer/
-|   |   +-- SKILL.md                   # CRS-aware scheduling
-|   |-- task-prioritizer/
-|   |   +-- SKILL.md                   # Rerank by cognitive state
-|   |-- email-triage/
-|   |   +-- SKILL.md                   # Surface urgent, defer rest
-|   |
-|   |   # Phase 3+ user-created skills:
-|   +-- user-skills/
-|       |-- board-prep.yaml            # User-taught: pull CRS + Linear + sleep + talking points
-|       |-- wind-down.yaml             # User-taught: dim lights + sleep playlist + alarm
-|       +-- standup-prep.yaml          # User-taught: tickets + sleep score + draft 3 points
-|
-|-- hands/                              # PROACTIVE BEHAVIORS -- scheduled agent actions
-|   |-- morning-brief.yaml             # Daily at wake time, always fires
-|   |-- stress-monitor.yaml            # Every 15 min, rules pre-filter gated
-|   |-- baseline-updater.yaml          # Daily 4 AM, no LLM, pure computation
-|   |
-|   |   # Phase 2+:
-|   |-- weekly-review.yaml             # Sunday evening, Opus
-|   |-- calendar-optimizer.yaml        # CRS prediction overlay on schedule
-|   |-- focus-guard.yaml               # Auto-DND during peak CRS windows
-|   |-- email-triage.yaml              # Morning scan of urgent emails
-|   |
-|   |   # Phase 3+:
-|   |-- sleep-coach.yaml               # Nightly wind-down nudges
-|   |-- activity-nudge.yaml            # Sedentary detection
-|   +-- social-reminder.yaml           # Relationship maintenance
-|
-+-- adapters/                           # HOW data gets in and messages get out
-    |-- health/
-    |   |-- healthkit.ts               # iOS -- confidence: high (beat-to-beat IBI)
-    |   |-- health-connect.ts          # Android -- confidence: varies by OEM
-    |   +-- samsung-sensor.ts          # Phase 2 -- direct watch SDK
-    |
-    +-- channels/
-        |-- telegram.ts                # MVP -- grammy
-        |-- whatsapp.ts                # Phase 2
-        |-- push-notification.ts       # Phase 2
-        +-- in-app-chat.ts             # Phase 3
-```
-
-**How these files are used:** The Prompt Builder (Section 2) assembles a Claude call by loading `SOUL_BASE.md` + the relevant `zones/*.md` + `modes/*.md` into the system message (cached, stable prefix), then loads `SKILL.md` bodies on keyword match (progressive loading — L1 names always, L2 body on trigger). `rules/` files are always in the system message. `calibration/` files are read by the rules pre-filter and CRS engine, not by Claude directly.
-
-### 19.2 Complete Database Schema — All Phases
-
-Every table the agent reads from or writes to, organized by phase:
-
-```
-SUPABASE POSTGRES (per user, RLS enforced: auth.uid() = user_id)
-
-MVP TABLES (Phase B-E)
-=====================
-
-core_memory                          # TIER 1 -- always loaded (~200 tokens)
-  |-- identity                       # name, age, timezone, chronotype
-  |-- health_profile                 # conditions, medications, baselines, device, confidence tier
-  |-- preferences                    # message style, timing, intervention ranking, verbosity
-  |-- active_goals                   # with parent hierarchy (goal ancestry)
-  |                                  # "optimize_health" > "sleep 7h+" > "bed by 11pm"
-  +-- recent_insights               # validated patterns with confidence + decay
-                                     # { pattern, learned_on, validation_count, confidence }
-                                     # HOT (7d) -> WARM (30d) -> COLD (30d+)
-
-health_snapshots                     # Raw health data, every 15 min
-  |-- hr_bpm, hrv_rmssd, steps
-  |-- crs_score, crs_components (sleep, hrv, circadian, activity sub-scores)
-  |-- stress_confidence
-  +-- UNIQUE(user_id, timestamp)     # Idempotent upsert for background sync
-
-sleep_sessions                       # One record per night
-  |-- duration, efficiency
-  |-- stages: { rem_min, deep_min, light_min, wake_min }
-  |-- bedtime_consistency_deviation
-  +-- sleep_debt_rolling_7d
-
-stress_events                        # Every detected stress episode
-  |-- confidence (0.0-1.0)
-  |-- signals_used: { hrv_drop, hr_elevation, duration, activity_context }
-  |-- context_note (what was happening, if known)
-  +-- outcome (did intervention help? null until followup)
-
-baseline_history                     # Rolling baselines, updated daily at 4 AM
-  |-- avg_7d, avg_30d for: hr, hrv, sleep_duration, steps
-  |-- time_of_day_ratios (6 blocks)
-  +-- trend_direction (improving/stable/declining)
-
-conversation_history                 # Chat messages
-  |-- role (user/assistant), content, timestamp
-  +-- compressed_summary (generated when > 10 messages)
-
-feedback_events                      # Every thumbs up/down/too-frequent
-  |-- message_id, feedback_type
-  +-- context: { crs_at_time, trigger_type, zone, data_confidence }
-
-agent_logs                           # Every agent invocation (NO health values!)
-  |-- model, tokens_in, tokens_out, tools_called[], response_time_ms
-  |-- trigger_type, zone, mode, data_confidence
-  +-- cost_usd
-
-
-PHASE 2 TABLES (Cognitive Co-Pilot)
-====================================
-
-session_summaries                    # TIER 2 -- on-demand
-  |-- per-conversation summary       # "User asked about sleep, committed to 11pm"
-  +-- weekly_compaction              # Sessions -> insights, runs Sunday evening
-
-pattern_log                          # TIER 2 -- append-only, NEVER deleted
-  |-- type: correlation | preference | baseline_shift | intervention_outcome
-  |-- observation, confidence, validation_count
-  +-- archived: boolean (superseded but preserved)
-
-pending_followups                    # Track suggestion outcomes
-  |-- suggestion, metric_to_check, baseline_value
-  |-- check_after (next_morning_brief, +2h, +24h)
-  +-- attempts, outcomes[]
-
-knowledge_graph                      # Entity-relationship model
-  |-- entity_a, relationship, entity_b
-  |-- confidence (0.0-1.0)
-  +-- examples:
-       "late_coffee"    --worsens-->  "sleep_latency"    (0.8)
-       "afternoon_walk" --improves--> "hrv_recovery"     (0.9)
-       "3+_meetings"    --triggers--> "stress"           (0.85)
-
-embeddings (pgvector)                # TIER 3 -- semantic search
-  |-- conversation summary embeddings
-  +-- pattern log embeddings
-
-
-PHASE 3 TABLES (Autonomous OS)
-==============================
-
-learned_skills                       # User-taught automations
-  |-- name, trigger_phrase
-  |-- steps: [{ tool, params }]      # Tool chain to execute
-  +-- learned_on, usage_count, last_used
-
-decision_records                     # Immutable -- never edited, only superseded
-  |-- decision, context, consequences
-  +-- status: ACTIVE | SUPERSEDED, superseded_by
-
-distilled_patterns                   # Learning flywheel output
-  |-- raw events -> grouped -> distilled into high-confidence pattern
-  |-- trigger, intervention, success_rate, confidence
-  +-- promoted to core_memory when validation_count >= 3
-```
-
-### 19.3 Consolidated Tools — All Phases
-
-Every tool the agent can call, across all phases:
-
-| # | Tool | Phase | Read/Write | What It Does |
-|---|------|-------|-----------|-------------|
-| 1 | `get_crs` | MVP | Read | Current CRS score + 4 component sub-scores + zone |
-| 2 | `get_sleep` | MVP | Read | Last night's sleep: duration, stages, efficiency, debt |
-| 3 | `get_stress_events` | MVP | Read | Recent stress detections with confidence scores |
-| 4 | `get_activity` | MVP | Read | Today's steps, distance, exercise, sedentary time |
-| 5 | `get_user_profile` | MVP | Read | Age, chronotype, device, preferences |
-| 6 | `read_memory` | MVP | Read | Patterns, goals, insights from core_memory |
-| 7 | `update_memory` | MVP | Write | Store new learnings, update preferences/goals |
-| 8 | `send_message` | MVP | Write | Telegram message with inline feedback buttons |
-| 9 | `get_calendar` | Phase 2 | Read | Today/tomorrow's schedule with event details |
-| 10 | `block_time` | Phase 2 | Write | Block focus/recovery time on calendar |
-| 11 | `reschedule` | Phase 2 | Write | Move meetings to CRS-optimal windows |
-| 12 | `get_emails` | Phase 2 | Read | Surface urgent emails for morning brief |
-| 13 | `set_slack_status` | Phase 2 | Write | Auto-DND, custom status based on CRS zone |
-| 14 | `prioritize_tasks` | Phase 2 | Read | Rerank task list by cognitive state |
-| 15 | `create_task` | Phase 2 | Write | Add task to Linear/Notion/Jira |
-| 16 | `search_memory` | Phase 2 | Read | Semantic search over conversation history (pgvector) |
-| 17 | `delegate_task` | Phase 3 | Write | Assign task to specialist sub-agent |
-| 18 | `execute_code` | Phase 3 | Write | Run sandboxed code capsule (research, analysis) |
-| 19 | `create_skill` | Phase 3 | Write | Learn new user-taught multi-step workflow |
-| 20+ | `[any MCP tool]` | Phase 3+ | Varies | Notion, GitHub, Figma, Spotify, banking, travel... |
-
-**Tool routing per trigger type:**
-
-| Trigger | Tools Loaded | Why Not All |
-|---------|-------------|------------|
-| Stress alert | get_crs, get_stress_events, send_message (3) | Minimal context needed, speed matters |
-| Morning brief | get_crs, get_sleep, read_memory, send_message (4) | Overnight data + memory for personalization |
-| User conversation | All 8 available, 3-4 selected dynamically | Agent picks based on user's question |
-| Morning brief + calendar (Phase 2) | get_crs, get_sleep, get_calendar, get_emails, read_memory, send_message (6) | Full day planning |
-
-### 19.4 Integrations Map — All Data Sources and Channels
-
-```
-HEALTH DATA IN (what the agent reads about your body)
-=====================================================
-MVP:
-  Apple Watch  --> HealthKit    --> Swift Native Module   --> SQLCipher
-    Beat-to-beat IBI (true RMSSD), 4-stage sleep,           Confidence: HIGH
-    HR, SpO2, respiratory rate, wrist temp
-
-  Android Watch --> Health Connect --> Kotlin Native Module --> SQLCipher
-    Pixel/Fitbit: HR + HRV (RMSSD) + sleep + steps          Confidence: MODERATE
-    Samsung: HR + sleep + steps (NO HRV)                     Confidence: LOW
-
-Phase 2:
-  Samsung Galaxy Watch --> Samsung Sensor SDK --> Companion Watch App --> SQLCipher
-    Raw IBI (1Hz), HR, PPG, skin temp, EDA (GW8+)           Confidence: MODERATE
-
-Phase 3 (Cloud APIs):
-  Oura Ring    --> Oura API      --> Supabase Edge Function  (nightly HRV, sleep)
-  Fitbit       --> Fitbit Web API --> Supabase Edge Function  (HR, HRV, sleep, SpO2)
-  WHOOP        --> WHOOP API     --> Supabase Edge Function  (recovery, strain, RMSSD)
-  Garmin       --> Connect IQ SDK --> On-watch app            (raw IBI, HR, SpO2)
-
-
-MESSAGES OUT (how the agent reaches the user)
-=============================================
-MVP:     Telegram (grammy on Deno)            -- free forever
-Phase 2: WhatsApp Cloud API                    -- free 1K msgs/mo, then ~$0.02/msg
-Phase 2: FCM/APNs Push Notifications           -- free
-Phase 3: In-app Chat (React Native)            -- no external cost
-Phase 3: Voice (Whisper STT + TTS)             -- per-minute cost
-
-
-WORKSPACE INTEGRATIONS (what the agent knows about your world)
-==============================================================
-Phase 2:
-  Google Calendar / Outlook       -- free API, 1M queries/day
-  Gmail / Outlook                 -- free API, generous quota
-  Slack / Teams                   -- free bot tokens, rate-limited
-Phase 3:
-  Linear / Notion / Jira          -- free APIs for personal use
-  Zoom / Google Meet              -- meeting join/leave detection
-
-
-MCP SERVERS (unbounded tool ecosystem, Phase 3+)
-================================================
-  Each MCP server = a new domain the agent operates in:
-  GitHub, Figma, Canva, Spotify, Uber, food delivery,
-  banking APIs, smart home, travel booking...
-  Any future MCP server unlocks new capabilities without
-  changing the agent core architecture.
-```
-
-### 19.5 One Agent Invocation — Complete Flow
-
-What happens when pg_cron fires or a user sends a Telegram message. Every step, in order:
-
-```
-STEP 1: TRIGGER
-  Source: pg_cron (every 15 min) OR Telegram webhook (user message)
-  Input: user_id + trigger_type (scheduled_check | stress_alert | morning_brief | user_message)
-
-STEP 2: RULES PRE-FILTER (no LLM, $0)
-  Reads: health_snapshots (latest CRS + stress confidence)
-  Reads: calibration/STRESS_THRESHOLDS.md
-  Decision tree:
-    IF trigger = scheduled_check AND CRS > 60 AND stress_confidence < 0.30 --> SKIP ($0)
-    IF within 2h cooldown of last proactive message                        --> SKIP
-    IF 3 proactive messages already sent today                             --> SKIP
-    IF trigger = morning_brief AND user hasn't woken yet                   --> DEFER
-    IF trigger = user_message                                              --> ALWAYS PROCEED
-  Result: 60-80% of scheduled checks are skipped here. $0 cost.
-
-STEP 3: PROMPT BUILDER (25-field assembly)
-  System message (cached, stable prefix -- high cache hit rate):
-    [1] rules/SAFETY.md + medical disclaimers            (START -- highest attention)
-    [2] souls/SOUL_BASE.md + zones/{CRS_ZONE}.md + modes/{TRIGGER}.md
-    [3] skills/{matched}/SKILL.md body (L2 loaded on keyword match)
-    [4] Tool definitions (3-4 selected dynamically, not all 8)
-    [5] core_memory excerpt + health_baselines           (MIDDLE -- stable, tolerates attention dip)
-
-  User message (dynamic -- separate for cache isolation):
-    [6] Trigger context + biometric snapshot + current CRS  (END -- high attention)
-    [7] Last interaction + pending followups
-    [8] Conversation history (last 3 turns + compressed summary)
-    [9] Calendar context (if morning brief or meeting in next 2h)
-
-  Token budget: 2500 max. System: 1200, User: 800, Tools: 500.
-
-STEP 4: PRE-REASONING HOOKS (5 hooks, before Claude call)
-  Hook 1 -- EMERGENCY BYPASS
-    Scan user message for: "chest pain", "can't breathe", "suicidal", "overdose"
-    If found --> skip normal loop, return emergency response, log for review
-
-  Hook 2 -- QUALITY GATES (1, 3, 4)
-    Gate 1: >= 1 health metric from last 6h, CRS used >= 2 components
-    Gate 3: Not during user's sleep, 2h cooldown, max 3/day, not muted
-    Gate 4: Engaged with >= 1 of last 3 messages, no "too frequent" in 7d
-    If fail --> queue for later, or send degraded message, or skip
-
-  Hook 3 -- CONTEXT INJECTION
-    Inject latest CRS + biometric snapshot if not already in context
-    Inject calendar events if morning brief or meeting in next 2h
-    Inject pending followups if morning brief
-
-  Hook 4 -- COMPACTION
-    If conversation history > 600 token budget --> compress older messages
-    Preserve: health facts, user preferences, action items
-
-  Hook 5 -- RATE LIMIT
-    Check daily cost budget, daily message count, per-minute rate
-    If exceeded --> respond with template message, log
-
-STEP 5: CLAUDE HAIKU AGENT LOOP (max 3 iterations, 50s hard timeout)
-  Call: anthropic.messages.create() with tool_use
-  Loop:
-    Iteration 1: Claude reasons, calls tool (e.g., get_crs)
-    Iteration 2: Receives tool result, calls another tool (e.g., get_sleep)
-    Iteration 3: Receives result, generates final response with send_message
-  Guards:
-    Loop guard: SHA256 hash of (tool_name + params + result) -- block at 3 identical calls
-    Timeout: 50s hard limit on Edge Function
-    Provider failover: Haiku --> template fallback with actual CRS data
-
-STEP 6: POST-REASONING HOOKS (5 hooks, after Claude response)
-  Hook 6 -- HEALTH LANGUAGE SAFETY (Gate 2)
-    Scan output for banned patterns:
-      "You are stressed"       --> must be "Your body is showing stress signals"
-      "You need to..."         --> must be "You might want to consider..."
-      Diagnosis words (anxiety, depression, insomnia, arrhythmia)
-    If found --> regenerate with feedback (max 2 retries) --> template fallback
-
-  Hook 7 -- CONFIDENCE CHECK (Gate 5)
-    Stress alerts: confidence >= 0.60
-    Morning insights: >= 3 data points behind any claimed pattern
-    Memory claims: only reference "high" confidence patterns
-    If fail --> omit uncertain claim (better to say less)
-
-  Hook 8 -- LOOP GUARD
-    SHA256 hash of (tool_name + params + result)
-    Warn at 2 identical calls, block at 3
-    Outcome-aware: same call + same result 2x --> permanently blocked for session
-
-  Hook 9 -- MEMORY UPDATE
-    If agent called update_memory --> persist to Supabase core_memory
-    If substantive conversation --> trigger async session summary generation
-    Rule: record first, answer second (from CoPaw proactive recording)
-
-  Hook 10 -- ANALYTICS
-    Log to agent_logs (fire-and-forget):
-      model, tokens_in, tokens_out, tools_called[], response_time_ms
-      trigger_type, CRS_at_time, data_confidence, zone, mode, cost_usd
-
-STEP 7: DELIVERY
-  Channel adapter (Telegram for MVP) sends message with inline buttons:
-    Morning brief: [Got it] [More details] [Mute today]
-    Stress alert:  [Helpful] [Not helpful] [Too frequent]
-    Conversation:  context-appropriate buttons
-
-  Writes:
-    conversation_history: agent's response
-    pending_followups: if suggestion made, schedule outcome check
-    Updates last_interaction timestamp
-
-STEP 8: FEEDBACK LOOP (async, when user taps button)
-  Telegram webhook receives button tap
-  Writes to feedback_events: { message_id, feedback_type, context }
-  Over time:
-    "Helpful" --> reinforces current thresholds
-    "Not helpful" --> increases threshold for that trigger type
-    "Too frequent" --> extends cooldown, reduces daily cap
-    Feedback tunes the rules pre-filter, NOT the CRS algorithm directly
-```
-
-### 19.6 How It Scales Across Phases
-
-The same architecture handles everything. What changes per phase:
-
-| Component | MVP | Phase 2 | Phase 3+ |
-|-----------|-----|---------|----------|
-| **Soul files** | 1 base + 5 zones + 3 modes | + weekly review mode | + per-domain personas |
-| **Skills** | 3 (sleep, stress, morning) | + calendar, tasks, email | + user-created, marketplace |
-| **Hands** | 3 (brief, stress, baseline) | + weekly, calendar, focus, email | + sleep coach, activity, social |
-| **Tools** | 8 | 16+ | Unlimited (MCP) |
-| **Memory** | Tier 1 (core_memory) + Tier 2 (summaries) | + Tier 3 (pgvector, knowledge graph) | + learned skills, decision records |
-| **Integrations** | HealthKit + Health Connect + Telegram | + Calendar, Gmail, Slack, WhatsApp | + MCP servers, sub-agents, code capsules |
-| **Model** | Haiku only | Haiku + Sonnet + Opus (routed by severity) | + MixtureOfAgents, specialist sub-agents |
-| **Intelligence** | Level 1: Reactive | Level 3: Predictive | Level 4: Autonomous |
-
-The engine (prompt builder, hook pipeline, agent loop, feedback system) stays the same. The data it operates on grows. Each new soul file, skill, hand, tool, or adapter plugs into the existing architecture without changing it.
 
 ---
 

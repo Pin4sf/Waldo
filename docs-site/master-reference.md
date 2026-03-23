@@ -31,7 +31,7 @@ A **personal cognitive operating system** — an AI agent on your phone that rea
 
 | Pillar | Phase | What It Does |
 |--------|-------|-------------|
-| **Body Intelligence** | MVP | Reads HRV, HR, sleep, activity from any wearable (HealthKit + Health Connect). Computes CRS on-phone (offline). Detects stress. Messages you via Telegram before you crash. |
+| **Body Intelligence** | MVP | Reads HRV, HR, sleep, activity from any wearable (HealthKit + Health Connect). Computes CRS on-phone (offline). Detects stress. Messages you proactively — via your preferred channel — before you crash. |
 | **Task Intelligence** | Phase 2 | Connects to calendar, email, Slack, tasks. Prioritizes work by CRS. Reschedules meetings when you're depleted. |
 | **Autonomous Personal OS** | Phase 3+ | Learns skills from you. Delegates to specialist sub-agents. Executes arbitrary tasks. Powers other agents (Cursor, Lindy, Claude Code) with your biological state. |
 
@@ -55,7 +55,7 @@ A **personal cognitive operating system** — an AI agent on your phone that rea
 ├─────────────────────────────────────────────────────────────────────┤
 │  DELIVERY LAYER                                                      │
 │  Personality Spectrum (5 zones × 4 modes)                            │
-│    → 5 Quality Gates → 4-Phase Nudge → Telegram                    │
+│    → 5 Quality Gates → 4-Phase Nudge → Channel Adapter                    │
 │    → Feedback buttons → 3-Tier Learning → Memory (with decay)       │
 ├─────────────────────────────────────────────────────────────────────┤
 │  ONBOARDING (AI Interview)                                           │
@@ -112,20 +112,20 @@ A **personal cognitive operating system** — an AI agent on your phone that rea
 
 ### Competitive Landscape
 
-| Competitor | What They Do | OneSync Advantage | Threat Level |
+| Market Player | What They Do | OneSync Advantage | Relationship |
 |-----------|-------------|-------------------|-------------|
-| **WHOOP** ($3.6B) | WHOOP Coach AI (GPT-4 powered) now has **proactive nudges** — Daily Outlook (morning), Day in Review (evening), rising stress alerts. Strength Trainer, AI memory, WHOOP Age/healthspan. $199-359/yr subscription. | Single-device (proprietary band required), **in-app only** (confirmed: no Telegram/WhatsApp/SMS for coaching), device-locked ecosystem, $199-359/yr. Coach UX "fairly mixed since 2023 launch." | **HIGH** — closest to proactive model, but walled garden |
-| **Oura** ($5.2B) | Oura Advisor AI active. Launched proprietary AI model for women's health (Feb 2026). Personalized, clinically grounded. | Single-device, no proactive messaging outside app, coaching not agency | **MEDIUM** — specialized AI, not general agent |
-| **Apple Health+** | AI health coach was **SCALED BACK** (Bloomberg, Feb 2026). Features rolling out individually in Health app, not as unified service. Siri + Health with iOS 27. | Apple-only, fragmented rollout, no proactive external messaging | **LOW** (near-term) — window wider than expected |
-| **Nori** (YC F25) | Concierge AI health coach aggregating Apple Health + medical records + wearables into daily plan. Built **HealthMCP** (Model Context Protocol for health data — validates the "body API" concept). **iOS only — no Android.** Founders: 2x YC, 2x exits (Chartable → Spotify, Octopart → Altium). | **iOS only** (no Android at all). Scheduled morning plan only (no real-time proactive alerts). No external messaging. Users report data syncing issues ("getting a lot of things wrong"). Strong founders are the threat, not the current product. | **MEDIUM** — strong team, weak Android story |
-| **Lindy** ($50M+ raised) | AI Chief of Staff, 4000+ integrations | Zero biology awareness | **LOW** |
-| **ChatGPT Health** | 230M weekly health queries (Jan 2026) | Purely reactive Q&A, no biometric integration | **LOW** |
-| **Sahha.ai** | Health AI SDK for developers | B2B SDK, not end-user product | **LOW** |
-| **Welltory** | HRV analysis + recommendations. Notable: has native Galaxy Watch app that measures HRV directly (bypassing Samsung Health's sync gap). | No proactive messaging, no AI agent, no unified score | **LOW** |
+| **WHOOP** ($3.6B) | WHOOP Coach AI (GPT-4 powered) now has **proactive nudges** — Daily Outlook (morning), Day in Review (evening), rising stress alerts. Strength Trainer, AI memory, WHOOP Age/healthspan. $199-359/yr subscription. | Single-device (proprietary band required), **in-app only** (confirmed: no Telegram/WhatsApp/SMS for coaching), device-locked ecosystem, $199-359/yr. Coach UX "fairly mixed since 2023 launch." | **HIGH overlap** — closest to proactive model; potential data partner (they lack cross-platform biology) |
+| **Oura** ($5.2B) | Oura Advisor AI active. Launched proprietary AI model for women's health (Feb 2026). Personalized, clinically grounded. | Single-device, no proactive messaging outside app, coaching not agency | **MEDIUM overlap** — specialized AI; potential partner (Oura data → OneSync agent) |
+| **Apple Health+** | AI health coach was **SCALED BACK** (Bloomberg, Feb 2026). Features rolling out individually in Health app, not as unified service. Siri + Health with iOS 27. | Apple-only, fragmented rollout, no proactive external messaging | **LOW overlap** (near-term) — complementary; OneSync adds cross-platform + external messaging |
+| **Nori** (YC F25) | Concierge AI health coach aggregating Apple Health + medical records + wearables into daily plan. Built **HealthMCP** (Model Context Protocol for health data — validates the "body API" concept). **iOS only — no Android.** Founders: 2x YC, 2x exits (Chartable → Spotify, Octopart → Altium). | **iOS only** (no Android at all). Scheduled morning plan only (no real-time proactive alerts). No external messaging. Users report data syncing issues ("getting a lot of things wrong"). Strong founders are the threat, not the current product. | **MEDIUM overlap** — strong team; potential integration (HealthMCP aligns with our body API vision) |
+| **Lindy** ($50M+ raised) | AI Chief of Staff, 4000+ integrations | Zero biology awareness | **LOW overlap** — integration partner (Lindy + OneSync biology = smarter task agent) |
+| **ChatGPT Health** | 230M weekly health queries (Jan 2026) | Purely reactive Q&A, no biometric integration | **LOW overlap** — complementary (reactive Q&A vs proactive agent) |
+| **Sahha.ai** | Health AI SDK for developers | B2B SDK, not end-user product | **LOW overlap** — potential data partner (their SDK, our agent) |
+| **Welltory** | HRV analysis + recommendations. Notable: has native Galaxy Watch app that measures HRV directly (bypassing Samsung Health's sync gap). | No proactive messaging, no AI agent, no unified score | **LOW overlap** — potential data partner (Galaxy Watch HRV) |
 
-**Critical competitive update (March 2026):** WHOOP Coach proactive nudges are **confirmed in-app only** — no delivery via Telegram, WhatsApp, SMS, or any external channel. WHOOP remains device-locked ($199-359/yr), powered by GPT-4. Nori (YC F25) is iOS-only with no Android version. **Neither competitor delivers coaching via external messaging channels — this remains OneSync's clearest differentiator.**
+**Critical competitive update (March 2026):** WHOOP Coach proactive nudges are **confirmed in-app only** — no delivery via Telegram, WhatsApp, SMS, or any external channel. WHOOP remains device-locked ($199-359/yr), powered by GPT-4. Nori (YC F25) is iOS-only with no Android version. **Neither competitor delivers coaching via external messaging channels. OneSync's clearest differentiators: (1) device-agnostic, (2) channel-agnostic delivery via adapter pattern, (3) biology as a service for the agent ecosystem.**
 
-**OneSync's differentiation pillars:** (1) device-agnosticism via Health Connect + HealthKit, (2) external messaging channels (Telegram → WhatsApp), (3) free/affordable pricing (50-100x cheaper than WHOOP), (4) CRS as a transparent unified score (algorithm published, unlike all competitors), (5) cross-platform (Android + iOS from MVP).
+**OneSync's differentiation pillars:** (1) device-agnosticism via Health Connect + HealthKit, (2) channel-agnostic delivery via adapter pattern (Telegram → WhatsApp → Discord → Slack → in-app), (3) free/affordable pricing (50-100x cheaper than WHOOP), (4) CRS as a transparent unified score (algorithm published, unlike all competitors), (5) cross-platform (Android + iOS from MVP).
 
 **Apple threat reduced:** Bloomberg reported Apple scaled back Health+ AI coach plans. Features being rolled out incrementally, not as a unified service. This gives OneSync more runway than the 12-18 month estimate in earlier docs.
 
@@ -158,7 +158,7 @@ Neither layer alone is sufficient. Health apps know your body but not your calen
 | Workload balancing | 7-day HRV baseline down 12% + 3 new tasks assigned | Flags overcommitment with evidence |
 | Recovery nudge | 4+ hours sleep debt + light calendar tomorrow | Protects recovery space |
 
-**MVP = Biology layer only** (Health Connect + CRS + Telegram) — proves the plumbing works and proactive messaging creates engagement.
+**MVP = Biology layer only** (Health Connect + HealthKit + CRS + Channel Adapter [Telegram first]) — proves the plumbing works and proactive messaging creates engagement.
 
 **MVP v2 (Phase 2) = The real product.** Add workspace connectors + user-created skills + conversational learning. This is where OneSync becomes a true autonomous agent:
 - Agent learns from conversation what the user wants automated
@@ -198,7 +198,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 | Tier | Price | What You Get | Per-User AI Cost | Gross Margin |
 |------|-------|-------------|-----------------|-------------|
-| **Free** | Rs 0 | Daily CRS + morning brief + Telegram + 3 msgs/day | ~$0.27/user | N/A (acquisition) |
+| **Free** | Rs 0 | Daily CRS + morning brief + messaging channel + 3 msgs/day | ~$0.27/user | N/A (acquisition) |
 | **Pro** | Rs 399/mo ($4.34) | Full CRS + stress alerts + unlimited msgs + weekly analysis | ~$0.90/user | 79% |
 | **Team** | Rs 999/mo/seat | Team dashboard + API access + priority support | ~$0.90/user | 92% |
 
@@ -375,7 +375,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 1. Health Connect (Android) and HealthKit (iOS) give enough signal for meaningful CRS computation
 2. Stress detection via HRV + HR is useful (even without raw IBI)
-3. Proactive Telegram messages create genuine engagement
+3. Proactive messaging (via user's preferred channel) creates genuine engagement
 4. **The morning brief becomes a daily habit** (hero feature — uses overnight data, most reliable, most habitual)
 5. Claude agent personality + health context = valuable, non-generic advice
 6. Cross-platform (Android + iOS) is viable from Day 1
@@ -394,10 +394,10 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - CRS gauge dashboard (270-degree arc, 3 color zones)
 - Sleep summary card (with sleep coaching insights: "Going to bed 30 min earlier could add ~0.8h deep sleep")
 - Basic metric cards (HR, HRV, Steps with trend arrows)
-- Telegram channel linking (6-digit code)
-- Simple 3-step onboarding: Connect wearable → Grant permissions → Link Telegram
+- Messaging channel linking (6-digit code, Telegram first)
+- Simple 3-step onboarding: Connect wearable → Grant permissions → Link messaging channel
 - Settings (profile, notification preferences)
-- **Caffeine/alcohol self-report** — "I had coffee" Telegram button suppresses stress alerts 45 min, "I drank last night" adjusts morning CRS interpretation. Low effort, high personalization signal.
+- **Caffeine/alcohol self-report** — "I had coffee" inline button suppresses stress alerts 45 min, "I drank last night" adjusts morning CRS interpretation. Low effort, high personalization signal.
 - "Not a medical device" disclaimer
 - Encrypted local storage (op-sqlite + SQLCipher)
 - Dark mode (system-aware)
@@ -432,9 +432,9 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - Core schema: users, health_snapshots, sleep_sessions, stress_events, conversation_history, core_memory, feedback_events, baseline_history, agent_logs
 - **No NemoClaw tables for MVP** — add agent_blueprints, policy_violations, escalation_requests, config_runs in Phase 2
 - pg_cron + **pg_net**: single cron job every 15 min calls `check-triggers` Edge Function via `net.http_post()`. **pg_net is required** — pg_cron runs SQL only, cannot invoke Edge Functions directly without it.
-- **No pgmq for MVP** — check-triggers sends Telegram messages directly. pgmq adds reliability (retries, dead letter) but also complexity and latency. Add in Phase 2 when scale requires it.
-- Edge Functions: telegram-webhook, check-triggers (handles stress alerts + morning briefs + sends messages directly)
-- Telegram bot (grammY on Deno)
+- **No pgmq for MVP** — check-triggers sends messages directly via channel adapter. pgmq adds reliability (retries, dead letter) but also complexity and latency. Add in Phase 2 when scale requires it.
+- Edge Functions: channel-webhook, check-triggers (handles stress alerts + morning briefs + sends messages directly)
+- Messaging bot (grammY for Telegram on Deno — first channel adapter)
 - RLS on all user data tables (Edge Functions use service_role, bypassing RLS)
 - UNIQUE constraint on health_snapshots(user_id, timestamp) to prevent duplicate uploads
 - **Background sync idempotency:** upload queue uses upsert with ON CONFLICT(user_id, timestamp) DO UPDATE
@@ -454,8 +454,8 @@ The agent's intelligence comes from combining **biology + workspace context + co
 | Samsung Sensor SDK companion watch app | Phase 2 | Samsung HRV gap confirmed — Sensor SDK gives IBI on-watch but requires Wear OS companion app. HR proxy sufficient for MVP. |
 | Garmin Connect IQ companion | Phase 2 | Garmin writes to Health Connect for basic data |
 | Google Calendar / Gmail integration | Phase 2 | Not needed to prove core loop |
-| In-app chat | Phase 2 | Telegram is the primary channel for MVP |
-| Push notifications (FCM/APNs) | Phase 2 | Telegram handles delivery |
+| In-app chat | Phase 2 | Messaging adapter supports Telegram for MVP; in-app chat is a second adapter in Phase 2 |
+| Push notifications (FCM/APNs) | Phase 2 | Messaging adapter handles delivery for MVP |
 | Voice (Whisper STT/TTS) | Phase 3 | Complexity not justified for MVP |
 | Multi-model AI routing (DeepSeek/Qwen) | Phase 2 | Haiku is sufficient, infrastructure supports later addition |
 | Custom hardware (OneBand) | Phase 4 | Software-only for years 1-2 |
@@ -475,7 +475,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - CRS updates within 1 minute of new health data
 - Stress detection false positive rate < 30% (self-tested over 2 weeks). If > 30%, defer stress alert delivery to Phase 2.
 - Proactive messages delivered within 2-5 minutes of detection
-- Telegram conversation feels natural and context-aware
+- Agent conversation feels natural and context-aware
 - **Morning brief includes sleep + CRS + 1 actionable insight + sleep coaching suggestion**
 - Morning brief includes weekend recovery prediction when sleep debt > 3h
 - App works offline (CRS computes without internet)
@@ -519,9 +519,9 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - **Cross-platform from MVP** — Android (Health Connect) + iOS (HealthKit). React Native shared codebase, platform-specific native modules.
 - **Build order: HealthKit first → Health Connect second → Agent + messaging third.** Data connectors before intelligence layer. Get the data pipeline right, then build on top.
 - **Samsung Sensor SDK deferred to post-MVP.** Work with whatever Samsung gives via Health Connect (HR, sleep, steps). Add Samsung Sensor SDK companion watch app once core agent is working well and Samsung HRV is the bottleneck.
-- Telegram for MVP messaging (WhatsApp or whatever the group uses — don't let channel choice block the MVP)
+- Channel adapter pattern from Day 1 — Telegram is the first adapter implementation. WhatsApp, Discord, Slack are future adapters. Never hardcode channel assumptions into agent logic.
 - 3-step onboarding (not 5-step + AI interview — too complex for beta)
-- **Caffeine/alcohol self-report in MVP** — Telegram inline buttons, suppresses stress alerts
+- **Caffeine/alcohol self-report in MVP** — Messaging inline buttons, suppresses stress alerts
 - **Morning brief + simple calendar scheduling (Reclaim AI-style)** — the two core user-facing features for MVP
 
 **Samsung HRV data gap (confirmed March 2026):** Samsung Health does NOT write HRV (HeartRateVariabilityRmssdRecord) to Health Connect. This is a deliberate omission, not a bug. Confirmed across Samsung Community forums, developer forums, Sleep as Android, Intervals.icu. **MVP approach:** Work with whatever Samsung gives (HR, sleep, steps). CRS dynamic weight redistribution handles missing HRV. Samsung users get a functional but degraded CRS. Samsung Sensor SDK in post-MVP unlocks true HRV for 38M+ Samsung watches in India.
@@ -630,7 +630,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 ### Phase D: Agent Core + Messaging
 
-**Objective:** Claude agent responds on Telegram with health context. Morning brief + simple calendar-aware scheduling (Reclaim AI-style — know what's coming today, suggest optimal timing for deep work based on CRS + schedule).
+**Objective:** Claude agent responds via channel adapter with health context. Morning brief + simple calendar-aware scheduling (Reclaim AI-style — know what's coming today, suggest optimal timing for deep work based on CRS + schedule).
 
 **Deliverables:**
 1. Soul files as hardcoded string constants in `_shared/config.ts`:
@@ -649,12 +649,12 @@ The agent's intelligence comes from combining **biology + workspace context + co
    - Cached block: soul-base + soul-mode + user profile + core memory (~2000 tokens)
    - Fresh block: BODY_L0 + BODY_L1 + trigger context + last 5 messages (~1500 tokens)
    - Total: ~3500 tokens input (well within Haiku's window)
-4. Telegram webhook Edge Function (grammY):
+4. Channel webhook Edge Function (grammY for Telegram — first adapter):
    - Webhook secret validation
-   - User resolution by `telegram_chat_id`
+   - User resolution by `channel_type` + `channel_id` (via `user_channels` table)
    - Callback query handler for feedback buttons
-   - **Idempotency:** deduplicate by Telegram `message_id`
-5. Basic conversational flow: user messages bot → context assembly → agent loop → response → Telegram
+   - **Idempotency:** deduplicate by channel-specific message ID
+5. Basic conversational flow: user messages bot → context assembly → agent loop → response → channel adapter
 6. Template fallback messages WITH user data (not generic):
    - "Your CRS is {crs}. I'm having trouble connecting right now — I'll follow up shortly."
    - Include actual CRS value from latest snapshot so user still gets value
@@ -666,7 +666,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - No escalation system
 - No plan-apply-rollback
 
-**Gate:** You message your Telegram bot and get a personalized health-aware response.
+**Gate:** You message your agent (via Telegram) and get a personalized health-aware response.
 
 ### Phase E: Proactive Delivery
 
@@ -679,9 +679,9 @@ The agent's intelligence comes from combining **biology + workspace context + co
    - Route to Stress Monitor Hand if confidence >= 0.60
 2. `morning-brief` Edge Function (pg_cron at user's estimated wake time):
    - Gather sleep + CRS + one insight
-   - Send via Telegram
+   - Send via channel adapter
 3. `message-sender` Edge Function (pgmq worker):
-   - Drain queue, deliver via Telegram
+   - Drain queue, deliver via channel adapter
    - Exponential backoff on failure
 4. Stress alert delivery — **reframed as awareness + preparation, not in-the-moment intervention:**
    - The user may be in a meeting when the alert arrives. They can't leave or do a breathing exercise on camera.
@@ -702,7 +702,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 **Deliverables:**
 1. 3-step onboarding flow:
    - Step 1: Auto-detect wearable → Health Connect permissions (one category at a time, with pre-education)
-   - Step 2: Telegram bot deep link → 6-digit linking code → verify connection
+   - Step 2: Messaging channel link → 6-digit linking code → verify connection
    - Step 3: Brief profile (age, wake time, notification preference) → done
 2. 7-day learning messages ("Day 3: Your resting HR is 62 BPM, lower than average. That's good.")
 3. Permission pre-education screen (critical for Android permanent-denial UX)
@@ -757,10 +757,8 @@ The agent's intelligence comes from combining **biology + workspace context + co
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   phone_number TEXT UNIQUE,
-  telegram_chat_id TEXT UNIQUE,
-  telegram_linking_code TEXT,
-  telegram_linking_expires_at TIMESTAMPTZ,  -- Code expires after 10 minutes
-  telegram_linking_attempts INT DEFAULT 0,   -- Rate limit: max 5 attempts per code
+  -- Channel linking handled by user_channels table (supports multiple channels per user)
+  primary_channel_type VARCHAR(20) DEFAULT 'telegram',  -- 'telegram', 'whatsapp', 'discord', 'slack', 'in_app'
   age INT,
   chronotype VARCHAR(10) DEFAULT 'normal',  -- 'early', 'normal', 'late'
   hrv_metric_type VARCHAR(10) DEFAULT 'rmssd',  -- 'rmssd' (Android) or 'sdnn' (iOS)
@@ -775,6 +773,20 @@ CREATE TABLE users (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_active TIMESTAMPTZ
 );
+
+CREATE TABLE user_channels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  channel_type VARCHAR(20) NOT NULL,  -- 'telegram', 'whatsapp', 'discord', 'slack', 'in_app'
+  channel_id TEXT NOT NULL,            -- telegram_chat_id, whatsapp_number, discord_user_id, etc.
+  linking_code TEXT,
+  linking_expires_at TIMESTAMPTZ,      -- Code expires after 10 minutes
+  linking_attempts INT DEFAULT 0,       -- Rate limit: max 5 attempts per code
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(channel_type, channel_id)
+);
+CREATE INDEX idx_user_channels_user ON user_channels(user_id);
 
 CREATE TABLE health_snapshots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -967,7 +979,7 @@ const MVP_TOOLS = [
   },
   {
     name: "send_message",
-    description: "Send a message to the user via their linked messaging channel (Telegram).",
+    description: "Send a message to the user via their active messaging channel. Routes through the channel adapter (Telegram, WhatsApp, Discord, Slack, or in-app).",
     input_schema: {
       type: "object",
       properties: {
@@ -1247,7 +1259,7 @@ SELECT cron.schedule(
 
 ```typescript
 // Handles BOTH stress alerts AND morning briefs in a single function
-// Sends Telegram messages directly (no pgmq for MVP)
+// Sends messages directly via channel adapter (no pgmq for MVP)
 Deno.serve(async () => {
   // BATCH QUERY: single SQL query returns users needing action
   // (avoids N*3 queries per user — critical for scalability)
@@ -1259,7 +1271,7 @@ Deno.serve(async () => {
     // Morning brief check
     if (user.needs_morning_brief) {
       const response = await invokeAgent(user.id, 'morning_brief', {});
-      await sendTelegramMessage(user.telegram_chat_id, response);
+      await sendViaChannel(user.id, response);  // Routes through channel adapter
       await supabase.from('users').update({ last_morning_brief_date: today() }).eq('id', user.id);
       continue; // Don't also send stress alert in same cycle
     }
@@ -1269,33 +1281,34 @@ Deno.serve(async () => {
       const response = await invokeAgent(user.id, 'stress_alert', {
         confidence: user.stress_confidence, crs: user.crs,
       });
-      await sendTelegramMessage(user.telegram_chat_id, response, feedbackKeyboard());
+      await sendViaChannel(user.id, response, { feedbackButtons: true });  // Routes through channel adapter
     }
   }
 });
 ```
 
-### telegram-webhook
+### channel-webhook
 
 ```typescript
-// Receives user messages, routes to agent
+// Receives user messages from any channel, routes to agent
 Deno.serve(async (req) => {
   const secret = new URL(req.url).searchParams.get("secret");
-  if (secret !== Deno.env.get("TELEGRAM_WEBHOOK_SECRET")) return unauthorized();
+  const channel = new URL(req.url).searchParams.get("channel") || "telegram";
+  if (secret !== Deno.env.get("CHANNEL_WEBHOOK_SECRET")) return unauthorized();
 
   const update = await req.json();
   if (update.callback_query) {
     return handleCallbackQuery(update.callback_query); // Feedback buttons, escalation responses
   }
   if (update.message?.text) {
-    const userId = await resolveUser(update.message.from.id);
+    const userId = await resolveUserByChannel(channel, update);
     const response = await invokeAgent(userId, 'user_reply', { message: update.message.text });
-    await sendTelegramMessage(userId, response);
+    await sendViaChannel(userId, response);
   }
 });
 ```
 
-*Morning briefs and message sending are handled directly by `check-triggers` for MVP (no separate Edge Functions, no pgmq). Add pgmq + dedicated message-sender in Phase 2 when scale requires reliability/retry logic.*
+*Morning briefs and message sending are handled directly by `check-triggers` via the channel adapter for MVP (no separate Edge Functions, no pgmq). Add pgmq + dedicated message-sender in Phase 2 when scale requires reliability/retry logic.*
 
 ## 2.11 Safety Guardrails
 
@@ -1339,8 +1352,13 @@ SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ANTHROPIC_API_KEY=
+# Channel adapter: Telegram (MVP)
 TELEGRAM_BOT_TOKEN=
-TELEGRAM_WEBHOOK_SECRET=
+CHANNEL_WEBHOOK_SECRET=
+# Future channel adapters (uncomment when ready)
+# WHATSAPP_TOKEN=
+# DISCORD_BOT_TOKEN=
+# SLACK_BOT_TOKEN=
 APP_ENV=development
 ```
 
@@ -1382,11 +1400,26 @@ APP_ENV=development
 - History screen with calendar view + trend charts
 - Home screen widget (Android) — CRS at a glance
 
-**Channel evolution:**
+**Channel evolution (adapter pattern — add channels without rewriting agent logic):**
 ```
-MVP:      Telegram only (biology layer)
-Phase 2:  In-App Chat → Push → Telegram → WhatsApp (biology + workspace context)
+MVP:      Telegram adapter (first implementation of ChannelAdapter interface)
+Phase 2:  WhatsApp adapter → Discord adapter → Slack adapter → In-App Chat adapter → Push adapter
 ```
+
+**Adapter Architecture (applies to ALL external integrations):**
+
+OneSync uses adapter interfaces for all external boundaries. This ensures any component can be swapped without rewriting agent logic:
+
+| Adapter | MVP Implementation | Future Implementations |
+|---------|-------------------|----------------------|
+| `ChannelAdapter` | Telegram (grammY) | WhatsApp, Discord, Slack, In-App, Push |
+| `LLMProvider` | Claude Haiku (@anthropic-ai/sdk) | DeepSeek, GPT-4o mini, Qwen, Gemini |
+| `HealthDataSource` | HealthKit (Swift), Health Connect (Kotlin) | Samsung Sensor SDK, Garmin Connect IQ, Cloud APIs (Oura, Fitbit, WHOOP) |
+| `StorageAdapter` | op-sqlite + SQLCipher | Future: cloud sync, cross-device |
+
+Each adapter exposes a standard interface. Agent logic, CRS computation, and delivery orchestration never reference a specific provider directly — they call the adapter interface.
+
+**Ecosystem partner integration:** OneSync's biology layer can power other agents. Via MCP/A2A protocol (Phase 4), external agents (Lindy, Cursor, Claude Code) can query a user's CRS through a standard interface — making OneSync the "body API" for the agent economy.
 
 ## 3.2 Phase 3: Deep Intelligence + Scale (iOS now in MVP)
 

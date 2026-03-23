@@ -34,7 +34,7 @@ graph TB
 
     subgraph Delivery["Delivery + Feedback"]
         RESPONSE -->|Quality Gates<br/>5 checks| GATE{Pass all<br/>gates?}
-        GATE -->|Yes| TG["Telegram<br/>(grammY)"]
+        GATE -->|Yes| TG["Channel Adapter<br/>(Telegram / WhatsApp /<br/>Discord / Slack)"]
         GATE -->|No| TEMPLATE["Template<br/>Fallback"]
         TG -->|User Feedback| FB["Feedback<br/>Events"]
         FB -->|Learn| MEM["Core Memory"]
@@ -54,10 +54,10 @@ graph TB
 | 1 | Messages API with `tool_use`, not Agent SDK | Edge Functions are stateless |
 | 2 | Claude Haiku 4.5 only for MVP | ~$0.90/Pro user/month |
 | 3 | Cross-platform from MVP (Android + iOS) | Apple Watch has best data; teammates have both |
-| 4 | Telegram only for MVP | 104M users in India, free API |
+| 4 | Channel adapter pattern from Day 1 | Telegram first; WhatsApp, Discord, Slack via adapter |
 | 5 | NativeWind v4 | Tailwind for RN, not Gluestack-UI |
 | 6 | 8 tools for MVP | Consolidation principle: fewer tools = higher success |
-| 7 | 3-step onboarding | Permissions → Telegram link → Profile |
+| 7 | 3-step onboarding | Permissions → Messaging channel link → Profile |
 | 8 | On-phone CRS computation | Offline-capable, no server round-trip |
 | 9 | Rules-based pre-filter before Claude | Saves 60-80% of API calls |
 | 10 | op-sqlite + SQLCipher | AES-256 encrypted local health data |
@@ -77,7 +77,7 @@ graph LR
 
     subgraph Write["Write Tools (side effects)"]
         T7["update_memory<br/>Store new learnings"]
-        T8["send_message<br/>Telegram + feedback buttons"]
+        T8["send_message<br/>Channel adapter + feedback buttons"]
     end
 
     style Read fill:#f0fdf4,stroke:#22c55e
@@ -99,8 +99,8 @@ The agent's first act of intelligence — a dynamic conversation that builds the
 
 ```mermaid
 graph TD
-    START["User opens app"] --> P["Wearable Permissions"] --> TG["Telegram Link"]
-    TG --> INT["AI Interview<br/>(SOUL_ONBOARDING)"]
+    START["User opens app"] --> P["Wearable Permissions"] --> CH["Messaging Channel Link"]
+    CH["Channel Link"] --> INT["AI Interview<br/>(SOUL_ONBOARDING)"]
     INT --> Q1["Goals?"]
     Q1 -->|"Better sleep"| SQ["Sleep follow-ups:<br/>Bedtime? Screens? Medications?"]
     Q1 -->|"Reduce stress"| STQ["Stress follow-ups:<br/>Triggers? Meeting load? Recovery?"]
@@ -141,6 +141,44 @@ Range: 0-100 → Zone: Peak (80+) | Moderate (50-79) | Low (<50)
 ```
 
 Each component outputs 0-100 using **personal baselines, not population norms.**
+
+## Adapter Architecture (Plug & Play)
+
+All external boundaries use adapter interfaces — swap any component without rewriting agent logic:
+
+| Adapter | MVP Implementation | Future Implementations |
+|---------|-------------------|----------------------|
+| `ChannelAdapter` | Telegram (grammY) | WhatsApp, Discord, Slack, In-App, Push |
+| `LLMProvider` | Claude Haiku (@anthropic-ai/sdk) | DeepSeek, GPT-4o mini, Qwen, Gemini |
+| `HealthDataSource` | HealthKit (Swift), Health Connect (Kotlin) | Samsung Sensor SDK, Garmin, Cloud APIs |
+| `StorageAdapter` | op-sqlite + SQLCipher | Future: cloud sync, cross-device |
+
+```mermaid
+graph LR
+    AGENT["Agent Logic<br/>(never references<br/>specific provider)"] --> CA["ChannelAdapter"]
+    AGENT --> LLM["LLMProvider"]
+    AGENT --> HD["HealthDataSource"]
+    AGENT --> SA["StorageAdapter"]
+
+    CA --> TG["Telegram"]
+    CA --> WA["WhatsApp"]
+    CA --> DC["Discord"]
+    CA --> SL["Slack"]
+
+    LLM --> HAIKU["Claude Haiku"]
+    LLM --> DS["DeepSeek"]
+    LLM --> GPT["GPT-4o mini"]
+
+    HD --> HK["HealthKit"]
+    HD --> HC["Health Connect"]
+    HD --> CLOUD["Cloud APIs"]
+
+    style AGENT fill:#fce7f3,stroke:#ec4899
+    style CA fill:#e0f2fe,stroke:#0ea5e9
+    style LLM fill:#fef3c7,stroke:#f59e0b
+    style HD fill:#dcfce7,stroke:#22c55e
+    style SA fill:#f3e8ff,stroke:#8b5cf6
+```
 
 ## Cost Model
 

@@ -2,6 +2,7 @@
   - [Overview](README.md)
   - [Vision & Why](north-star.md)
   - [One-Pager & Market](one-pager.md)
+  - [Competitive Landscape](competitive-landscape.md)
 
 - **Architecture**
   - [Master Build Reference](master-reference.md)

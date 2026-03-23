@@ -1,251 +1,158 @@
-# MVP Scope — What We Ship
+# OneSync MVP — Definitive Scope
 
-## The Core Loop (What Users Experience)
+**Version:** 1.0
+**Date:** March 15, 2026
+**Status:** The single source of truth for what we're building. This overrides any conflicting scope in other documents.
 
-```mermaid
-sequenceDiagram
-    participant W as Wearable
-    participant P as Phone App
-    participant S as Supabase
-    participant A as Claude Haiku
-    participant T as Telegram
-    participant U as User
+> If you're about to build something and it's not in the IN SCOPE list below, stop and add it to the backlog.
 
-    Note over W,U: Every 15 minutes (background)
-    W->>P: Health data sync
-    P->>P: Compute CRS on-phone
-    P->>S: Sync health_snapshot
+---
 
-    Note over S,A: pg_cron trigger (every 15 min)
-    S->>S: Rules pre-filter
-    alt CRS normal, no stress
-        S->>S: Skip Claude ($0)
-    else Stress detected OR morning brief
-        S->>A: Invoke agent (50s timeout)
-        A->>A: Tool calls (max 3 iterations)
-        A->>T: Send personalized message
-    end
+## The One-Sentence Product
 
-    T->>U: "Your HRV dropped 22%...<br/>[Helpful] [Not helpful]"
-    U->>T: Taps feedback button
-    T->>S: Store feedback
-    S->>S: Update thresholds over time
-```
+An AI agent on your phone that reads your body signals from your wearable and messages you when you're stressed — via your preferred channel, tired, or about to make a bad decision — before you realize it yourself.
 
-## What the MVP Delivers
+---
 
-### Hero Feature: Morning Cognitive Brief
-
-Every morning at your wake time:
+## The Core Loop We're Proving
 
 ```
-You slept 6.8h (good!) but your HRV is still recovering.
-CRS at 58 — protect your 10-11am slot for deep focus.
-→ Move anything optional to after lunch.
-
-[Got it] [More details] [Mute today]
+WEARABLE → HEALTH CONNECT → ON-PHONE CRS → STRESS DETECTION
+                                                    ↓
+              CHANNEL ADAPTER ← CLAUDE AGENT ← TRIGGER CHECK (Supabase)
+                  ↓
+         USER REPLY → FEEDBACK → AGENT LEARNS
 ```
 
-### Proactive Stress Alerts
+This loop is the MVP. Everything else is Phase 2+.
 
-When your body signals stress (gated on Phase G validation):
+---
 
-```
-Your HRV dropped 22% in the last 30 minutes.
-This usually happens during back-to-back meetings.
-→ Take 3 slow breaths. 4 seconds in, 7 seconds out.
+## Target User (MVP)
 
-[Helpful] [Not helpful] [Too frequent]
-```
+- Android phone (Samsung or Pixel preferred)
+- Samsung Galaxy Watch 5/6/7 **or** Google Pixel Watch 2/3 **or** any watch that writes to Health Connect
+- Knowledge worker / student experiencing burnout or high stress
+- Willing to use Telegram (or another messaging app) for their AI agent
 
-### Conversational Health Chat
+---
 
-Message the Telegram bot anytime:
+## IN SCOPE — 8 Weeks
 
-```
-You: "Why am I so tired today?"
+### App (React Native / Expo)
+- [ ] Health Connect integration (HR, HRV, sleep, steps, SpO2)
+- [ ] Background sync every 15 minutes (WorkManager)
+- [ ] On-phone CRS computation (offline-capable)
+- [ ] Weighted stress confidence scoring
+- [ ] CRS gauge dashboard
+- [ ] Sleep summary card
+- [ ] Basic metric cards (HR, HRV, Steps)
+- [ ] Messaging channel linking (6-digit code, Telegram first)
+- [ ] Simple 3-step onboarding: Connect wearable → Grant permissions → Link messaging channel
+- [ ] Settings (profile, notification preferences)
 
-OneSync: "You got 5.2h of sleep last night — that's 1.8h
-below your baseline. Plus your HRV hasn't recovered from
-yesterday's stress spike at 3pm. The combination puts your
-CRS at 41 (low zone). One thing that usually helps you:
-an afternoon walk around 2-3pm. Want me to remind you?"
-```
+### Agent (Supabase + Claude)
+- [ ] Claude Haiku as single model (no routing for MVP)
+- [ ] 8 core tools: `get_crs`, `get_sleep`, `get_stress_events`, `get_activity`, `send_message`, `read_memory`, `update_memory`, `get_user_profile`
+- [ ] SOUL.md (personality) + BODY.md (today's vitals) context — both cached
+- [ ] Morning brief (daily, 7am local time)
+- [ ] Proactive stress alert (when confidence ≥ 0.60)
+- [ ] Conversational replies (user can message the bot anytime)
+- [ ] 7-day learning messages ("Here's what I'm learning about you…")
 
-## Phase-by-Phase Deliverables
+### Backend (Supabase)
+- [ ] Core schema: users, health_snapshots, stress_events, conversation_history, core_memory, feedback_events
+- [ ] pg_cron: morning brief + trigger check every 15 min
+- [ ] pgmq: message queue for delivery
+- [ ] Edge Functions: channel-webhook, check-triggers, message-sender, morning-brief
+- [ ] Messaging adapter (grammY for Telegram — first channel adapter)
 
-### Phase A: Pre-Code Setup
-- Telegram bot via @BotFather
-- Supabase project (pg_cron + pgmq enabled)
-- Tech spike: op-sqlite + SQLCipher on both platforms
-- Wizard of Oz: 5-7 users, 5-7 days of manual CRS via Telegram
-- **Gate:** Morning briefs feel useful to 3+ users
+### Data & Privacy
+- [ ] Health data encrypted at rest (SQLCipher local, Supabase RLS)
+- [ ] Clear "not a medical device" disclaimer in onboarding
+- [ ] Basic data export (CSV)
 
-### Phase B1: HealthKit Connector (iOS)
+---
 
-```mermaid
-graph LR
-    AW["Apple Watch"] -->|Observer Query| HK["HealthKit"]
-    HK -->|Beat-to-beat IBI| RMSSD["True RMSSD<br/>(HRV gold standard)"]
-    HK -->|4-stage sleep| SLEEP["Wake/Light/Deep/REM"]
-    HK -->|HR samples| HR["Heart Rate BPM"]
-    HK -->|Step count| STEPS["Steps + Distance"]
-    RMSSD --> SQL["op-sqlite<br/>+ SQLCipher"]
-    SLEEP --> SQL
-    HR --> SQL
-    STEPS --> SQL
+## OUT OF SCOPE — MVP
 
-    style AW fill:#e0e7ff,stroke:#6366f1
-    style SQL fill:#dcfce7,stroke:#22c55e
-```
+| Feature | When |
+|---------|------|
+| WhatsApp integration | Phase 2 (Week 9+) |
+| Samsung Health Sensor SDK (raw IBI) | Phase 2 — use Health Connect HRV for MVP |
+| Garmin Connect IQ companion | Phase 2 |
+| Google Calendar / Gmail integration | Phase 2 |
+| In-app chat | Phase 2 — Channel adapter supports Telegram for MVP; in-app chat is a second adapter |
+| Push notifications (FCM) | Phase 2 — Channel adapter handles delivery for MVP |
+| Voice (Whisper STT/TTS) | Phase 3 |
+| Multi-model AI routing | Phase 2 |
+| iOS support | Phase 3 |
+| Custom hardware (OneBand) | Phase 4 |
+| Team / multi-user dashboard | Phase 4 |
+| Weekly summary report | Phase 2 |
+| CSV export in-app | Phase 2 |
+| History screen | Phase 2 |
+| Gamification / streaks | Phase 2 |
+| AI interview onboarding | Phase 2 (manual profile setup for beta) |
 
-- **Gate:** CRS updates every 15 min with real Apple Watch data
+---
 
-### Phase B2: Health Connect Connector (Android)
+## MVP Success Criteria
 
-```mermaid
-graph LR
-    GW["Android Watch"] -->|Health Connect API| HC["Health Connect"]
-    HC -->|HR only for Samsung| SAM["Samsung HR Proxy<br/>(NO HRV available)"]
-    HC -->|Full data for Pixel/Fitbit| FULL["HR + HRV + Sleep + Steps"]
-    SAM --> SQL["op-sqlite<br/>+ SQLCipher"]
-    FULL --> SQL
-    WM["WorkManager<br/>(15-min sync)"] -->|Background| HC
+**Technical (must work before beta):**
+- Background sync works on Samsung Galaxy Watch + Pixel Watch (15-min intervals, survives phone restart)
+- CRS updates within 1 minute of new health data arriving
+- Stress detection false positive rate < 20% (self-tested over 2 weeks)
+- Proactive messages delivered within 2–5 minutes of detection
+- Agent conversation feels natural and context-aware (not robotic)
+- Morning brief includes last night's sleep + today's CRS + 1 actionable insight
+- App works offline (CRS computes without internet)
+- Onboarding completes in < 5 minutes
 
-    style GW fill:#e0e7ff,stroke:#6366f1
-    style SAM fill:#fef3c7,stroke:#f59e0b
-    style SQL fill:#dcfce7,stroke:#22c55e
-```
+**User (must see before calling MVP "done"):**
+- You (founder) use it daily for 2 weeks straight
+- At least 3 beta users from IIT network complete onboarding and use it for 7 days
+- At least 1 user says "this message was actually useful" about a proactive alert
+- 7-day retention ≥ 40% (3 out of first 5 beta users still active after 7 days)
 
-- **Samsung HRV gap:** Samsung does NOT write HRV to Health Connect. Use HR BPM proxy.
-- **Gate:** CRS updates from Health Connect; Samsung users get degraded CRS
+---
 
-### Phase C: Dashboard
-- CRS gauge (270-degree SVG arc)
-- Sleep card, metric cards, 7-day trend
-- **Gate:** Real health data displays with auto-updating CRS
+## Definition of "MVP Done"
 
-### Phase D: Agent Core + Messaging
+> 5 people (including you) are using OneSync daily. The agent is sending at least 1 useful proactive message per person per day. Users are replying to the agent. CRS is updating every 15 minutes. No critical bugs in a 7-day window.
 
-```mermaid
-graph TB
-    subgraph PromptBuilder["Prompt Builder (25 Fields)"]
-        SOUL["Soul Base + Zone + Mode"] --> SYS["System Message<br/>(cached, stable)"]
-        TOOLS["Tool Definitions<br/>(3-8 dynamic)"] --> SYS
-        MEM["Core Memory Excerpt"] --> SYS
-        BIO["Biometric Snapshot"] --> USR["User Message<br/>(fresh, dynamic)"]
-        CTX["Trigger Context"] --> USR
-        LAST["Last Interaction"] --> USR
-    end
+---
 
-    subgraph Hooks["Hook Pipeline"]
-        PRE["Pre-Reasoning<br/>Emergency | Gates | Inject | Compact | Rate"] --> LOOP
-        LOOP["Agent Loop<br/>(3 iter, 50s)"] --> POST["Post-Reasoning<br/>Language | Confidence | Guard | Memory | Analytics"]
-    end
+## What This MVP Proves
 
-    SYS --> PRE
-    USR --> PRE
-    POST --> DELIVER["Deliver via Telegram"]
+1. Health Connect gives enough signal for meaningful CRS computation
+2. Stress detection via HRV + HR is useful (even without raw IBI)
+3. Proactive messaging creates genuine engagement
+4. The morning brief becomes a daily habit
+5. Claude agent personality + health context = valuable, non-generic advice
 
-    style PromptBuilder fill:#eef2ff,stroke:#6366f1
-    style Hooks fill:#fef3c7,stroke:#f59e0b
-```
+---
 
-- **Gate:** Message bot, get personalized health-aware response
+## Timeline
 
-### Phase E: Proactive Delivery
-- Morning brief at wake time
-- Stress alerts (rules pre-filter → Claude → Telegram)
-- 2h cooldown, max 3 proactive/day
-- **Gate:** Wake up to morning brief; agent alerts on stress
+| Week | Focus | Key Deliverable |
+|------|-------|----------------|
+| 0 | Pre-coding | Samsung SDK dev mode, Telegram bot, Supabase setup, Health Connect test |
+| 1 | Foundation | Expo + Kotlin modules, Health Connect reads, basic Supabase sync |
+| 2 | CRS Engine | On-phone CRS, stress detection, SQLite sync, WorkManager |
+| 3 | Dashboard | CRS gauge, metric cards, sleep card (NativeWind) |
+| 4 | Agent Core | Claude Haiku agent, SOUL + BODY context, 8 tools, Telegram webhook |
+| 5 | Proactive | Morning brief (pg_cron), stress trigger, message delivery |
+| 6 | Onboarding | 3-step flow, linking codes, permission UX, 7-day learning messages |
+| 7 | Self-Test | 2 weeks of daily use by founder, false positive tuning |
+| 8 | Beta | 3–5 beta testers, iterate on agent quality |
 
-### Phase F: Onboarding + AI Interview
+---
 
-```mermaid
-graph LR
-    S1["Step 1<br/>Wearable<br/>Permissions"] --> S2["Step 2<br/>Telegram<br/>Link"]
-    S2 --> S3["Step 3<br/>AI Interview<br/>(3-5 min)"]
-    S3 --> PROFILE["core_memory<br/>populated"]
-    PROFILE --> AGENT["Agent ready<br/>Day 1"]
+## Key Constraints
 
-    S3 -.->|"Day 3"| W2["Sleep<br/>Deep-Dive"]
-    S3 -.->|"Day 7"| W3["Stress<br/>Calibration"]
-    S3 -.->|"Day 14"| W4["Relationship<br/>Check-In"]
-
-    style S3 fill:#e0e7ff,stroke:#6366f1
-    style PROFILE fill:#dcfce7,stroke:#22c55e
-    style W2 fill:#f1f5f9,stroke:#94a3b8
-    style W3 fill:#f1f5f9,stroke:#94a3b8
-    style W4 fill:#f1f5f9,stroke:#94a3b8
-```
-
-- Step 1: Wearable permissions (HealthKit / Health Connect)
-- Step 2: Telegram bot link (6-digit code)
-- Step 3: **AI-powered onboarding interview** — dynamic questions that adapt based on answers. Learns goals, chronotype, medications, communication style, stress triggers. Writes directly to `core_memory`. Also implicitly calibrates agent personality from HOW the user answers.
-- Progressive profiling: follow-up interviews at Day 3 (sleep), Day 7 (stress), Day 14 (check-in) — each using real wearable data as context.
-- **Gate:** Non-technical person completes onboarding in < 5 min. Agent has a useful profile from Day 1.
-
-### Phase G: Self-Test (14 Days)
-- Daily founder use with logging
-- Tune false positive thresholds
-- A/B test soul file variants
-- **Gate:** 14 days daily use, false positive < 20%
-
-### Phase H: Beta (5-7 Users, 7 Days)
-- **Gate:** Product works for external users
-
-## The Personality Spectrum
-
-The agent adapts its voice to your CRS, not just the trigger type:
-
-```mermaid
-graph LR
-    CRS["Current CRS"] --> ZONE{Zone?}
-    ZONE -->|"80+"| E["ENERGIZED<br/>Coach pushing athlete<br/>'Peak zone. Deep work window.'"]
-    ZONE -->|"60-79"| S["STEADY<br/>Trusted friend<br/>'Solid night. You've got runway.'"]
-    ZONE -->|"40-59"| F["FLAGGING<br/>Wise advisor<br/>'Protect your energy today.'"]
-    ZONE -->|"<40"| D["DEPLETED<br/>Caretaker<br/>'Water. Take it slow.'"]
-    ZONE -->|"No data"| C["CRISIS<br/>Honest friend<br/>'How are you feeling?'"]
-
-    style E fill:#dcfce7,stroke:#22c55e
-    style S fill:#e0f2fe,stroke:#0ea5e9
-    style F fill:#fef3c7,stroke:#f59e0b
-    style D fill:#fce7f3,stroke:#ec4899
-    style C fill:#f1f5f9,stroke:#94a3b8
-```
-
-## Quality Gates — No Message Without Passing
-
-```mermaid
-graph TD
-    MSG["Message Ready"] --> G1{"Gate 1<br/>Data Sufficient?"}
-    G1 -->|No| SKIP1["Skip or degrade"]
-    G1 -->|Yes| G3{"Gate 3<br/>Timing OK?"}
-    G3 -->|No| QUEUE["Queue for later"]
-    G3 -->|Yes| G4{"Gate 4<br/>Not fatiguing?"}
-    G4 -->|No| REDUCE["Reduce frequency"]
-    G4 -->|Yes| CLAUDE["Send to Claude"]
-    CLAUDE --> G2{"Gate 2<br/>Health language safe?"}
-    G2 -->|No| RETRY["Regenerate (max 2)"]
-    RETRY --> G2
-    G2 -->|Yes| G5{"Gate 5<br/>Confident enough?"}
-    G5 -->|No| OMIT["Omit uncertain claim"]
-    G5 -->|Yes| SEND["SEND via Telegram"]
-
-    style SEND fill:#dcfce7,stroke:#22c55e
-    style SKIP1 fill:#fef2f2,stroke:#ef4444
-    style QUEUE fill:#fef3c7,stroke:#f59e0b
-```
-
-## What's NOT in MVP (Deliberately)
-
-| Feature | Why Not | When |
-|---------|---------|------|
-| WhatsApp | Telegram first, prove the model | Phase 2 |
-| Calendar integration | Body signals first, workspace second | Phase 2 |
-| Multi-model routing | Haiku-only keeps it simple and cheap | Phase 2 |
-| Knowledge graph | Core memory is sufficient for MVP | Phase 2 |
-| Predictive intelligence | Need reactive to work first | Phase 2 |
-| Samsung Sensor SDK | HC proxy is good enough until CRS quality is the bottleneck | Post-MVP |
-| Population learning | Need individual learning to work first | Phase 3+ |
-| Autonomous actions | Need trust established first | Phase 3+ |
+- **Solo developer**: do not add any feature that takes >2 days unless it's on the IN SCOPE list
+- **Health Connect only** for wearable data in MVP (no Samsung Sensor SDK on critical path)
+- **Claude Haiku only** for all AI calls in MVP (add routing in Phase 2)
+- **Telegram is the first channel adapter for MVP** (architecture supports adding WhatsApp, Discord, Slack later without rewriting agent logic)
+- **Android only** for MVP (iOS Phase 3)
