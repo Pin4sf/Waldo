@@ -10,7 +10,7 @@ A personal cognitive agent that reads your body, manages your tasks, and orchest
 
 **Task Intelligence** — Calendar, email, Slack, tasks — all CRS-aware
 
-**Ecosystem Play** — Biology layer that powers other agents via adapter architecture
+**Autonomous Personal OS** — Learns skills from you, delegates to specialists, powers other agents with your biology
 
 Architecture distilled from **13+ production-grade agent systems**
 
