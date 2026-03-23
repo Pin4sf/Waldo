@@ -10,7 +10,7 @@ OneSync is a **personal cognitive operating system** — an AI agent that reads 
 
 | Pillar | Phase | What It Does |
 |--------|-------|-------------|
-| **Body Intelligence** | MVP | Reads HRV, HR, sleep, activity from any wearable. Computes CRS. Detects stress. Proactively messages you via Telegram before you crash. |
+| **Body Intelligence** | MVP | Reads HRV, HR, sleep, activity from any wearable. Computes CRS. Detects stress. Proactively messages you — via your preferred channel — before you crash. |
 | **Task Intelligence** | Phase 2 | Connects to calendar, email, Slack, task manager. Prioritizes work based on your cognitive state. Reschedules, blocks time, manages your day. |
 | **Autonomous Personal OS** | Phase 3+ | Learns new skills from you. Delegates to specialist sub-agents. Executes arbitrary tasks via code capsules. Connects to any service via MCP. Powers other agents (Cursor, Lindy, Claude Code) with your biological state. |
 
@@ -20,7 +20,7 @@ graph LR
     P -->|Encrypted local DB| CRS["CRS Engine<br/>(On-Phone, Offline)"]
     CRS -->|Score + Trigger| S["Supabase<br/>(Edge Functions)"]
     S -->|Rules Pre-Filter| AI["Claude Haiku 4.5<br/>(tool_use)"]
-    AI -->|Personalized Message| T["Telegram Bot<br/>(grammY)"]
+    AI -->|Personalized Message| T["Channel Adapter<br/>(Telegram, WhatsApp,<br/>Discord, Slack)"]
     T -->|Feedback| AI
 
     style W fill:#e0e7ff,stroke:#6366f1
@@ -34,7 +34,7 @@ graph LR
 ```mermaid
 graph LR
     MVP["Phase 1: MVP<br/>Health Agent"]:::g --> P2["Phase 2<br/>Cognitive Co-Pilot"]:::b --> P3["Phase 3+<br/>Autonomous Personal OS"]:::p
-    MVP --- D1["8 tools, Telegram<br/>CRS + stress alerts<br/>Morning briefs<br/>Reactive intelligence"]
+    MVP --- D1["8 tools, Channel Adapter<br/>CRS + stress alerts<br/>Morning briefs<br/>Reactive intelligence"]
     P2 --- D2["20+ tools<br/>Calendar + Email + Slack<br/>Task prioritization<br/>Predictive CRS"]
     P3 --- D3["50+ tools, any MCP server<br/>Skill learning from user<br/>Code execution capsules<br/>Cross-agent orchestration<br/>Powers Cursor/Lindy/Claude Code"]
     classDef g fill:#dcfce7,stroke:#22c55e,stroke-width:2px
@@ -42,7 +42,7 @@ graph LR
     classDef p fill:#f3e8ff,stroke:#8b5cf6,stroke-width:2px
 ```
 
-**The endgame:** OneSync becomes the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with Lindy, Manus, or Claude Code — **powering them** with the one signal they don't have: your cognitive state.
+**The endgame:** OneSync becomes the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with WHOOP, Oura, Lindy, or Claude Code — **complementing and powering them** with the one signal they don't have: your cognitive state. These players are potential ecosystem partners, not just competitors.
 
 ## The Empty Quadrant
 
@@ -50,7 +50,7 @@ No competitor combines all of these:
 
 | | Body Awareness | Proactive Messaging | External Channel | Multi-Device | Cross-Platform | Price |
 |---|:---:|:---:|:---:|:---:|:---:|---|
-| **OneSync** | Deep (HRV, CRS) | Telegram | Yes | Any HC/HK | Android + iOS | Free / $4.34/mo |
+| **OneSync** | Deep (HRV, CRS) | Any channel (adapter) | Yes | Any HC/HK | Android + iOS | Free / $4.34/mo |
 | WHOOP Coach | Deep | In-app only | No | WHOOP only | Both | $17-30/mo |
 | Oura Advisor | Deep | No | No | Oura only | Both | $6/mo |
 | Nori (YC) | Aggregated | Limited | No | Multi | iOS only | TBD |
@@ -77,8 +77,8 @@ graph TB
         EF --> CL["Claude Haiku 4.5<br/>@anthropic-ai/sdk"]
     end
 
-    subgraph Messaging["Messaging"]
-        CL --> TG["Telegram Bot<br/>(grammY)"]
+    subgraph Messaging["Channel Adapter (Plug & Play)"]
+        CL --> TG["Telegram / WhatsApp /<br/>Discord / Slack / In-App"]
     end
 
     DB --> PG
@@ -106,7 +106,7 @@ gantt
     Phase C - Dashboard                :c, 3, 4
 
     section Agent Layer
-    Phase D - Agent Core + Telegram    :d, 4, 5
+    Phase D - Agent Core + Messaging    :d, 4, 5
     Phase E - Proactive Delivery       :e, 5, 6
 
     section Polish + Validate

@@ -40,7 +40,7 @@ graph TB
     end
 
     subgraph Output["Output"]
-        TG["Telegram"]
+        TG["Channel Adapter<br/>(Telegram / WhatsApp /<br/>Discord / Slack)"]
         DASH["Dashboard"]
     end
 
@@ -81,8 +81,8 @@ sequenceDiagram
     U->>APP: Opens app for first time
     APP->>U: Request wearable permissions
     U->>APP: Grants HealthKit / Health Connect
-    APP->>U: Link Telegram (6-digit code)
-    U->>APP: Telegram connected
+    APP->>U: Link messaging channel (6-digit code)
+    U->>APP: Channel connected
 
     APP->>AI: Start AI interview
     AI->>U: "What's your #1 health goal?"
@@ -164,7 +164,7 @@ sequenceDiagram
     participant C as Claude Haiku
     participant TO as Tools
     participant H2 as Post-Hooks
-    participant TG as Telegram
+    participant TG as Channel Adapter
 
     T->>PF: check-triggers fires
     PF->>PF: CRS > 60 AND conf < 0.3?

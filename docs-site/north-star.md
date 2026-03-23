@@ -48,7 +48,7 @@ It reads you continuously through wearables you already own. It computes a Cogni
 
 And then it acts. Proactively. Before you've noticed anything is wrong.
 
-A morning brief that tells you how your body prepared for today. A stress intervention that reaches you on Telegram the moment your HRV drops — before the anxiety even registers consciously. A pattern discovery that surfaces after weeks: "Your HRV drops 25% every Monday afternoon after your third consecutive meeting."
+A morning brief that tells you how your body prepared for today. A stress intervention that reaches you proactively, via your preferred channel, the moment your HRV drops — before the anxiety even registers consciously. A pattern discovery that surfaces after weeks: "Your HRV drops 25% every Monday afternoon after your third consecutive meeting."
 
 **This is the first layer: biology.**
 
@@ -72,7 +72,7 @@ Every AI agent competes for the same surface data: tasks, schedules, emails, pre
 
 **2. Proactive is the only retention mechanism.**
 
-Health apps have a 3-12% 30-day retention rate (Business of Apps 2026, UXCam 2025 — Headspace: 7.65%, Calm: 8.34%, median ~6%). 88-97% of users disappear within a month. The reason: dashboards are passive. You have to go to them. OneSync comes to you. A proactive morning brief on Telegram is fundamentally different from a score sitting in an app. Academic evidence supports this: tailored push notifications increase engagement by 4-12 percentage points vs passive (Klasnja et al. 2018, JMIR mHealth). Noom proves that proactive coaching reaches 40%+ Day 30 retention. The agent is the retention mechanism. The app is just the cockpit.
+Health apps have a 3-12% 30-day retention rate (Business of Apps 2026, UXCam 2025 — Headspace: 7.65%, Calm: 8.34%, median ~6%). 88-97% of users disappear within a month. The reason: dashboards are passive. You have to go to them. OneSync comes to you. A proactive morning brief delivered directly to you is fundamentally different from a score sitting in an app. Academic evidence supports this: tailored push notifications increase engagement by 4-12 percentage points vs passive (Klasnja et al. 2018, JMIR mHealth). Noom proves that proactive coaching reaches 40%+ Day 30 retention. The agent is the retention mechanism. The app is just the cockpit.
 
 **3. The agent economy needs a biological layer.**
 
@@ -97,6 +97,8 @@ The agent companies — Lindy, OpenClaw, Manus — have beautiful agent architec
 The health AI startups — Nori, Galen, Prana — are building coaches, not agents. Coaching is reactive: you ask, they answer. Agency is proactive: the AI acts before you ask. That's the difference between a doctor's visit and a guardian angel. Nori is the closest — daily plans, multi-wearable aggregation — but they're iOS-only, have no real-time alerts, and their users report data accuracy problems. Strong founders (2x YC, Spotify/Altium exits), but the product gap is real.
 
 Nobody has put biology + agency + context + device-agnosticism + external messaging + cross-platform together. Not because it's impossible. Because it requires thinking about the problem from the body outward, not from the calendar inward. That's our starting point. That's our edge.
+
+> **Ecosystem lens:** These players are also potential partners. WHOOP's wearable data could flow into OneSync's agent. Oura's ring data could enhance our CRS. Lindy's task automation could be powered by our biology layer. We're building the biological intelligence layer — others can plug into it.
 
 ---
 

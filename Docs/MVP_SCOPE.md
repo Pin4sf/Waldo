@@ -10,7 +10,7 @@
 
 ## The One-Sentence Product
 
-An AI agent on your phone that reads your body signals from your wearable and messages you on Telegram when you're stressed, tired, or about to make a bad decision — before you realize it yourself.
+An AI agent on your phone that reads your body signals from your wearable and messages you when you're stressed — via your preferred channel, tired, or about to make a bad decision — before you realize it yourself.
 
 ---
 
@@ -19,7 +19,7 @@ An AI agent on your phone that reads your body signals from your wearable and me
 ```
 WEARABLE → HEALTH CONNECT → ON-PHONE CRS → STRESS DETECTION
                                                     ↓
-              TELEGRAM ← CLAUDE AGENT ← TRIGGER CHECK (Supabase)
+              CHANNEL ADAPTER ← CLAUDE AGENT ← TRIGGER CHECK (Supabase)
                   ↓
          USER REPLY → FEEDBACK → AGENT LEARNS
 ```
@@ -33,7 +33,7 @@ This loop is the MVP. Everything else is Phase 2+.
 - Android phone (Samsung or Pixel preferred)
 - Samsung Galaxy Watch 5/6/7 **or** Google Pixel Watch 2/3 **or** any watch that writes to Health Connect
 - Knowledge worker / student experiencing burnout or high stress
-- Willing to use Telegram for their AI health agent
+- Willing to use Telegram (or another messaging app) for their AI agent
 
 ---
 
@@ -47,8 +47,8 @@ This loop is the MVP. Everything else is Phase 2+.
 - [ ] CRS gauge dashboard
 - [ ] Sleep summary card
 - [ ] Basic metric cards (HR, HRV, Steps)
-- [ ] Telegram channel linking (6-digit code)
-- [ ] Simple 3-step onboarding: Connect wearable → Grant permissions → Link Telegram
+- [ ] Messaging channel linking (6-digit code, Telegram first)
+- [ ] Simple 3-step onboarding: Connect wearable → Grant permissions → Link messaging channel
 - [ ] Settings (profile, notification preferences)
 
 ### Agent (Supabase + Claude)
@@ -64,8 +64,8 @@ This loop is the MVP. Everything else is Phase 2+.
 - [ ] Core schema: users, health_snapshots, stress_events, conversation_history, core_memory, feedback_events
 - [ ] pg_cron: morning brief + trigger check every 15 min
 - [ ] pgmq: message queue for delivery
-- [ ] Edge Functions: telegram-webhook, check-triggers, message-sender, morning-brief
-- [ ] Telegram bot (grammY)
+- [ ] Edge Functions: channel-webhook, check-triggers, message-sender, morning-brief
+- [ ] Messaging adapter (grammY for Telegram — first channel adapter)
 
 ### Data & Privacy
 - [ ] Health data encrypted at rest (SQLCipher local, Supabase RLS)
@@ -82,8 +82,8 @@ This loop is the MVP. Everything else is Phase 2+.
 | Samsung Health Sensor SDK (raw IBI) | Phase 2 — use Health Connect HRV for MVP |
 | Garmin Connect IQ companion | Phase 2 |
 | Google Calendar / Gmail integration | Phase 2 |
-| In-app chat | Phase 2 |
-| Push notifications (FCM) | Phase 2 |
+| In-app chat | Phase 2 — Channel adapter supports Telegram for MVP; in-app chat is a second adapter |
+| Push notifications (FCM) | Phase 2 — Channel adapter handles delivery for MVP |
 | Voice (Whisper STT/TTS) | Phase 3 |
 | Multi-model AI routing | Phase 2 |
 | iOS support | Phase 3 |
@@ -104,7 +104,7 @@ This loop is the MVP. Everything else is Phase 2+.
 - CRS updates within 1 minute of new health data arriving
 - Stress detection false positive rate < 20% (self-tested over 2 weeks)
 - Proactive messages delivered within 2–5 minutes of detection
-- Telegram conversation feels natural and context-aware (not robotic)
+- Agent conversation feels natural and context-aware (not robotic)
 - Morning brief includes last night's sleep + today's CRS + 1 actionable insight
 - App works offline (CRS computes without internet)
 - Onboarding completes in < 5 minutes
@@ -127,7 +127,7 @@ This loop is the MVP. Everything else is Phase 2+.
 
 1. Health Connect gives enough signal for meaningful CRS computation
 2. Stress detection via HRV + HR is useful (even without raw IBI)
-3. Proactive Telegram messages create genuine engagement
+3. Proactive messaging creates genuine engagement
 4. The morning brief becomes a daily habit
 5. Claude agent personality + health context = valuable, non-generic advice
 
@@ -154,5 +154,5 @@ This loop is the MVP. Everything else is Phase 2+.
 - **Solo developer**: do not add any feature that takes >2 days unless it's on the IN SCOPE list
 - **Health Connect only** for wearable data in MVP (no Samsung Sensor SDK on critical path)
 - **Claude Haiku only** for all AI calls in MVP (add routing in Phase 2)
-- **Telegram only** for messaging in MVP (WhatsApp verification in parallel but not blocking)
+- **Telegram is the first channel adapter for MVP** (architecture supports adding WhatsApp, Discord, Slack later without rewriting agent logic)
 - **Android only** for MVP (iOS Phase 3)

@@ -35,6 +35,13 @@
 - Never commit .env, API keys, health data samples
 - Never use `--no-verify`
 
+## Adapter Pattern
+- All external integrations MUST go through adapter interfaces (ChannelAdapter, LLMProvider, HealthDataSource, StorageAdapter)
+- Agent logic, CRS computation, and delivery orchestration NEVER reference a specific provider directly
+- Each adapter defines a standard interface; implementations are swappable without changing calling code
+- MVP implementations: Telegram (channel), Claude Haiku (LLM), HealthKit/Health Connect (health), op-sqlite (storage)
+- When adding a new integration, implement the existing adapter interface — do not add provider-specific code to agent logic
+
 ## Testing
 - Test edge cases first: null HRV, empty sleep, zero steps, watch disconnect
 - Integration tests for health data pipeline (real data shapes, not mocks)

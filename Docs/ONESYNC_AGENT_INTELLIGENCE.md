@@ -15,7 +15,7 @@
 OneSync is **not just a health app**. It is a **personal cognitive operating system** with three pillars:
 
 ### Pillar 1: Body Intelligence (MVP)
-Reads HRV, HR, sleep, activity from any wearable. Computes CRS. Detects stress. Proactively messages you via Telegram before you crash. All health data encrypted, on-device computation, personal baselines.
+Reads HRV, HR, sleep, activity from any wearable. Computes CRS. Detects stress. Proactively messages you — via your preferred channel — before you crash. All health data encrypted, on-device computation, personal baselines.
 
 ### Pillar 2: Task Intelligence (Phase 2+)
 Connects to your calendar, email, Slack, task manager. Understands your workload. Prioritizes tasks based on your cognitive state. "Your CRS is 87 — tackle the P0 bug now, save admin for the afternoon dip." Reschedules, blocks time, manages your day.
@@ -99,7 +99,7 @@ Synthesized from all 12 repos into OneSync's serverless health agent:
 ┌──────────────────────────────────────────────────────────────┐
 │  AGENT LOOP (ReAct — max 3 iterations, 50s timeout)           │
 │                                                               │
-│  Claude Haiku 4.5 via Messages API + tool_use                 │
+│  LLM Provider [Claude Haiku 4.5] via Messages API + tool_use  │
 │  Model Router: Rules-skip → Haiku (MVP) → Sonnet (Phase 2)   │
 │  Provider Failover: Primary → Fallback → Template (PicoClaw)  │
 │  Loop Guard: SHA256 hash of (tool+params+result) — block at 3 │
@@ -480,7 +480,7 @@ PLAYBOOK:
     Include followup result if relevant ("yesterday's early bedtime worked — +12% efficiency")
 
   Phase 4 — Deliver + Log
-    Send via Telegram with feedback buttons
+    Send via channel adapter with feedback buttons
     Log: delivery time, CRS, zone, data confidence
     Update last_interaction
 ```
@@ -514,7 +514,7 @@ PLAYBOOK:
     Cognitive load awareness: CRS < 40 → max 2 lines, simpler language
 
   Phase 4 — Deliver + Track
-    Send via Telegram with [Helpful] [Not helpful] [Too frequent] buttons
+    Send via channel adapter with [Helpful] [Not helpful] [Too frequent] buttons
     Add to pending_followups (check CRS in 2h to see if it recovered)
     Log everything
 ```
@@ -680,6 +680,27 @@ interface ChannelAdapter {
 // Phase 3: InAppChatAdapter, VoiceAdapter
 ```
 
+```typescript
+// LLM Provider Adapter — abstracts AI model calls
+interface LLMProvider {
+  id: string;                    // 'anthropic', 'deepseek', 'openai', 'qwen'
+  createCompletion(params: {
+    model: string;
+    system: string;
+    messages: Message[];
+    tools?: Tool[];
+    max_tokens: number;
+  }): Promise<CompletionResult>;
+
+  estimateCost(inputTokens: number, outputTokens: number): number;
+  supportsToolUse: boolean;
+  supportsCaching: boolean;
+}
+
+// MVP: Single provider (Anthropic/Claude Haiku)
+// Phase 2: Multi-provider routing via LLMProvider adapter
+```
+
 ---
 
 ## 11. Skills System — Progressive Loading
@@ -819,7 +840,7 @@ No new infrastructure. It's the existing agent with:
 - Soul file: `SOUL_ONBOARDING`
 - Tools: `update_memory` (writes profile in real-time) + `get_user_profile` (reads what we know so far)
 - Mode: interview mode (one question at a time, waits, adapts)
-- Delivery: Telegram chat (MVP) or voice (Phase 2) or in-app form (Phase 2)
+- Delivery: Channel adapter [Telegram first] (MVP) or voice (Phase 2) or in-app form (Phase 2)
 
 ---
 
@@ -981,7 +1002,7 @@ Claude Code (dev agent)
 
 **Source:** Pi Mono dual-queue pattern
 
-In a Telegram context:
+In a messaging context:
 - **Steering:** User sends urgent message while agent is processing → interrupt, escalate immediately
   - Detection: "STOP", "help", "emergency", "chest pain", "actually I meant..."
 - **Follow-up:** User sends non-urgent message while agent is processing → queue for after current run

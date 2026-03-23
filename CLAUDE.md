@@ -20,7 +20,7 @@ Read these BEFORE doing anything:
 
 ## Tech Stack
 
-React Native + Expo SDK 53+ | Kotlin (Android) | Swift (iOS) | op-sqlite + SQLCipher | NativeWind v4 | Supabase (Postgres + Edge Functions + Auth + RLS) | Claude Haiku 4.5 via @anthropic-ai/sdk | grammY (Telegram, Deno) | pg_cron + pgmq
+React Native + Expo SDK 53+ | Kotlin (Android) | Swift (iOS) | op-sqlite + SQLCipher | NativeWind v4 | Supabase (Postgres + Edge Functions + Auth + RLS) | Claude Haiku 4.5 via @anthropic-ai/sdk | grammY (first channel adapter, Deno) | pg_cron + pgmq
 
 ## Commands
 
@@ -52,13 +52,13 @@ Detailed rules, review agents, and orchestration live in `.claude/` — loaded a
 
 ### Agents (Testing)
 - **`qa-breaker`** (sonnet) — Adversarial QA, defaults to NEEDS WORK, tries to break every feature
-- **`e2e-pipeline-tester`** (sonnet) — Full wearable → CRS → Claude → Telegram pipeline validation
+- **`e2e-pipeline-tester`** (sonnet) — Full wearable → CRS → Claude → Channel Adapter pipeline validation
 
 ## Build Phases
 
 Data connectors FIRST, agent SECOND. See Master Reference Section 2.3.
 
-A (pre-code + WoO) → B1 (HealthKit) → B2 (Health Connect) → C (Dashboard) → D (Agent + Telegram) → E (Proactive Delivery) → F (Onboarding) → G (Self-test) → H (Beta)
+A (pre-code + WoO) → B1 (HealthKit) → B2 (Health Connect) → C (Dashboard) → D (Agent + Messaging) → E (Proactive Delivery) → F (Onboarding) → G (Self-test) → H (Beta)
 
 ## Development Philosophy
 
@@ -77,6 +77,7 @@ A (pre-code + WoO) → B1 (HealthKit) → B2 (Health Connect) → C (Dashboard) 
 - Supabase free tier pauses after 7 days — set up keep-alive
 - Samsung does NOT write HRV to Health Connect — HR BPM proxy for Samsung users
 - CRS grounded in SAFTE-FAST (US Army validated).
+- Adapter pattern: All external integrations (messaging, AI model, health data, storage) go through adapter interfaces. Never hardcode provider-specific calls in agent logic.
 
 ## Learnings
 - Always update your learning, and whenever we try to solve or resolve anything, be a proactive learner. Keep a log of this in the memories, and keep a hard won lessons file also.

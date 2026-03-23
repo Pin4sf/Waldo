@@ -14,7 +14,7 @@ Y Combinator's 2026 RFS calls for "AI that can DO, not just assist." Nearly 50% 
 
 **An AI that reads your smartwatch and tells you each morning how to make the most of your day.**
 
-It briefs you on your cognitive readiness, learns what works for YOU, tracks your stress patterns over weeks, and gets smarter every day. It reaches you on Telegram — not buried in another health app.
+It briefs you on your cognitive readiness, learns what works for YOU, tracks your stress patterns over weeks, and gets smarter every day. It reaches you directly — via your preferred messaging channel — not buried in another health app.
 
 **Not a health tracker. Not a dashboard. A morning cognitive brief that becomes your biological edge.**
 
@@ -77,7 +77,7 @@ BIOLOGICAL INTELLIGENCE          LIFE CONTEXT
 | **Recovery nudge** | Sleep debt accumulated 4+ hours | Light calendar tomorrow | "Tomorrow's schedule is open — your body needs recovery. Protect that space." |
 | **Communication timing** | Currently at circadian peak, CRS 82 | Draft email to investor sitting in outbox | "You're at peak cognitive readiness. Good time to send that investor email." |
 
-**MVP:** Cross-platform biology layer (HealthKit + Health Connect + CRS + Telegram). HealthKit built first (best data — beat-to-beat IBI, true RMSSD). Morning cognitive brief + calendar-aware scheduling. Proves the proactive messaging loop creates engagement.
+**MVP:** Cross-platform biology layer (HealthKit + Health Connect + CRS + Channel Adapter). HealthKit built first (best data — beat-to-beat IBI, true RMSSD). Morning cognitive brief + calendar-aware scheduling. Proves the proactive messaging loop creates engagement.
 
 **Phase 2 — the real product:** Add workspace connectors + conversational skill creation. The user teaches the agent what to automate through natural conversation. Agent learns from behavior, proposes new skills, and executes across calendar/email/Slack/Notion/task managers. Samsung Sensor SDK for true HRV from Galaxy Watch.
 
@@ -118,14 +118,14 @@ Based on Claude Haiku 4.5 ($1/$5 per MTok) with prompt caching (1-hour TTL) and 
 
 ## Tech
 
-React Native + Expo | Kotlin + Swift native modules | Supabase | Claude Haiku 4.5 | Health Connect (Android) + HealthKit (iOS) | grammY Telegram
+React Native + Expo | Kotlin + Swift native modules | Supabase | Claude Haiku 4.5 | Health Connect (Android) + HealthKit (iOS) | grammY (Telegram — first channel adapter)
 
 Architecture informed by [OpenClaw](https://github.com/openclaw/openclaw) (171K stars), [OpenFang](https://github.com/RightNow-AI/openfang), [NemoClaw](https://github.com/NVIDIA/NemoClaw), and 7 other open-source agent projects.
 
 ## Roadmap
 
 **Now:** Architecture finalized, ready to build MVP (cross-platform Android + iOS)
-**MVP:** 5-7 daily users (Android + Apple Watch), morning cognitive brief + stress pattern tracking + Telegram agent
+**MVP:** 5-7 daily users (Android + Apple Watch), morning cognitive brief + stress pattern tracking + messaging agent
 **Phase 2:** Multi-model routing, WhatsApp, in-app chat, workspace connectors (calendar/email/Slack), weekly AI analysis
 **Phase 3:** Samsung Sensor SDK (true HRV), cloud wearable APIs, knowledge graph, predictive modeling
 **Phase 4:** Skills marketplace, multi-agent collaboration, team cognitive dashboards
