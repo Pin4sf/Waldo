@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+  (function(){
+    var k='onesync_auth',h='5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8';
+    if(sessionStorage.getItem(k)==='1'){document.write('<style>body{visibility:visible!important}</style>');return}
+    document.write('<style>body{visibility:hidden!important}</style>');
+    function s(t){var e=new TextEncoder().encode(t);return crypto.subtle.digest('SHA-256',e).then(function(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('')})}
+    function go(){
+      var p=prompt('Enter password to view OneSync docs:');
+      if(!p){document.body&&(document.body.innerHTML='');return}
+      s(p).then(function(d){if(d===h){sessionStorage.setItem(k,'1');location.reload()}else{alert('Wrong password.');go()}})
+    }
+    if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',go)}else{go()}
+  })();
+  </script>
+  <title>OneSync — Internal Technical Brief</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/theme/white.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+    /* Dark slide background */
+    :root{--r-background-color:#0f172a;--r-heading-color:#f1f5f9;--r-main-color:#e2e8f0;--r-link-color:#818cf8;--r-heading-font:'Inter',system-ui,sans-serif;--r-main-font:'Inter',system-ui,sans-serif;--r-heading-text-transform:none;--r-main-font-size:22px}
+    .reveal{font-size:22px;color:#e2e8f0}.reveal h1{font-size:2.4em!important;font-weight:900!important;letter-spacing:-.04em;color:#ffffff}.reveal h2{font-size:1.5em!important;font-weight:800!important;letter-spacing:-.02em;margin-bottom:.4em!important;color:#f1f5f9}.reveal h3{font-size:.95em!important;font-weight:700!important;color:#a5b4fc}
+    .reveal p,.reveal li{line-height:1.55;color:#cbd5e1}.reveal strong{color:#f1f5f9}.reveal .slides section{text-align:left}.reveal .slides section.center{text-align:center}.reveal .controls{color:#818cf8}.reveal .progress{color:#818cf8;height:4px}
+    .reveal code{font-family:'JetBrains Mono',monospace;font-size:.85em;color:#a5b4fc;background:#1e293b;padding:1px 5px;border-radius:4px}
+
+    /* Tags — keep bright on dark */
+    .tag{display:inline-block;padding:2px 10px;border-radius:99px;font-size:.5em;font-weight:700;margin:1px}.tg{background:#166534;color:#dcfce7}.tb{background:#3730a3;color:#e0e7ff}.ta{background:#92400e;color:#fef3c7}.tr{background:#991b1b;color:#fef2f2}.tp{background:#6b21a8;color:#f3e8ff}.tw{background:#334155;color:#e2e8f0}
+
+    /* Layouts */
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+    .muted{color:#94a3b8;font-size:.65em}.src{color:#64748b;font-size:.5em;font-style:italic}
+
+    /* Cards — dark */
+    .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;transition:transform .2s,box-shadow .2s}.card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.3)}.card h4{margin:0 0 5px;color:#a5b4fc;font-size:.72em;font-weight:700}.card p{margin:0;font-size:.6em;color:#94a3b8;line-height:1.45}.ca{border-left:4px solid #818cf8}
+
+    /* Stats */
+    .stat{text-align:center}.stat .num{font-size:2.2em;font-weight:900;line-height:1;background:linear-gradient(135deg,#818cf8,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.stat .label{font-size:.52em;color:#94a3b8;margin-top:3px}
+
+    /* Tables — dark */
+    table{width:100%;border-collapse:collapse;font-size:.58em;overflow:hidden}th{background:#1e293b;font-weight:700;text-align:left;color:#e2e8f0}th,td{padding:6px 10px;border:1px solid #334155;color:#cbd5e1}tr:hover{background:#1e293b}tr.hl{background:#312e81!important}
+
+    /* Blockquotes */
+    .reveal blockquote{border-left:4px solid #818cf8;background:#1e293b;padding:14px 18px;border-radius:0 10px 10px 0;font-style:normal;margin:.4em 0}.reveal blockquote p{margin:0;font-size:.85em;color:#e2e8f0}
+
+    /* Mermaid — high contrast on dark */
+    .mermaid-w{text-align:center;margin:.6rem 0;background:#ffffff;border-radius:12px;padding:16px;border:1px solid #334155}.mermaid-w svg{max-width:98%;max-height:400px}
+    /* Force black text on all mermaid diagram elements */
+    .mermaid-w text,.mermaid-w .nodeLabel,.mermaid-w .edgeLabel,.mermaid-w .label,.mermaid-w span,.mermaid-w .actor,.mermaid-w .messageText,.mermaid-w .loopText,.mermaid-w .noteText,.mermaid-w .labelText,.mermaid-w .cluster-label,.mermaid-w tspan{fill:#000000!important;color:#000000!important}
+    .mermaid-w .edgeLabel rect,.mermaid-w .edgeLabel span{background:#ffffff!important;fill:#ffffff!important}
+    .mermaid-w .edgePath .path{stroke:#4f46e5!important;stroke-width:2px!important}
+    /* Fix sequence diagram actor boxes — prevent black fill */
+    .mermaid-w rect.actor{fill:#ddd6fe!important;stroke:#4f46e5!important}
+    .mermaid-w .actor-man{fill:#ddd6fe!important;stroke:#4f46e5!important}
+    .mermaid-w line.actor-line{stroke:#4f46e5!important;stroke-width:1px!important}
+    .mermaid-w .activation0,.mermaid-w .activation1,.mermaid-w .activation2{fill:#e0e7ff!important;stroke:#4f46e5!important}
+    .mermaid-w .loopLine{stroke:#6366f1!important;stroke-dasharray:5 5!important}
+    .mermaid-w rect.loopLine{fill:#f1f5f9!important;stroke:#6366f1!important}
+    .mermaid-w .labelBox{fill:#f1f5f9!important;stroke:#6366f1!important}
+    .mermaid-w .loopText tspan{fill:#000000!important}
+
+    /* Glass cards on dark gradient slides */
+    .glass{background:rgba(255,255,255,.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:16px}
+
+    canvas{max-height:260px!important}
+
+    /* Possibility cards */
+    .poss{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:8px}.poss h5{margin:0 0 4px;font-size:.7em;color:#a5b4fc;font-weight:700}.poss p{margin:0;font-size:.58em;color:#94a3b8;line-height:1.4}
+
+    /* Tool grid */
+    .tool-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.tool-item{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px;text-align:center;font-size:.5em;font-weight:600;color:#e2e8f0;transition:all .2s}.tool-item:hover{background:#312e81;border-color:#818cf8;transform:scale(1.03)}
+
+    /* Intelligence levels */
+    .level{display:flex;align-items:stretch;gap:0;margin:8px 0}.level-item{flex:1;padding:10px;border-left:3px solid #334155;font-size:.55em}.level-item.l1{border-color:#22c55e;background:rgba(34,197,94,.1)}.level-item.l2{border-color:#0ea5e9;background:rgba(14,165,233,.1)}.level-item.l3{border-color:#f59e0b;background:rgba(245,158,11,.1)}.level-item.l4{border-color:#8b5cf6;background:rgba(139,92,246,.1)}
+    .level-item h5{margin:0 0 3px;font-weight:700;color:#f1f5f9}.level-item p{margin:0;color:#94a3b8;line-height:1.4}
+
+    /* Repo tags */
+    .repo-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.45em;font-weight:600;margin:1px;background:#1e293b;color:#94a3b8;border:1px solid #334155}
+
+    /* Risk / Moat cards */
+    .risk-card{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:14px;margin-bottom:8px}.risk-card h5{margin:0 0 4px;font-size:.7em;color:#fca5a5;font-weight:700}.risk-card p{margin:0;font-size:.6em;color:#94a3b8;line-height:1.4}
+    .moat-card{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:12px;padding:14px;margin-bottom:8px}.moat-card h5{margin:0 0 4px;font-size:.7em;color:#86efac;font-weight:700}.moat-card p{margin:0;font-size:.6em;color:#94a3b8;line-height:1.4}
+
+    /* Chat mockups */
+    .chat-m{background:#1e293b;border-radius:14px;border:1px solid #334155;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.2)}.chat-h{padding:10px 14px;font-size:.65em;font-weight:700;color:white}.chat-b{padding:12px}.chat-msg{font-size:.62em;line-height:1.5;padding:10px 14px;border-radius:14px;background:#312e81;color:#e0e7ff;border-radius:14px 14px 14px 4px}
+    .btn-pill{display:inline-block;padding:3px 10px;border-radius:8px;font-size:.85em;font-weight:600;margin:2px;border:1px solid}
+  </style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+  <!-- 1. TITLE -->
+  <section class="center" data-background="linear-gradient(135deg,#0f172a,#1e1b4b,#312e81)" data-transition="zoom">
+    <span style="font-size:.4em;color:#818cf8;font-weight:600;letter-spacing:.15em;text-transform:uppercase">Internal Technical Brief &bull; March 2026</span>
+    <h1 style="color:white;font-size:3em!important;margin:6px 0">One<span style="color:#818cf8">Sync</span></h1>
+    <p style="color:#94a3b8;font-size:.8em;margin-top:2px">The biological intelligence layer for the agentic economy</p>
+    <p style="color:#64748b;font-size:.55em;margin-top:16px">Agent OS Architecture &bull; Full Vision &bull; MVP Scope &bull; Possibilities</p>
+    <br>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <span class="repo-tag">OpenFang</span><span class="repo-tag">Paperclip</span><span class="repo-tag">OpenViking</span><span class="repo-tag">CoPaw</span><span class="repo-tag">Pi Mono</span><span class="repo-tag">Agency-Agents</span><span class="repo-tag">context-hub</span><span class="repo-tag">+5 more</span>
+    </div>
+    <p style="color:#475569;font-size:.4em;margin-top:14px">Architecture distilled from 12 open-source agent projects into OneSync's health agent OS</p>
+  </section>
+
+  <!-- 2. THE PROBLEM -->
+  <section data-transition="slide">
+    <h2>The Problem We're Solving</h2>
+    <div class="grid2">
+      <div>
+        <p style="font-size:.78em;margin-bottom:14px">Hundreds of millions of people wear devices that measure them all night, open an app in the morning, glance at a score, and <strong>make the exact same decisions they were going to make anyway.</strong></p>
+        <p style="font-size:.78em;margin-bottom:14px">Meanwhile, every AI agent (Lindy, Manus, OpenClaw) can schedule your meetings and draft your emails. <strong>None know when you're cognitively depleted.</strong> They'll schedule your hardest meeting when your nervous system is wrecked.</p>
+        <p style="font-size:.78em;font-weight:600;color:#a5b4fc">We built an entire industry around collecting signals from inside your body — and left people completely alone with it.</p>
+      </div>
+      <div>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px">
+          <h4>Health Apps Are Passive</h4>
+          <p>Dashboard retention at Day 30: <strong>3-12%</strong> across the industry. Headspace 7.65%, Calm 8.34%. People stop opening the app. <span class="src">Statista, SensorTower app retention benchmarks 2025</span></p>
+        </div>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px">
+          <h4>Wearables Collect, Nobody Acts</h4>
+          <p>~500M smartwatches worldwide collecting HR, HRV, sleep every night. The data sits in HealthKit / Health Connect. No system reads it and proactively does something useful. <span class="src">Counterpoint Research, Global Smartwatch Shipments 2025</span></p>
+        </div>
+        <div class="card ca fragment fade-in">
+          <h4>Agents Are Blind to the Body</h4>
+          <p>YC 2026: ~50% of latest batch is AI agents. NVIDIA GTC 2026: autonomous agents declared the next infra layer. All operate without the most important context: <strong>the human's cognitive state.</strong> <span class="src">YC RFS 2026, NVIDIA GTC 2026 keynote</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. WHAT USERS SEE -->
+  <section data-transition="slide">
+    <h2>What It Actually Looks Like</h2>
+    <p style="font-size:.7em;color:#94a3b8">Real message formats. Telegram delivery. Feedback buttons for learning.</p>
+    <div class="grid2">
+      <div class="chat-m fragment fade-in">
+        <div class="chat-h" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">Morning Cognitive Brief (daily at wake time)</div>
+        <div class="chat-b">
+          <div class="chat-msg">You slept 6.8h (good!) but your HRV is still recovering from yesterday.<br><br>CRS at <strong>58</strong> — protect your 10-11am slot for deep focus.<br><br><strong>&#8594; Move anything optional to after lunch.</strong><br><br><span class="btn-pill" style="background:rgba(34,197,94,.2);color:#86efac;border-color:rgba(34,197,94,.3)">Got it</span> <span class="btn-pill" style="background:rgba(99,102,241,.2);color:#a5b4fc;border-color:rgba(99,102,241,.3)">More details</span> <span class="btn-pill" style="background:rgba(245,158,11,.2);color:#fcd34d;border-color:rgba(245,158,11,.3)">Mute today</span></div>
+        </div>
+      </div>
+      <div class="chat-m fragment fade-in">
+        <div class="chat-h" style="background:linear-gradient(135deg,#ef4444,#dc2626)">Stress Alert (when HRV drops + sustained)</div>
+        <div class="chat-b">
+          <div class="chat-msg">Your HRV dropped <strong>22%</strong> in the last 30 minutes.<br><br>This usually happens during back-to-back meetings without a break.<br><br><strong>&#8594; Take 3 slow breaths. 4s in, 7s out.</strong><br><br><span class="btn-pill" style="background:rgba(34,197,94,.2);color:#86efac;border-color:rgba(34,197,94,.3)">Helpful</span> <span class="btn-pill" style="background:rgba(239,68,68,.2);color:#fca5a5;border-color:rgba(239,68,68,.3)">Not helpful</span> <span class="btn-pill" style="background:rgba(245,158,11,.2);color:#fcd34d;border-color:rgba(245,158,11,.3)">Too frequent</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="grid3 fragment fade-in" style="margin-top:12px">
+      <div class="card" style="text-align:center"><h4>Morning Brief</h4><p>Every morning at wake time. Uses overnight data (most reliable). The hero feature.</p></div>
+      <div class="card" style="text-align:center"><h4>Stress Alerts</h4><p>Only when confidence &#8805; 0.60 AND 2h cooldown clear AND not during sleep. Max 3/day.</p></div>
+      <div class="card" style="text-align:center"><h4>Conversational Chat</h4><p>User messages bot anytime. Full context: CRS + health + memory. All 8 tools available.</p></div>
+    </div>
+    <div class="card fragment fade-in" style="margin-top:12px;border-left:4px solid #8b5cf6;background:rgba(139,92,246,.08)">
+      <div style="display:flex;align-items:start;gap:14px">
+        <div style="min-width:36px;text-align:center;font-size:1.6em;margin-top:2px">&#127919;</div>
+        <div>
+          <h4 style="color:#c4b5fd;font-size:.75em">The Full Vision: Your Personal Agent OS</h4>
+          <p style="font-size:.6em;line-height:1.5;color:#94a3b8">Beyond health messages — you talk to the agent to <strong>give it tasks</strong>, ask it to <strong>schedule meetings around your CRS</strong>, <strong>teach it new skills</strong> ("when I say 'board prep', pull my stats and draft talking points"), and <strong>automate anything in your life</strong>. It connects to your calendar, email, Slack, task manager — and knows your body while doing it. You teach it once, it remembers forever. Over time, it becomes a full personal operating system that acts on your behalf — with the one signal no other agent has: <strong>your biology.</strong></p>
+          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <span class="btn-pill" style="background:rgba(139,92,246,.2);color:#c4b5fd;border-color:rgba(139,92,246,.3);font-size:.8em">Schedule around my energy</span>
+            <span class="btn-pill" style="background:rgba(139,92,246,.2);color:#c4b5fd;border-color:rgba(139,92,246,.3);font-size:.8em">Teach a new skill</span>
+            <span class="btn-pill" style="background:rgba(139,92,246,.2);color:#c4b5fd;border-color:rgba(139,92,246,.3);font-size:.8em">Prep me for standup</span>
+            <span class="btn-pill" style="background:rgba(139,92,246,.2);color:#c4b5fd;border-color:rgba(139,92,246,.3);font-size:.8em">Decline low-priority meetings</span>
+            <span class="btn-pill" style="background:rgba(139,92,246,.2);color:#c4b5fd;border-color:rgba(139,92,246,.3);font-size:.8em">Wind down routine</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. COMPETITIVE POSITIONING -->
+  <section data-transition="slide">
+    <h2>Where We Stand</h2>
+    <p style="font-size:.7em">No one combines deep body awareness + proactive external messaging + device-agnostic + cross-platform.</p>
+    <div class="grid2">
+      <div>
+        <table>
+          <tr><th></th><th>Body</th><th>Proactive</th><th>External</th><th>Devices</th><th>Platform</th></tr>
+          <tr class="hl"><td><strong>OneSync</strong></td><td><span class="tag tg">Deep</span></td><td><span class="tag tg">Telegram</span></td><td><span class="tag tg">Yes</span></td><td><span class="tag tg">Any</span></td><td><span class="tag tg">Both</span></td></tr>
+          <tr><td>WHOOP</td><td>Deep</td><td>In-app</td><td><span class="tag tr">No</span></td><td><span class="tag tr">WHOOP</span></td><td>Both</td></tr>
+          <tr><td>Oura</td><td>Deep</td><td><span class="tag tr">No</span></td><td><span class="tag tr">No</span></td><td><span class="tag tr">Oura</span></td><td>Both</td></tr>
+          <tr><td>Nori (YC)</td><td>Agg.</td><td>Limited</td><td><span class="tag tr">No</span></td><td>Multi</td><td><span class="tag tr">iOS</span></td></tr>
+          <tr><td>Lindy</td><td><span class="tag tr">None</span></td><td>Yes</td><td>Yes</td><td>N/A</td><td>Web</td></tr>
+        </table>
+        <p class="src" style="margin-top:6px">WHOOP Coach: confirmed in-app only, $199-359/yr, GPT-4 powered. Nori: iOS only, no Android, data sync issues reported by users. Apple Health+: scaled back per Bloomberg Feb 2026.</p>
+      </div>
+      <div>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px"><h4>Our 5 Differentiators</h4>
+          <p>1. <strong>Device-agnostic</strong> — any HealthKit / Health Connect wearable<br>
+          2. <strong>External messaging</strong> — Telegram (104M users in India alone)<br>
+          3. <strong>Price</strong> — free / &#8377;399/mo vs WHOOP $199-359/yr<br>
+          4. <strong>CRS is transparent</strong> — algorithm published, open-source after Phase G. No competitor does this.<br>
+          5. <strong>Cross-platform from Day 1</strong> — Android + iOS simultaneously</p>
+        </div>
+        <div class="card fragment fade-in"><h4>The Window</h4>
+          <p>Apple Health+ scaled back. WHOOP is device-locked. Nori is iOS-only. The combination of body awareness + proactive agency + open ecosystem is unoccupied.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE A: VALIDATE BEFORE BUILDING -->
+  <section data-transition="slide">
+    <h2>What We Validate Before Writing Code</h2>
+    <blockquote><p>We don't build until we know people care. <strong>Phase A is a Wizard of Oz test</strong> — manual CRS messages on Telegram, no app, no code.</p></blockquote>
+    <div class="grid2" style="margin-top:14px">
+      <div>
+        <h3>The Test (Phase A)</h3>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px"><h4>5-7 people, 5-7 days</h4><p>Founder + teammates with Apple Watch / Pixel Watch / Fitbit. Manually compute CRS from wearable data each morning. Send personalized morning brief via Telegram. Track: do they read it? Do they reply? Do they find it useful?</p></div>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px"><h4>Gate: 3+ people say morning briefs are useful</h4><p>If nobody cares about "Your CRS is 58, protect your 10am slot" — we stop and rethink the product, not the code.</p></div>
+        <div class="card ca fragment fade-in"><h4>What We Learn</h4><p>Message format that works. Timing that works. Whether people even want proactive health messages. Whether CRS zones feel meaningful. All before a single line of code.</p></div>
+      </div>
+      <div>
+        <h3>What's Proven vs What's Assumed</h3>
+        <table>
+          <tr><th>Claim</th><th>Status</th></tr>
+          <tr><td>HRV drops under acute stress</td><td><span class="tag tg">PROVEN</span></td></tr>
+          <tr><td>Sleep quality predicts next-day cognition</td><td><span class="tag tg">PROVEN</span></td></tr>
+          <tr><td>Circadian rhythm affects performance</td><td><span class="tag tg">PROVEN</span></td></tr>
+          <tr><td>Wrist HRV correlates with ECG HRV</td><td><span class="tag tg">PROVEN</span></td></tr>
+          <tr><td>Our CRS weights (35/25/25/15) are right</td><td><span class="tag ta">ASSUMED</span></td></tr>
+          <tr><td>CRS zone thresholds (80/50) are meaningful</td><td><span class="tag ta">ASSUMED</span></td></tr>
+          <tr><td>Proactive messages improve outcomes</td><td><span class="tag ta">ASSUMED</span></td></tr>
+          <tr><td>Rules pre-filter saves 60-80% of AI calls</td><td><span class="tag ta">ASSUMED</span></td></tr>
+          <tr><td>Personal baselines stabilize in 7 days</td><td><span class="tag tb">PARTIAL</span></td></tr>
+        </table>
+        <p style="font-size:.55em;margin-top:6px;color:#a5b4fc;font-weight:600">The science is solid. Our specific formula is a hypothesis. The WoO test validates the product, not the algorithm.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. THE VISION -->
+  <section data-transition="slide">
+    <h2>The Full Vision</h2>
+    <blockquote><p>OneSync is not a health app. It's a <strong>personal cognitive operating system</strong> — an AI agent that understands your biology, your work, and your goals, and proactively optimizes your day before you have to think about it.</p></blockquote>
+    <div class="grid3" style="margin-top:14px">
+      <div class="card ca fragment fade-in"><h4>Layer 1: Body Intelligence</h4><p>Reads HRV, HR, sleep, activity from any wearable. Computes CRS. Detects stress. All on-phone, offline.</p></div>
+      <div class="card ca fragment fade-in"><h4>Layer 2: Cognitive Agent</h4><p>Claude-powered agent with personality, memory, learning. Proactively messages you. Learns your patterns over months.</p></div>
+      <div class="card ca fragment fade-in"><h4>Layer 3: World Integration</h4><p>Calendar, email, Slack, tasks. Agent that knows your body AND your world. Schedules recovery before you crash.</p></div>
+    </div>
+    <div class="grid4 fragment fade-in" style="margin-top:12px">
+      <div class="stat"><div class="num" style="font-size:1.5em">CRS</div><div class="label">Cognitive Readiness Score<br>SAFTE-FAST grounded</div></div>
+      <div class="stat"><div class="num" style="font-size:1.5em">8→50+</div><div class="label">Tools: MVP to full<br>Health → Workspace → Life</div></div>
+      <div class="stat"><div class="num" style="font-size:1.5em">4</div><div class="label">Intelligence Levels<br>Reactive → Autonomous</div></div>
+      <div class="stat"><div class="num" style="font-size:1.5em">12</div><div class="label">OSS repos synthesized<br>into our Agent OS</div></div>
+    </div>
+  </section>
+
+  <!-- SLIDE B: HOW IT WORKS - SIMPLE VERSION -->
+  <section data-transition="slide">
+    <h2>How It Works — The Simple Version</h2>
+    <p style="font-size:.7em;color:#94a3b8">The entire product in 5 steps. No jargon.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+      <div class="card ca fragment fade-in" style="display:flex;align-items:center;gap:14px"><div style="min-width:40px;text-align:center"><span style="font-size:1.8em">&#9201;</span></div><div><h4>1. Your watch measures your body all night</h4><p>Heart rate, heart rate variability (HRV), sleep stages, steps. Data sits in HealthKit (iPhone) or Health Connect (Android). Today, nobody does anything useful with it.</p></div></div>
+      <div class="card ca fragment fade-in" style="display:flex;align-items:center;gap:14px"><div style="min-width:40px;text-align:center"><span style="font-size:1.8em">&#129504;</span></div><div><h4>2. The app computes your Cognitive Readiness Score (CRS)</h4><p>A 0-100 score: how sharp are you RIGHT NOW? Based on how you slept, your nervous system state (HRV), your circadian rhythm, and how active you've been. Computed on your phone — works offline, no server needed.</p></div></div>
+      <div class="card ca fragment fade-in" style="display:flex;align-items:center;gap:14px"><div style="min-width:40px;text-align:center"><span style="font-size:1.8em">&#129302;</span></div><div><h4>3. If something matters, the AI agent crafts a message</h4><p>A rules engine checks every 15 minutes. 60-80% of the time, everything's fine — no AI call, $0 cost. When your CRS drops or stress is detected, Claude Haiku generates a personalized message with one specific action you can take.</p></div></div>
+      <div class="card ca fragment fade-in" style="display:flex;align-items:center;gap:14px"><div style="min-width:40px;text-align:center"><span style="font-size:1.8em">&#128172;</span></div><div><h4>4. You get a Telegram message — before you even notice something's off</h4><p>Morning brief at wake time. Stress alert when your body signals trouble. You can also message the bot anytime: "Why am I so tired?" and get an answer grounded in YOUR data, not generic advice.</p></div></div>
+      <div class="card ca fragment fade-in" style="display:flex;align-items:center;gap:14px"><div style="min-width:40px;text-align:center"><span style="font-size:1.8em">&#128200;</span></div><div><h4>5. You tap Helpful / Not Helpful — the agent learns</h4><p>Every interaction tunes the system. Over weeks, the agent knows YOUR stress patterns, YOUR recovery strategies, YOUR communication style. The longer you use it, the smarter it gets. Switching cost becomes total.</p></div></div>
+    </div>
+    <div class="grid3 fragment fade-in" style="margin-top:14px">
+      <div class="card" style="text-align:center;border-left:4px solid #22c55e"><h4 style="color:#86efac">Apple Watch / Pixel Watch / Fitbit</h4><p>Best data: true HRV (RMSSD), 4-stage sleep, beat-to-beat heart data. <strong>Full CRS confidence.</strong></p></div>
+      <div class="card" style="text-align:center;border-left:4px solid #f59e0b"><h4 style="color:#fcd34d">Samsung Galaxy Watch</h4><p>Samsung deliberately withholds HRV from Health Connect. We use HR as a proxy. <strong>CRS works but with lower confidence.</strong> Samsung Sensor SDK in Phase 2 fixes this.</p></div>
+      <div class="card" style="text-align:center;border-left:4px solid #ef4444"><h4 style="color:#fca5a5">Budget Watches (Noise, boAt)</h4><p>HR only, no HRV, unreliable sleep staging. <strong>Basic CRS — stress detection limited.</strong> Still useful for morning briefs.</p></div>
+    </div>
+  </section>
+
+  <!-- 3. AGENT OS ARCHITECTURE -->
+  <section data-transition="slide">
+    <h2>Agent OS — Full System Architecture</h2>
+    <div class="mermaid-w"><div class="mermaid">
+graph TB
+  subgraph Input["Data Input"]
+    AW["Apple Watch<br/>(HealthKit)"]
+    GW["Android Watch<br/>(Health Connect)"]
+  end
+  subgraph Phone["On-Phone (Offline)"]
+    NM["Native Modules<br/>Swift / Kotlin"]
+    SQL["op-sqlite + SQLCipher<br/>(AES-256)"]
+    CRS["CRS Engine<br/>(TypeScript)"]
+    STRESS["Stress Detector"]
+  end
+  subgraph Cloud["Supabase Backend"]
+    PG["Postgres + RLS"]
+    CRON["pg_cron (15min)"]
+    EF["Edge Functions"]
+  end
+  subgraph Agent["Agent Core"]
+    PB["Prompt Builder<br/>(25 fields)"]
+    HOOKS["Hook Pipeline<br/>(10 hooks)"]
+    HAIKU["Claude Haiku 4.5<br/>(tool_use)"]
+    TOOLS["8 MVP Tools<br/>(expandable to 50+)"]
+  end
+  subgraph Memory["Memory System"]
+    T1["Tier 1: Structured KV"]
+    T2["Tier 2: Summaries"]
+    T3["Tier 3: Semantic + KG"]
+  end
+  subgraph Delivery["Delivery"]
+    TG["Telegram"]
+    WA["WhatsApp"]
+    PUSH["Push Notifs"]
+    INAPP["In-App"]
+  end
+  AW --> NM
+  GW --> NM
+  NM --> SQL
+  SQL --> CRS
+  SQL --> STRESS
+  CRS --> PG
+  STRESS --> PG
+  CRON --> EF
+  EF --> PB
+  PB --> HOOKS
+  HOOKS --> HAIKU
+  HAIKU --> TOOLS
+  TOOLS --> HAIKU
+  HAIKU --> HOOKS
+  HOOKS --> TG
+  HOOKS --> WA
+  HOOKS --> PUSH
+  HOOKS --> INAPP
+  HAIKU --> T1
+  T1 --> T2
+  T2 --> T3
+  T1 --> PB
+  classDef blue fill:#e0e7ff,stroke:#6366f1,stroke-width:1px
+  classDef green fill:#dcfce7,stroke:#22c55e,stroke-width:1px
+  classDef amber fill:#fef3c7,stroke:#f59e0b,stroke-width:1px
+  classDef pink fill:#fce7f3,stroke:#ec4899,stroke-width:1px
+  class Input blue
+  class Phone green
+  class Agent amber
+  class Memory pink
+    </div></div>
+    <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+      <span class="repo-tag">OpenFang: Hands + Prompt Builder</span><span class="repo-tag">Paperclip: Heartbeat + PARA</span><span class="repo-tag">OpenViking: L0/L1/L2 tiers</span><span class="repo-tag">CoPaw: Hooks + Skills</span><span class="repo-tag">Pi Mono: Compaction</span>
+    </div>
+  </section>
+
+  <!-- 4. CRS ALGORITHM -->
+  <section data-transition="slide">
+    <h2>CRS — The Brain</h2>
+    <p style="font-size:.7em">Cognitive Readiness Score. Grounded in <strong>SAFTE-FAST</strong> (US Army biomathematical fatigue model, peer-reviewed). <span class="src">Hursh et al., Aviation Space Env Med, 2004</span></p>
+    <div class="grid2">
+      <div><canvas id="crsChart" width="380" height="280"></canvas></div>
+      <div>
+        <p style="font-size:.7em;margin-bottom:8px"><code>CRS = Sleep(0.35) + HRV(0.25) + Circadian(0.25) + Activity(0.15)</code></p>
+        <table>
+          <tr><th>Component</th><th>Inputs</th><th>Key Logic</th></tr>
+          <tr><td><strong>Sleep (35%)</strong></td><td>Duration, stages, efficiency, debt</td><td>7h target, 49h/week, ±2h bedtime deviation = -20</td></tr>
+          <tr><td><strong>HRV (25%)</strong></td><td>RMSSD (Apple), HR proxy (Samsung)</td><td>Personal baseline, time-of-day normalization (afternoon dip is normal)</td></tr>
+          <tr><td><strong>Circadian (25%)</strong></td><td>Chronotype + time of day</td><td>Peak windows: early 6-9am, normal 10am-1pm, late 8-11pm. -40 outside peak.</td></tr>
+          <tr><td><strong>Activity (15%)</strong></td><td>Steps, sedentary, exercise</td><td>8K steps target, <4K = -30 penalty. Exercise context for stress masking.</td></tr>
+        </table>
+        <p style="font-size:.55em;margin-top:6px;color:#6366f1;font-weight:600">All baselines are personal, not population norms. No commercial wearable CRS is peer-reviewed or algorithm-transparent. <span class="src">Bent et al., npj Digital Medicine, 2025</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. STRESS DETECTION -->
+  <section data-transition="slide">
+    <h2>Stress Detection — Weighted Confidence</h2>
+    <div class="grid2">
+      <div class="mermaid-w"><div class="mermaid">
+graph TD
+  HRV["HRV Drop<br/>weight: 0.35"] --> CONF["Weighted<br/>Confidence"]
+  HR["HR Elevation<br/>weight: 0.25"] --> CONF
+  DUR["Duration >10min<br/>weight: 0.20"] --> CONF
+  ACT["Inactivity Context<br/>weight: 0.20"] --> CONF
+  CONF --> C1{">= 0.60"}
+  C1 -->|Yes| ALERT["ALERT"]
+  C1 -->|No| C2{"0.40-0.59"}
+  C2 -->|Yes| LOG["LOG ONLY"]
+  C2 -->|No| IGN["IGNORE"]
+  ALERT --> COOL{"2h cooldown?"}
+  COOL -->|Clear| PRI["Risk Priority<br/>Signal x Impact x<br/>Timing x Novelty"]
+  COOL -->|Active| SUPPRESS["SUPPRESS"]
+  PRI -->|"> 0.40"| SEND["SEND"]
+      </div></div>
+      <div>
+        <h3>8-Point False Positive Prevention</h3>
+        <div style="font-size:.58em;line-height:1.6">
+          <p class="fragment fade-in">1. <strong>Personal baselines</strong> — your normal, not population average</p>
+          <p class="fragment fade-in">2. <strong>Time-of-day normalization</strong> — afternoon HRV dip is biological, not stress</p>
+          <p class="fragment fade-in">3. <strong>Activity exclusion</strong> — exercising? HR spike is expected, not stress</p>
+          <p class="fragment fade-in">4. <strong>10-min persistence gate</strong> — single spikes are noise</p>
+          <p class="fragment fade-in">5. <strong>2h cooldown</strong> between alerts — max 3/day</p>
+          <p class="fragment fade-in">6. <strong>Require cardiac signal</strong> — HRV or HR, not just inactivity</p>
+          <p class="fragment fade-in">7. <strong>User feedback loop</strong> — thumbs up/down tunes thresholds (0.02 change rate)</p>
+          <p class="fragment fade-in">8. <strong>Rules pre-filter</strong> — CRS > 60 AND conf < 0.3 → skip Claude entirely ($0)</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. AGENT LOOP -->
+  <section data-transition="slide">
+    <h2>The Agent Loop</h2>
+    <div class="mermaid-w"><div class="mermaid">
+sequenceDiagram
+  participant C as pg_cron
+  participant R as Rules Pre-Filter
+  participant P as Prompt Builder (25 fields)
+  participant H1 as Pre-Hooks (5)
+  participant AI as Claude Haiku 4.5
+  participant T as Tools (8)
+  participant H2 as Post-Hooks (5)
+  participant TG as Telegram
+  C->>R: check-triggers (every 15 min)
+  R->>R: CRS > 60 AND conf < 0.3?
+  alt SKIP (60-80% of checks = $0)
+    R->>R: Log only
+  else INVOKE
+    R->>P: Assemble context
+    P->>P: Soul + Zone + Mode + Tools + Memory + Biometrics
+    P->>H1: Pre-reasoning hooks
+    H1->>H1: Emergency / Gates / Inject / Compact / Rate
+    H1->>AI: Send (2500 token budget)
+    loop Max 3 iterations, 50s timeout
+      AI->>T: tool_use call
+      T->>AI: Result
+    end
+    AI->>H2: Response
+    H2->>H2: Language / Confidence / LoopGuard / Memory / Analytics
+    H2->>TG: Deliver
+  end
+    </div></div>
+    <div style="display:flex;gap:6px;justify-content:center">
+      <span class="repo-tag">OpenFang: Loop Guard (SHA256)</span><span class="repo-tag">CoPaw: Pre-Reasoning Hooks</span><span class="repo-tag">HumanLayer: 40-60% Utilization Rule</span><span class="repo-tag">PicoClaw: Provider Failover</span>
+    </div>
+  </section>
+
+  <!-- 7. PROMPT BUILDER -->
+  <section data-transition="slide">
+    <h2>25-Field Prompt Builder</h2>
+    <p style="font-size:.65em">Adapted from <strong>OpenFang's PromptContext</strong> (25 fields, 14 sections). Cache-optimized: stable system msg + dynamic user msg = near-100% cache hits on system prompt. <span class="src">Anthropic auto prompt caching, 2026</span></p>
+    <div class="grid2">
+      <div>
+        <h3>System Message (cached, stable)</h3>
+        <table>
+          <tr><th>#</th><th>Field</th><th>Tokens</th></tr>
+          <tr><td>1-4</td><td>Soul base + zone modifier + mode template + safety rules</td><td>~500</td></tr>
+          <tr><td>5</td><td>Tool definitions (3-8 dynamic subset)</td><td>~400</td></tr>
+          <tr><td>6-8</td><td>User profile + core memory excerpt + health baselines</td><td>~300</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>User Message (fresh per call)</h3>
+        <table>
+          <tr><th>#</th><th>Field</th><th>Tokens</th></tr>
+          <tr><td>9-11</td><td>Current CRS + biometric snapshot + trigger context</td><td>~300</td></tr>
+          <tr><td>12-13</td><td>Last interaction + pending followups</td><td>~200</td></tr>
+          <tr><td>14-15</td><td>Conversation history (3 turns) + calendar</td><td>~500</td></tr>
+        </table>
+      </div>
+    </div>
+    <p style="font-size:.6em;margin-top:8px"><strong>Total: ~2500 tokens max.</strong> U-shaped attention: critical rules at START, biometrics at END. Stable content in middle. <span class="src">From Agent-Skills-for-CE: "lost-in-middle" effect — middle positions drop to 76-82% recall accuracy</span></p>
+  </section>
+
+  <!-- 8. MEMORY SYSTEM -->
+  <section data-transition="slide">
+    <h2>3-Tier Memory with Decay</h2>
+    <div class="grid2">
+      <div class="mermaid-w"><div class="mermaid">
+graph TB
+  subgraph T1["Tier 1: Structured (Always Loaded)"]
+    ID["Identity"]
+    HP["Health Profile"]
+    PR["Preferences"]
+    GO["Goals + Ancestry"]
+    IN["Insights + Patterns"]
+  end
+  subgraph T2["Tier 2: Summaries (On-Demand)"]
+    SS["Session Summaries"]
+    PL["Pattern Log (append-only)"]
+    PF["Pending Followups"]
+    WC["Weekly Compaction"]
+  end
+  subgraph T3["Tier 3: Semantic (Phase 2)"]
+    VEC["pgvector Embeddings"]
+    KG["Knowledge Graph"]
+  end
+  T1 --> T2 --> T3
+  subgraph Decay["Memory Decay"]
+    HOT["HOT 7d"]
+    WARM["WARM 30d"]
+    COLD["COLD 30d+"]
+  end
+  IN --> Decay
+      </div></div>
+      <div>
+        <h3>Key Patterns</h3>
+        <div class="card ca fragment fade-in" style="margin-bottom:6px"><h4>Temporal Validity</h4><p>Every memory entry: learned_on, last_validated, confidence, confidence_decay. Stale patterns auto-demote. <span class="src">From Paperclip PARA: hot/warm/cold decay</span></p></div>
+        <div class="card ca fragment fade-in" style="margin-bottom:6px"><h4>Record First, Answer Second</h4><p>User says "started magnesium" → agent calls update_memory BEFORE responding. Context never lost. <span class="src">From CoPaw AGENTS.md</span></p></div>
+        <div class="card ca fragment fade-in" style="margin-bottom:6px"><h4>Close Every Loop</h4><p>pending_followups tracks every suggestion. Morning brief checks outcomes. 3+ successful → promote to validated pattern. <span class="src">From Agency-Agents Sales Coach</span></p></div>
+        <div class="card ca fragment fade-in"><h4>L0/L1/L2 Health Summaries</h4><p>L0 (~20 tok): "High-stress day, CRS 42". L1 (~100 tok): component breakdown. L2 (on-demand): raw data. 83% token reduction. <span class="src">From OpenViking benchmarks: LoCoMo10</span></p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. PERSONALITY + NUDGE -->
+  <section data-transition="slide">
+    <h2>Personality Spectrum + 4-Phase Nudge</h2>
+    <div class="grid2">
+      <div>
+        <h3>5 Zones x 4 Modes = 20 Voice Combinations</h3>
+        <table>
+          <tr><th>Zone</th><th>CRS</th><th>Voice</th><th>Message Length</th></tr>
+          <tr><td><span class="tag tg">Energized</span></td><td>80+</td><td>Coach — challenges you</td><td>3 lines</td></tr>
+          <tr><td><span class="tag tb">Steady</span></td><td>60-79</td><td>Friend — warm, informative</td><td>3 lines</td></tr>
+          <tr><td><span class="tag ta">Flagging</span></td><td>40-59</td><td>Advisor — honest, protective</td><td>2-3 lines</td></tr>
+          <tr><td><span class="tag tr">Depleted</span></td><td>&lt;40</td><td>Caretaker — gentle, minimal</td><td>1-2 lines</td></tr>
+          <tr><td><span class="tag tw">Crisis/No Data</span></td><td>—</td><td>Honest — admits uncertainty</td><td>Adaptive</td></tr>
+        </table>
+        <p style="font-size:.55em;margin-top:6px">Zone selected by CRS + data quality. Mode selected by trigger type. <span class="src">From Agency-Agents: Whimsy Injector + Brand Guardian patterns</span></p>
+      </div>
+      <div>
+        <h3>Every Proactive Message</h3>
+        <div class="card fragment fade-in" style="margin-bottom:6px;background:rgba(99,102,241,.1);border-color:#818cf8"><h4 style="color:#a5b4fc">Phase 1: Discover Preference</h4><p>Track message style, timing, intervention type, cognitive load tolerance. First 14 days + ongoing.</p></div>
+        <div class="card fragment fade-in" style="margin-bottom:6px;background:rgba(99,102,241,.1);border-color:#818cf8"><h4 style="color:#a5b4fc">Phase 2: Deconstruct to Micro-Action</h4><p>"Take 3 slow breaths" not "improve your stress management". &lt;2 min, zero willpower.</p></div>
+        <div class="card fragment fade-in" style="margin-bottom:6px;background:rgba(99,102,241,.1);border-color:#818cf8"><h4 style="color:#a5b4fc">Phase 3: Deliver One Thing</h4><p>[Signal] + [Meaning] + [Action] + [Buttons]. Max 3 lines. CRS &lt;40 → max 2 lines.</p></div>
+        <div class="card fragment fade-in" style="background:rgba(99,102,241,.1);border-color:#818cf8"><h4 style="color:#a5b4fc">Phase 4: Celebrate + Close Loop</h4><p>Follow up 2h/24h later. Acknowledge effort not outcomes. Off-ramp always OK.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. AI ONBOARDING INTERVIEW -->
+  <section data-transition="slide">
+    <h2>AI Onboarding Interview — Cold Start Killer</h2>
+    <p style="font-size:.68em">Not a form. The agent's <strong>first act of intelligence</strong>. Dynamic questions that adapt based on answers. Writes directly to <code>core_memory</code>. Same agent, different soul file (<code>SOUL_ONBOARDING</code>).</p>
+    <div class="grid2">
+      <div>
+        <h3>Progressive Profiling (Waves)</h3>
+        <div class="card ca fragment fade-in" style="margin-bottom:6px"><h4>Day 0: Core Interview (3-5 min)</h4><p>Goals, chronotype, medications, communication style, stress triggers. Dynamic branching — "better sleep" triggers sleep follow-ups, not generic questions.</p></div>
+        <div class="card fragment fade-in" style="margin-bottom:6px;border-left:4px solid #94a3b8"><h4 style="color:#64748b">Day 3: Sleep Deep-Dive (2 min)</h4><p>"You slept 5.8h last night. Is that typical?" — uses real wearable data to make questions contextual.</p></div>
+        <div class="card fragment fade-in" style="margin-bottom:6px;border-left:4px solid #94a3b8"><h4 style="color:#64748b">Day 7: Stress Calibration (2 min)</h4><p>"Your HRV dropped at 2pm. What was happening?" — triggered by first real stress detection.</p></div>
+        <div class="card fragment fade-in" style="border-left:4px solid #94a3b8"><h4 style="color:#64748b">Day 14: Relationship Check-In</h4><p>"How's OneSync working? What should I do differently?" — course-correct with 2 weeks of data.</p></div>
+      </div>
+      <div>
+        <h3>What Makes This Novel</h3>
+        <div class="card fragment fade-in" style="margin-bottom:6px;background:rgba(99,102,241,.1);border-color:#818cf8"><h4 style="color:#a5b4fc">Implicit Behavioral Calibration</h4><p>Agent learns HOW you communicate during the interview itself. Terse answers → brief mode. Detailed → data-rich. Emotional → warm. Calibrated before first morning brief.</p></div>
+        <div class="card fragment fade-in" style="margin-bottom:6px;background:rgba(99,102,241,.1);border-color:#818cf8"><h4 style="color:#a5b4fc">Medical Safety via Conversation</h4><p>Naturally surfaces medications (beta-blockers affect HR), pregnancy (changes HRV), conditions. A checkbox gets skipped. A conversation gets honest answers.</p></div>
+        <div class="card fragment fade-in" style="background:rgba(99,102,241,.1);border-color:#818cf8"><h4 style="color:#a5b4fc">Cold Start Solved</h4><p>Agent has a useful profile from Day 1 — not Day 14. Goals, chronotype, meds, style all set before the first morning brief arrives.</p></div>
+        <br>
+        <table class="fragment fade-in" style="font-size:.55em">
+          <tr><th></th><th>WHOOP</th><th>Oura</th><th>Nori</th><th><strong>OneSync</strong></th></tr>
+          <tr><td>Onboarding</td><td>Static form</td><td>Static form</td><td>Static form</td><td><strong>AI interview</strong></td></tr>
+          <tr><td>Adapts to answers</td><td>No</td><td>No</td><td>No</td><td><strong>Yes</strong></td></tr>
+          <tr><td>Progressive waves</td><td>No</td><td>No</td><td>No</td><td><strong>Day 0/3/7/14</strong></td></tr>
+          <tr><td>Calibrates personality</td><td>No</td><td>No</td><td>No</td><td><strong>From interview</strong></td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. TECH STACK -->
+  <section data-transition="slide">
+    <h2>Tech Stack</h2>
+    <div class="grid2">
+      <div>
+        <table>
+          <tr><th>Layer</th><th>Technology</th><th>Why This Choice</th></tr>
+          <tr><td>Mobile</td><td><strong>React Native + Expo SDK 53+</strong></td><td>Cross-platform from Day 1. Custom dev client for native modules.</td></tr>
+          <tr><td>iOS Native</td><td><strong>Swift (HealthKit)</strong></td><td>HKHeartbeatSeriesQuery → beat-to-beat IBI → true RMSSD. Gold standard HRV.</td></tr>
+          <tr><td>Android Native</td><td><strong>Kotlin (Health Connect + WorkManager)</strong></td><td>15-min background sync. Samsung HR proxy for missing HRV.</td></tr>
+          <tr><td>Local DB</td><td><strong>op-sqlite + SQLCipher</strong></td><td>AES-256 on device. Health data encrypted at rest. Not WatermelonDB (perf), not Realm (lock-in).</td></tr>
+          <tr><td>Styling</td><td><strong>NativeWind v4</strong></td><td>Tailwind for RN. Not Gluestack-UI (too heavy), not StyleSheet (too verbose).</td></tr>
+          <tr><td>State</td><td><strong>Zustand + TanStack Query + MMKV</strong></td><td>Client + server + KV. No Redux complexity.</td></tr>
+          <tr><td>Backend</td><td><strong>Supabase (Postgres + Edge Functions + RLS)</strong></td><td>Row-level security built in. pg_cron + pgmq. Free tier → $25/mo at 200 users.</td></tr>
+          <tr><td>AI</td><td><strong>Claude Haiku 4.5 (@anthropic-ai/sdk)</strong></td><td>Messages API + tool_use. Direct calls, no middleware, no Agent SDK (stateless Edge Functions).</td></tr>
+          <tr><td>Bot</td><td><strong>grammY (Deno)</strong></td><td>Telegram bot. Webhook-based. Free API forever.</td></tr>
+          <tr><td>Scheduling</td><td><strong>pg_cron + pgmq</strong></td><td>Built into Supabase. Morning briefs, stress checks every 15 min.</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>Data Confidence Tiers</h3>
+        <table>
+          <tr><th>Tier</th><th>Source</th><th>Agent Language</th></tr>
+          <tr><td><span class="tag tg">HIGH</span></td><td>Apple Watch (beat-to-beat IBI → RMSSD)</td><td>"Your HRV dropped 25%"</td></tr>
+          <tr><td><span class="tag tb">MODERATE</span></td><td>Pixel Watch, Fitbit (algorithm varies)</td><td>"Your HRV appears lower"</td></tr>
+          <tr><td><span class="tag ta">LOW</span></td><td>Samsung (NO HRV in Health Connect, HR proxy)</td><td>"Based on heart rate patterns..."</td></tr>
+          <tr><td><span class="tag tr">DEGRADED</span></td><td>Missing, stale >6h, watch off</td><td>"I'm missing data — how are you?"</td></tr>
+        </table>
+        <p class="src" style="margin-top:4px">Samsung HRV gap confirmed via Health Connect API testing, March 2026. Deliberate Samsung omission, not a bug.</p>
+        <h3 style="margin-top:12px">Cost Per Claude Call</h3>
+        <table>
+          <tr><td>2000 cached tokens × $0.0001/tok</td><td>$0.0002</td></tr>
+          <tr><td>1000 fresh tokens × $0.001/tok</td><td>$0.001</td></tr>
+          <tr><td>350 output tokens × $0.005/tok</td><td>$0.00175</td></tr>
+          <tr class="hl"><td><strong>Total per call</strong></td><td><strong>~$0.003</strong></td></tr>
+        </table>
+        <p class="src">Anthropic Haiku 4.5 pricing: $1/$5 per MTok (input/output). Cache reads: 0.1x.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. MVP SCOPE (condensed) -->
+  <section data-transition="slide">
+    <h2>MVP — What We Ship First</h2>
+    <div class="grid2">
+      <div>
+        <h3>Phases A → H (Gate-Based)</h3>
+        <table style="font-size:.55em">
+          <tr><th>Phase</th><th>Deliverable</th><th>Gate</th></tr>
+          <tr><td><span class="tag tb">A</span></td><td>WoO (5-7 users, manual CRS)</td><td>3+ say morning briefs useful</td></tr>
+          <tr><td><span class="tag tb">B1/B2</span></td><td>HealthKit + Health Connect</td><td>CRS updates every 15min, real data</td></tr>
+          <tr><td><span class="tag tg">C</span></td><td>Dashboard (CRS gauge, sleep, trends)</td><td>Real data, auto-updating</td></tr>
+          <tr><td><span class="tag ta">D</span></td><td>Agent Core + Telegram (8 tools)</td><td>Bot responds with health context</td></tr>
+          <tr><td><span class="tag ta">E</span></td><td>Proactive: morning brief + stress alerts</td><td>Brief at wake time, alerts work</td></tr>
+          <tr><td><span class="tag tr">F-H</span></td><td>Onboarding, 14-day self-test, beta</td><td>&lt;5min onboard, FP &lt;20%, 5-7 users</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>8 MVP Tools</h3>
+        <div class="tool-grid">
+          <div class="tool-item">get_crs</div><div class="tool-item">get_sleep</div>
+          <div class="tool-item">get_stress_events</div><div class="tool-item">get_activity</div>
+          <div class="tool-item">get_user_profile</div><div class="tool-item">read_memory</div>
+          <div class="tool-item">update_memory</div><div class="tool-item">send_message</div>
+        </div>
+        <h3 style="margin-top:12px">MVP Unit Economics</h3>
+        <table style="font-size:.55em">
+          <tr><td>Free tier</td><td>~$0.27/user/mo AI cost</td><td>Acquisition</td></tr>
+          <tr class="hl"><td><strong>Pro &#8377;399/mo ($4.34)</strong></td><td>~$0.90/user/mo</td><td><strong>79% margin</strong></td></tr>
+          <tr><td>Break-even</td><td colspan="2">~50 Pro subscribers</td></tr>
+          <tr><td>Total MVP build cost</td><td colspan="2"><strong>$966</strong> (vs $50K-$150K industry avg)</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12. PROACTIVE INTELLIGENCE LEVELS -->
+  <section data-transition="slide">
+    <h2>Proactive Intelligence — 4 Levels</h2>
+    <p style="font-size:.68em">Each level requires the previous to work. This is the roadmap from health bot to cognitive co-pilot to autonomous agent.</p>
+    <div class="level">
+      <div class="level-item l1 fragment fade-in"><h5 style="color:#22c55e">Level 1: Reactive (MVP)</h5><p>"Your HRV dropped 22% in the last 30 min."<br><br>Responds to current state. Threshold-triggered.</p></div>
+      <div class="level-item l2 fragment fade-in"><h5 style="color:#0ea5e9">Level 2: Pattern-Aware (Phase G+)</h5><p>"It's Monday 1:30pm — your HRV typically drops now. Break before next meeting?"<br><br>Recognizes YOUR recurring patterns.</p></div>
+      <div class="level-item l3 fragment fade-in"><h5 style="color:#f59e0b">Level 3: Predictive (Post-MVP)</h5><p>"Sleep debt + 4 meetings tomorrow → CRS will crash by 2pm. Reschedule hardest meeting to morning?"<br><br>Forecasts future state.</p></div>
+      <div class="level-item l4 fragment fade-in"><h5 style="color:#8b5cf6">Level 4: Autonomous (Phase 3+)</h5><p>Auto-blocks calendar for recovery. Auto-declines low-priority meetings when depleted. Auto-adjusts notification cadence.<br><br>Acts with pre-authorized permissions.</p></div>
+    </div>
+    <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
+      <span class="repo-tag">OpenFang Hands: autonomous scheduled tasks</span><span class="repo-tag">Paperclip: goal ancestry + delegation</span><span class="repo-tag">Swarms: MixtureOfAgents for specialist synthesis</span>
+    </div>
+  </section>
+
+  <!-- 13. BEYOND MVP — WORKSPACE INTEGRATION -->
+  <section data-transition="slide">
+    <h2>Beyond MVP — Workspace Intelligence</h2>
+    <p style="font-size:.68em">The agent knows your body. Next: it knows your <strong>world</strong>. Every workspace API is free.</p>
+    <div class="grid3">
+      <div class="poss fragment fade-in"><h5>&#128197; Calendar (Google/Outlook)</h5><p>Read schedule → "You have 4 back-to-back meetings, CRS is 52. Want me to add a 15-min break at 2pm?"<br>Write → Auto-block recovery time when CRS predicted to crash.</p></div>
+      <div class="poss fragment fade-in"><h5>&#128231; Email (Gmail/Outlook)</h5><p>Scan for urgent items → Include in morning brief: "3 emails need response before 11am."<br>Suggest: "Your CRS is 87 right now — tackle the hard reply first."</p></div>
+      <div class="poss fragment fade-in"><h5>&#128172; Slack / Teams</h5><p>DND when CRS < 40. Auto-status: "In deep work — back at 2pm."<br>Surface: "You were mentioned in #engineering 3 times during your focus block."</p></div>
+      <div class="poss fragment fade-in"><h5>&#9989; Task Manager (Linear/Todoist)</h5><p>Priority reranking based on CRS: "Your CRS is 87 — tackle the P0 bug now, save admin tasks for afternoon dip."</p></div>
+      <div class="poss fragment fade-in"><h5>&#127925; Music (Spotify)</h5><p>CRS-adaptive playlists: focus music when peak, calm ambient when flagging, nothing when depleted.</p></div>
+      <div class="poss fragment fade-in"><h5>&#128218; Notes (Notion/Obsidian)</h5><p>Auto-log health patterns to your knowledge base. "Added: Monday afternoon crashes correlate with back-to-back meetings."</p></div>
+    </div>
+    <p class="fragment fade-in" style="font-size:.6em;text-align:center;color:#6366f1;font-weight:600;margin-top:6px">Every integration = a new tool in the agent's toolkit. The 8 MVP tools expand to 50+ with workspace connectors.</p>
+  </section>
+
+  <!-- 14. BEYOND MVP — MULTI-AGENT -->
+  <section data-transition="slide">
+    <h2>Beyond MVP — Multi-Agent Specialists</h2>
+    <p style="font-size:.68em">One generalist agent → specialized health agents coordinated by an orchestrator. <span class="src">From Swarms: MixtureOfAgents + HierarchicalSwarm. From OpenFang: Hands per domain.</span></p>
+    <div class="mermaid-w"><div class="mermaid">
+graph LR
+  O["Orchestrator<br/>(routes by context)"]
+  S["Sleep Specialist<br/>(Haiku)"]
+  ST["Stress Specialist<br/>(Haiku)"]
+  A["Activity Specialist<br/>(Haiku)"]
+  N["Nutrition Specialist<br/>(Haiku)"]
+  SYN["Synthesizer<br/>(Sonnet)"]
+  O --> S
+  O --> ST
+  O --> A
+  O --> N
+  S --> SYN
+  ST --> SYN
+  A --> SYN
+  N --> SYN
+  SYN --> MSG["Final Message"]
+    </div></div>
+    <div class="grid4 fragment fade-in">
+      <div class="card"><h4>Sleep Specialist</h4><p>Bedtime optimization. Sleep debt tracking. Chronotype-aware scheduling. Circadian rhythm coaching.</p></div>
+      <div class="card"><h4>Stress Specialist</h4><p>Real-time intervention. Breathing exercises. Meeting spacing. Recovery protocols. Pattern discovery.</p></div>
+      <div class="card"><h4>Activity Specialist</h4><p>Movement nudges. Exercise recovery. Sedentary alerts. Step goals adaptive to CRS.</p></div>
+      <div class="card"><h4>Nutrition Specialist</h4><p>Caffeine timing. Hydration reminders. Meal impact on HRV. Alcohol/sleep correlation tracking.</p></div>
+    </div>
+    <p class="fragment fade-in" style="font-size:.55em;text-align:center;color:#64748b;margin-top:6px">3 Haiku specialists ($0.002 each) + 1 Sonnet synthesizer ($0.003) = $0.009/brief. 88% cheaper than single Opus ($0.075). <span class="src">Swarms MixtureOfAgents benchmark</span></p>
+  </section>
+
+  <!-- 15. CROSS-DOMAIN POSSIBILITIES -->
+  <section data-transition="slide">
+    <h2>Cross-Domain Possibilities</h2>
+    <p style="font-size:.68em">The Agent OS is domain-agnostic. The CRS + proactive messaging + learning memory pattern applies to every persona that cares about cognitive performance.</p>
+    <div class="grid3">
+      <div class="poss fragment fade-in"><h5>&#127891; Students</h5><p>Study session optimization. Exam prep scheduling based on sleep debt. "Your CRS peaks at 10am — do problem sets now, reading later."</p></div>
+      <div class="poss fragment fade-in"><h5>&#127939; Athletes</h5><p>Training load vs recovery balance. HRV-guided intensity. "HRV is 15% below baseline — scale back today's session."</p></div>
+      <div class="poss fragment fade-in"><h5>&#128188; Enterprise Wellness</h5><p>Team-level CRS dashboards (anonymized). Meeting culture insights. "Your team's average CRS drops 18% on Wednesdays — too many all-hands?"</p></div>
+      <div class="poss fragment fade-in"><h5>&#129657; Clinical Research</h5><p>Longitudinal HRV tracking for studies. Medication impact monitoring. Open-source CRS as a research instrument.</p></div>
+      <div class="poss fragment fade-in"><h5>&#128640; Founders / Executives</h5><p>Decision quality scoring. Board prep optimization. "Your CRS is 38 — delay the investor call to tomorrow morning."</p></div>
+      <div class="poss fragment fade-in"><h5>&#127968; Remote Workers</h5><p>Work-from-home burnout detection. Break scheduling. Social isolation alerts (activity + HRV patterns).</p></div>
+    </div>
+    <p class="fragment fade-in" style="font-size:.6em;text-align:center;color:#6366f1;font-weight:600;margin-top:6px">Same Agent OS. Different soul files. Different tool sets. Different domains. The architecture scales horizontally across personas.</p>
+  </section>
+
+  <!-- 16. TOOL ECOSYSTEM -->
+  <section data-transition="slide">
+    <h2>Tool Ecosystem — 8 Today, 50+ Tomorrow</h2>
+    <p style="font-size:.65em">The Agent OS is tool-agnostic. Each tool is a function the agent can call via <code>tool_use</code>. Adding a new integration = adding a new tool definition.</p>
+    <div class="grid2">
+      <div>
+        <h3>MVP (8 tools)</h3>
+        <div class="tool-grid">
+          <div class="tool-item" style="background:rgba(34,197,94,.15);color:#86efac">get_crs</div><div class="tool-item" style="background:rgba(34,197,94,.15);color:#86efac">get_sleep</div>
+          <div class="tool-item" style="background:rgba(34,197,94,.15);color:#86efac">get_stress</div><div class="tool-item" style="background:rgba(34,197,94,.15);color:#86efac">get_activity</div>
+          <div class="tool-item" style="background:rgba(34,197,94,.15);color:#86efac">get_profile</div><div class="tool-item" style="background:rgba(34,197,94,.15);color:#86efac">read_memory</div>
+          <div class="tool-item" style="background:rgba(34,197,94,.15);color:#86efac">update_memory</div><div class="tool-item" style="background:rgba(34,197,94,.15);color:#86efac">send_message</div>
+        </div>
+        <h3 style="margin-top:10px">Phase 2: Workspace (12+ tools)</h3>
+        <div class="tool-grid">
+          <div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">get_calendar</div><div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">block_time</div>
+          <div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">get_emails</div><div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">set_slack_status</div>
+          <div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">get_tasks</div><div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">prioritize_tasks</div>
+          <div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">get_weather</div><div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">play_music</div>
+          <div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">log_caffeine</div><div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">log_meal</div>
+          <div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">get_trends</div><div class="tool-item" style="background:rgba(99,102,241,.15);color:#a5b4fc">export_data</div>
+        </div>
+      </div>
+      <div>
+        <h3>Phase 3: Autonomous (20+ tools)</h3>
+        <div class="tool-grid">
+          <div class="tool-item" style="background:rgba(245,158,11,.12);color:#fcd34d">decline_meeting</div><div class="tool-item" style="background:rgba(245,158,11,.12);color:#fcd34d">reschedule</div>
+          <div class="tool-item" style="background:rgba(245,158,11,.12);color:#fcd34d">draft_reply</div><div class="tool-item" style="background:rgba(245,158,11,.12);color:#fcd34d">snooze_notifs</div>
+          <div class="tool-item" style="background:rgba(245,158,11,.12);color:#fcd34d">create_task</div><div class="tool-item" style="background:rgba(245,158,11,.12);color:#fcd34d">delegate_task</div>
+          <div class="tool-item" style="background:rgba(245,158,11,.12);color:#fcd34d">book_focus_time</div><div class="tool-item" style="background:rgba(245,158,11,.12);color:#fcd34d">order_food</div>
+        </div>
+        <h3 style="margin-top:10px">Phase 4: Multi-Agent (10+ tools)</h3>
+        <div class="tool-grid">
+          <div class="tool-item" style="background:rgba(139,92,246,.12);color:#c4b5fd">spawn_specialist</div><div class="tool-item" style="background:rgba(139,92,246,.12);color:#c4b5fd">query_kg</div>
+          <div class="tool-item" style="background:rgba(139,92,246,.12);color:#c4b5fd">predict_crs</div><div class="tool-item" style="background:rgba(139,92,246,.12);color:#c4b5fd">population_compare</div>
+          <div class="tool-item" style="background:rgba(139,92,246,.12);color:#c4b5fd">generate_report</div><div class="tool-item" style="background:rgba(139,92,246,.12);color:#c4b5fd">train_model</div>
+          <div class="tool-item" style="background:rgba(139,92,246,.12);color:#c4b5fd">federated_learn</div><div class="tool-item" style="background:rgba(139,92,246,.12);color:#c4b5fd">export_research</div>
+        </div>
+        <p class="src" style="margin-top:8px">Dynamic tool loading: only 3-8 loaded per call. From HumanLayer: "Vercel reduced 17 tools to 2 → 100% success rate (up from 80%), 3.5x faster." We load by intent, not by default.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 17. THE FRAMEWORK HERITAGE -->
+  <section data-transition="slide">
+    <h2>What 14 Systems Unlock</h2>
+    <p style="font-size:.65em">We synthesized production-proven patterns from the best open-source agent projects + NVIDIA's enterprise agent framework.</p>
+    <div class="grid3">
+      <div class="card fragment fade-in"><h4>OpenFang <span class="muted">(Rust, 137K LOC)</span></h4><p><strong>Hands pattern</strong>: autonomous scheduled tasks. <strong>Triple-layer memory</strong>. <strong>Loop guard</strong> (SHA256). <strong>25-field prompt builder</strong>. 16 security systems.</p></div>
+      <div class="card fragment fade-in"><h4>Paperclip <span class="muted">(AI company OS)</span></h4><p><strong>Heartbeat execution</strong>. <strong>PARA memory with decay</strong> (hot/warm/cold). <strong>Goal ancestry</strong>. <strong>Adapter pattern</strong>. Wakeup coalescing.</p></div>
+      <div class="card fragment fade-in"><h4>OpenViking <span class="muted">(ByteDance)</span></h4><p><strong>L0/L1/L2 context tiers</strong>: 83% token reduction. Filesystem-paradigm memory. Intent-driven retrieval.</p></div>
+      <div class="card fragment fade-in"><h4>CoPaw <span class="muted">(Alibaba)</span></h4><p><strong>Pre-reasoning hooks</strong>. <strong>Proactive recording</strong>. Bootstrap onboarding. <strong>Skills system</strong> with progressive loading.</p></div>
+      <div class="card fragment fade-in"><h4>Pi Mono + Production Agent Platform <span class="muted">(enterprise)</span></h4><p><strong>Layered architecture</strong>. Auto-compaction. Steering queues. <strong>Brain → Orchestrator → Execution</strong>. Learning flywheel. Workspace files as config.</p></div>
+      <div class="card fragment fade-in"><h4>Agency-Agents <span class="muted">(100+ personas)</span></h4><p><strong>Personality Spectrum</strong>. <strong>Behavioral Nudge Engine</strong>. Quality gates. Healthcare compliance. Communication styles.</p></div>
+      <div class="card fragment fade-in"><h4>context-hub <span class="muted">(Andrew Ng)</span></h4><p><strong>Progressive disclosure</strong>. Data confidence tiers. Annotation-style learning. BM25 relevance.</p></div>
+      <div class="card fragment fade-in"><h4>NemoClaw <span class="muted">(NVIDIA)</span></h4><p><strong>Versioned blueprints</strong> with plan-apply-rollback. <strong>Declarative per-hand policies</strong>. <strong>Operator-in-the-loop escalation</strong>. Multi-model routing middleware. A/B testing infrastructure.</p></div>
+      <div class="card fragment fade-in"><h4>+ Agent-Skills-for-CE, PicoClaw, OpenClaw, Swarms, HumanLayer</h4><p>Token budgets. U-shaped attention. Provider failover. Multi-channel routing. MixtureOfAgents. 40-60% utilization rule.</p></div>
+    </div>
+  </section>
+
+  <!-- NemoClaw Deep Dive -->
+  <section data-transition="slide">
+    <h2>NemoClaw Patterns — Phase 2 Infrastructure</h2>
+    <p style="font-size:.68em">From <strong>NVIDIA NemoClaw</strong> — enterprise agent governance framework. Deferred to Phase 2 (premature for 5 MVP users), but critical at scale.</p>
+    <div class="grid2">
+      <div>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px"><h4>Versioned Blueprints (plan-apply-rollback)</h4><p>All agent config (soul files, tools, thresholds, routing) stored in <code>agent_blueprints</code> table. Every change is versioned. Roll back instantly if a new soul file causes bad messages. A/B test different personalities. Full audit trail of what changed when.</p></div>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px"><h4>Declarative Per-Hand Policies</h4><p>Each Hand (stress monitor, morning brief, sleep coach) has explicit allowed tools, data scopes, and constraints enforced at runtime. Stress monitor can only read CRS + send alerts. It cannot update memory or access calendar. Principle of least privilege per autonomous task.</p></div>
+        <div class="card ca fragment fade-in"><h4>Operator-in-the-Loop Escalation</h4><p>High-stakes recommendations (suggest doctor visit, alert emergency contact, reschedule important meeting) require explicit user approval. "Ask the first time, remember the preference." Builds trust while maintaining safety.</p></div>
+      </div>
+      <div>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px"><h4>Multi-Model Routing Middleware</h4><p>Route by complexity + cost: Haiku for routine (40%), Sonnet for nuanced (25%), DeepSeek for cost-sensitive (20%), Opus for complex synthesis (3%). Provider failover on errors. Cost tracking per model per user.</p></div>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px"><h4>Config Runs (Plan → Apply → Observe)</h4><p>Every config change follows: plan (preview what changes) → apply (deploy to subset) → observe (monitor metrics) → promote or rollback. Same pattern as Terraform for infrastructure. No surprise regressions.</p></div>
+        <div class="card ca fragment fade-in"><h4>Why Phase 2, Not MVP</h4><p>34 hours of governance infrastructure for 5 users is premature. MVP hardcodes everything. Once we have 50+ users and need A/B testing, rollbacks, and multi-model routing — NemoClaw patterns become essential. The architecture is designed for this expansion.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 18. SECURITY -->
+  <section data-transition="slide">
+    <h2>Security Architecture</h2>
+    <p style="font-size:.65em">Health data is sensitive. These are non-negotiable.</p>
+    <div class="grid2">
+      <div>
+        <h3>MVP (7 systems)</h3>
+        <table>
+          <tr><td><span class="tag tg">1</span></td><td><strong>SQLCipher AES-256</strong></td><td>All health data encrypted on device</td></tr>
+          <tr><td><span class="tag tg">2</span></td><td><strong>Supabase RLS</strong></td><td>auth.uid() = user_id on every table</td></tr>
+          <tr><td><span class="tag tg">3</span></td><td><strong>Output validation</strong></td><td>Banned medical phrases scanned before delivery</td></tr>
+          <tr><td><span class="tag tg">4</span></td><td><strong>Emergency bypass</strong></td><td>Suicidal ideation → immediate safety response</td></tr>
+          <tr><td><span class="tag tg">5</span></td><td><strong>Audit logging</strong></td><td>Every agent invocation: model, tools, tokens, time</td></tr>
+          <tr><td><span class="tag tg">6</span></td><td><strong>Rate limiting</strong></td><td>Per-user message + cost caps</td></tr>
+          <tr><td><span class="tag tg">7</span></td><td><strong>No health data in logs</strong></td><td>console.log, Sentry, analytics — NEVER health values</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>Phase 2+ (5 additional)</h3>
+        <table>
+          <tr><td><span class="tag tb">8</span></td><td><strong>Taint tracking</strong></td><td>Label data at source (HealthKit/HC), track through pipeline</td></tr>
+          <tr><td><span class="tag tb">9</span></td><td><strong>Loop guard</strong></td><td>SHA256 duplicate tool call detection</td></tr>
+          <tr><td><span class="tag tb">10</span></td><td><strong>Prompt injection scanner</strong></td><td>Detect override attempts in user messages</td></tr>
+          <tr><td><span class="tag tb">11</span></td><td><strong>Approval gates</strong></td><td>High-stakes recs need explicit confirmation</td></tr>
+          <tr><td><span class="tag tb">12</span></td><td><strong>Session repair</strong></td><td>Recover from corrupted conversation state</td></tr>
+        </table>
+        <p class="src" style="margin-top:6px">Security patterns from OpenFang (16 systems). Health language rules from Agency-Agents healthcare compliance agent.</p>
+        <p style="font-size:.6em;margin-top:8px;font-weight:600;color:#fca5a5">ALWAYS: "Not a medical device" disclaimer. NEVER diagnose. Wellness framing, not clinical.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 19. THE FULL VISION TIMELINE -->
+  <section data-transition="slide">
+    <h2>The Full Vision — What OneSync Becomes</h2>
+    <div class="mermaid-w"><div class="mermaid">
+graph LR
+  MVP["MVP<br/>Health Bot + Telegram"]:::g --> P2["Phase 2<br/>Cognitive Co-Pilot"]:::b --> P3["Phase 3<br/>Autonomous Agent"]:::a --> P4["Phase 4<br/>Personal OS"]:::p
+  MVP --- D1["8 tools<br/>1 channel<br/>Reactive<br/>Single agent"]
+  P2 --- D2["20+ tools<br/>Calendar + Email + Slack<br/>Pattern-aware<br/>Specialist agents"]
+  P3 --- D3["50+ tools<br/>Auto-schedule, auto-decline<br/>Predictive CRS<br/>Federated learning"]
+  P4 --- D4["Agent network<br/>Full life integration<br/>Autonomous<br/>Cross-domain personas"]
+  classDef g fill:#dcfce7,stroke:#22c55e,stroke-width:2px
+  classDef b fill:#e0e7ff,stroke:#6366f1,stroke-width:2px
+  classDef a fill:#fef3c7,stroke:#f59e0b,stroke-width:2px
+  classDef p fill:#f3e8ff,stroke:#8b5cf6,stroke-width:2px
+    </div></div>
+    <blockquote class="fragment fade-in">
+      <p style="font-size:.8em">The end state: an AI that knows your body, your work, your patterns, and your goals — and <strong>optimizes your entire day before you wake up</strong>. Not a health app. Not a productivity tool. A <strong>personal cognitive operating system</strong> that makes you perform at your best, every day, without you having to think about it.</p>
+    </blockquote>
+  </section>
+
+  <!-- SLIDE C: WHAT WE NEED + COST + NEXT STEPS -->
+  <section data-transition="slide">
+    <h2>What's Next — And What We Need From You</h2>
+    <div class="grid2">
+      <div>
+        <h3>Immediate Next Steps</h3>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px"><h4>Step 1: Wizard of Oz Test (This Week)</h4><p>5-7 people. Wear your watch consistently for 5-7 days. Shivansh manually computes CRS from your wearable data every morning and sends you a personalized brief on Telegram. You tell us: useful or not?</p></div>
+        <div class="card ca fragment fade-in" style="margin-bottom:8px"><h4>Step 2: Build Phase B (After WoO passes)</h4><p>HealthKit connector (iOS) first, then Health Connect (Android). Real wearable data flowing into encrypted local DB. CRS updating every 15 minutes automatically.</p></div>
+        <div class="card ca fragment fade-in"><h4>Step 3: Agent + Beta (Phases D-H)</h4><p>Claude-powered agent, Telegram bot, proactive messaging. 14-day self-test, then 5-7 user beta. Gate: morning brief open rate > 60%.</p></div>
+      </div>
+      <div>
+        <h3>What We Need From You</h3>
+        <div class="card fragment fade-in" style="margin-bottom:8px;border-left:4px solid #22c55e"><h4 style="color:#86efac">Be a Beta Tester</h4><p>Wear your watch to bed. Use it consistently for at least 7 days. Apple Watch or Pixel Watch / Fitbit gives us the best data. Samsung works too — just lower HRV confidence.</p></div>
+        <div class="card fragment fade-in" style="margin-bottom:8px;border-left:4px solid #818cf8"><h4 style="color:#a5b4fc">Give Honest Feedback</h4><p>Tap the buttons. Tell us when a message is useless. Tell us when it's annoying. Tell us when it's actually helpful. The agent literally learns from your feedback — every thumbs-down makes it smarter.</p></div>
+        <div class="card fragment fade-in" style="border-left:4px solid #f59e0b"><h4 style="color:#fcd34d">Don't Sugarcoat It</h4><p>If the morning brief feels like noise, say so. If the stress alert is wrong, say so. We'd rather kill a bad feature than ship one nobody uses. Build &#8594; Break &#8594; Fix &#8594; Repeat.</p></div>
+        <h3 style="margin-top:14px" class="fragment fade-in">Cost to Build This</h3>
+        <div class="grid3 fragment fade-in">
+          <div class="stat"><div class="num" style="font-size:1.3em">$966</div><div class="label">Total MVP cost<br>(6-month runway)</div></div>
+          <div class="stat"><div class="num" style="font-size:1.3em">50-150x</div><div class="label">Cheaper than avg<br>health tech MVP</div></div>
+          <div class="stat"><div class="num" style="font-size:1.3em">50</div><div class="label">Pro users to<br>break even</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <section class="center" data-background="linear-gradient(135deg,#0f172a,#1e1b4b,#312e81)" data-transition="zoom">
+    <h1 style="color:white;font-size:2em!important;margin-bottom:6px">Build <span style="color:#818cf8">&#8594;</span> Break <span style="color:#818cf8">&#8594;</span> Fix <span style="color:#818cf8">&#8594;</span> Repeat</h1>
+    <p style="color:#94a3b8;font-size:.8em;margin-bottom:24px">Nothing is sacred. Everything evolves with the code.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <div class="glass"><div style="color:white;font-size:.6em;font-weight:700">5 Source-of-Truth Docs</div><div style="color:#818cf8;font-size:.5em">Master Ref, Northstar, OnePager, Research, Agent OS</div></div>
+      <div class="glass"><div style="color:white;font-size:.6em;font-weight:700">52+ Architecture Patterns</div><div style="color:#818cf8;font-size:.5em">From 12 open-source agent projects</div></div>
+      <div class="glass"><div style="color:white;font-size:.6em;font-weight:700">9 Claude Code Agents</div><div style="color:#818cf8;font-size:.5em">Planner, QA-breaker, security, CRS validator...</div></div>
+    </div>
+    <br>
+    <p style="color:#64748b;font-size:.5em">Full docs: <span style="color:#818cf8">localhost:3333</span> &bull; with AI Q&A chatbot built in</p>
+    <p style="color:#475569;font-size:.4em;margin-top:12px">OneSync &bull; The biological intelligence layer for the agentic economy</p>
+  </section>
+
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({startOnLoad:false,theme:'base',themeVariables:{primaryColor:'#ddd6fe',primaryBorderColor:'#4f46e5',primaryTextColor:'#000000',lineColor:'#4f46e5',secondaryColor:'#bbf7d0',tertiaryColor:'#fde68a',fontFamily:'Inter,system-ui,sans-serif',fontSize:'14px',nodeBorder:'#4f46e5',mainBkg:'#ddd6fe',clusterBkg:'#f1f5f9',clusterBorder:'#6366f1',edgeLabelBackground:'#ffffff',nodeTextColor:'#000000',labelTextColor:'#000000',actorTextColor:'#000000',signalTextColor:'#000000',actorBkg:'#ddd6fe',actorBorder:'#4f46e5',noteBkgColor:'#fef3c7',noteTextColor:'#000000',activationBkgColor:'#e0e7ff',sequenceNumberColor:'#000000',sectionBkgColor:'#f1f5f9',altSectionBkgColor:'#e2e8f0',taskTextColor:'#000000',taskTextDarkColor:'#000000',taskBkgColor:'#ddd6fe',taskBorderColor:'#4f46e5',loopTextColor:'#000000',labelBoxBkgColor:'#f1f5f9',labelBoxBorderColor:'#4f46e5',labelTextColor:'#000000',pieTitleTextSize:'16px',pieTitleTextColor:'#000000',pieSectionTextColor:'#000000',pieLegendTextColor:'#000000',pieStrokeColor:'#4f46e5',pie1:'#6366f1',pie2:'#8b5cf6',pie3:'#a78bfa',pie4:'#c4b5fd'}});
+Reveal.initialize({hash:true,slideNumber:'c/t',transition:'slide',width:1280,height:720,margin:.05,center:false,autoAnimateEasing:'cubic-bezier(0.4,0,0.2,1)',autoAnimateDuration:.7}).then(async()=>{
+  let c=0;
+  for(const el of document.querySelectorAll('.mermaid')){
+    try{
+      const{svg}=await mermaid.render('pm-'+(++c),el.textContent.trim());
+      el.innerHTML=svg;
+      // Force all text to black after render
+      el.querySelectorAll('text, tspan, .nodeLabel, .edgeLabel, .label, .actor, .messageText, .loopText, .noteText, .labelText, .cluster-label, .tick text, .legend text').forEach(t=>{
+        t.setAttribute('fill','#000000');
+        t.style.fill='#000000';
+        t.style.color='#000000';
+      });
+      // Also fix any spans inside foreignObject (Mermaid uses these for node labels)
+      el.querySelectorAll('foreignObject span, foreignObject div, foreignObject p').forEach(t=>{
+        t.style.color='#000000';
+      });
+      // Fix sequence diagram actor boxes (the black rectangles problem)
+      el.querySelectorAll('rect.actor, .actor-top rect, .actor-bottom rect').forEach(r=>{
+        r.setAttribute('fill','#ddd6fe');
+        r.setAttribute('stroke','#4f46e5');
+        r.setAttribute('stroke-width','1.5');
+        r.style.fill='#ddd6fe';
+      });
+      // Fix any rect that ended up black (catch-all for Mermaid v11 quirks)
+      el.querySelectorAll('rect').forEach(r=>{
+        const fill=r.getAttribute('fill');
+        const isBlack=!fill||fill==='#000'||fill==='#000000'||fill==='black';
+        if(isBlack){
+          r.setAttribute('fill','#ddd6fe');
+          r.setAttribute('stroke','#4f46e5');
+          r.style.fill='#ddd6fe';
+        }
+      });
+      // Nuclear fix: target ALL rects in sequence diagrams without an explicit fill
+      if(el.querySelector('.actor')){
+        el.querySelectorAll('rect').forEach(r=>{
+          const fill=r.getAttribute('fill');
+          if(!fill||fill==='none'||fill==='#000'||fill==='#000000'||fill==='black'){
+            const w=parseFloat(r.getAttribute('width')||0);
+            const h=parseFloat(r.getAttribute('height')||0);
+            if(w>50&&h>20&&h<60){
+              r.setAttribute('fill','#ddd6fe');
+              r.setAttribute('stroke','#4f46e5');
+              r.setAttribute('stroke-width','1.5');
+              r.style.fill='#ddd6fe';
+            }
+          }
+        });
+      }
+      // Fix activation bars
+      el.querySelectorAll('.activation0, .activation1, .activation2').forEach(r=>{
+        r.setAttribute('fill','#e0e7ff');
+        r.setAttribute('stroke','#4f46e5');
+      });
+      // Fix loop box backgrounds
+      el.querySelectorAll('.loopLine, rect.loopLine').forEach(r=>{
+        if(r.tagName==='rect'){r.setAttribute('fill','#f1f5f9');r.setAttribute('stroke','#6366f1');}
+      });
+      el.querySelectorAll('.labelBox').forEach(r=>{
+        r.setAttribute('fill','#f1f5f9');
+        r.setAttribute('stroke','#6366f1');
+      });
+      // Make edges more visible
+      el.querySelectorAll('.edgePath path, .flowchart-link').forEach(p=>{
+        p.setAttribute('stroke','#4f46e5');
+        p.setAttribute('stroke-width','2');
+      });
+      // Make arrowheads visible
+      el.querySelectorAll('marker path').forEach(p=>{
+        p.setAttribute('fill','#4f46e5');
+      });
+    }catch(e){console.warn(e.message)}
+  }
+  const cc=document.getElementById('crsChart');
+  // Set Chart.js global defaults for dark theme
+  Chart.defaults.color = '#cbd5e1';
+  Chart.defaults.borderColor = '#334155';
+
+  if(cc)new Chart(cc,{type:'doughnut',data:{labels:['Sleep (35%)','HRV (25%)','Circadian (25%)','Activity (15%)'],datasets:[{data:[35,25,25,15],backgroundColor:['#6366f1','#8b5cf6','#a78bfa','#c4b5fd'],borderWidth:3,borderColor:'#0f172a',hoverOffset:8}]},options:{responsive:true,cutout:'55%',plugins:{legend:{position:'bottom',labels:{padding:12,usePointStyle:true,pointStyle:'circle',color:'#cbd5e1',font:{family:'Inter',size:10,weight:'600'}}},tooltip:{backgroundColor:'#1e293b',titleColor:'#f1f5f9',bodyColor:'#cbd5e1',cornerRadius:8,padding:8}},animation:{animateRotate:true,animateScale:true,duration:1000,easing:'easeOutQuart'}}});
+});
+</script>
+</body>
+</html>

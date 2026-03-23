@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OneSync — Documentation</title>
+  <script>
+  (function(){
+    var k='onesync_auth',h='5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8';
+    if(sessionStorage.getItem(k)==='1'){document.write('<style>body{visibility:visible!important}</style>');return}
+    document.write('<style>body{visibility:hidden!important}</style>');
+    function s(t){var e=new TextEncoder().encode(t);return crypto.subtle.digest('SHA-256',e).then(function(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('')})}
+    function go(){
+      var p=prompt('Enter password to view OneSync docs:');
+      if(!p){document.body&&(document.body.innerHTML='');return}
+      s(p).then(function(d){if(d===h){sessionStorage.setItem(k,'1');location.reload()}else{alert('Wrong password.');go()}})
+    }
+    if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',go)}else{go()}
+  })();
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="OneSync — The biological intelligence layer for the agentic economy">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css">
+  <style>
+    :root {
+      --base-font-size: 15px;
+      --theme-color: #818cf8;
+      --sidebar-width: 280px;
+      --sidebar-background: #0f172a;
+      --sidebar-nav-link-color: #94a3b8;
+      --sidebar-nav-link-color--active: #818cf8;
+      --sidebar-nav-link-font-weight--active: 700;
+      --sidebar-name-color: #f1f5f9;
+      --sidebar-name-font-weight: 700;
+      --sidebar-border-color: #1e293b;
+      --base-background-color: #0f172a;
+      --base-color: #e2e8f0;
+      --cover-background-color: #0f172a;
+      --cover-heading-color: #ffffff;
+      --cover-color: #e2e8f0;
+      --cover-blockquote-color: #a5b4fc;
+      --heading-color: #f1f5f9;
+      --heading-h1-font-weight: 800;
+      --heading-h2-font-weight: 700;
+      --heading-h2-border-color: #1e293b;
+      --heading-h2-border-width: 0 0 1px 0;
+      --heading-h2-padding: 0 0 0.5rem 0;
+      --heading-h2-margin: 2.5rem 0 1rem;
+      --blockquote-border-color: #818cf8;
+      --blockquote-background: #1e293b;
+      --code-inline-background: #1e293b;
+      --code-inline-color: #a5b4fc;
+      --code-block-background: #1e293b;
+      --notice-tip-border-color: #22c55e;
+      --notice-important-border-color: #ef4444;
+      --link-color: #818cf8;
+      --link-color--hover: #a5b4fc;
+      --search-background: #1e293b;
+      --search-result-keyword-color: #818cf8;
+      --pagination-title-color: #818cf8;
+    }
+
+    /* Cover page — high contrast */
+    .cover-main { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%) !important; }
+    .cover-main h1 { font-size: 3rem !important; color: #ffffff !important; }
+    .cover-main blockquote { color: #a5b4fc !important; }
+    .cover-main blockquote p { color: #a5b4fc !important; }
+    .cover-main p { color: #e2e8f0 !important; }
+    .cover-main li { color: #e2e8f0 !important; }
+    .cover-main strong { color: #ffffff !important; }
+    .cover-main a.anchor { display: none; }
+    section.cover .cover-main > p:last-child a { background: #6366f1 !important; color: #ffffff !important; border-radius: 8px; }
+    section.cover .cover-main > p:last-child a:hover { background: #4f46e5 !important; }
+    section.cover { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%) !important; }
+
+    /* Sidebar */
+    .sidebar .app-name-link { font-size: 1.3rem; letter-spacing: -0.02em; }
+    .sidebar-nav li a { color: #94a3b8; }
+    .sidebar-nav li a:hover { color: #e2e8f0; }
+    .sidebar-nav li.active > a { color: #818cf8 !important; }
+
+    /* Content area */
+    .markdown-section { color: #cbd5e1; }
+    .markdown-section h1, .markdown-section h2, .markdown-section h3 { color: #f1f5f9; }
+    .markdown-section strong { color: #f1f5f9; }
+    .markdown-section a { color: #818cf8; }
+    .markdown-section a:hover { color: #a5b4fc; }
+    .markdown-section pre { border-radius: 8px; background: #1e293b !important; }
+    .markdown-section code { color: #a5b4fc; }
+
+    /* Tables — dark */
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    table th { background: #1e293b; font-weight: 600; text-align: left; color: #e2e8f0; }
+    table th, table td { border: 1px solid #334155; padding: 0.6rem 0.8rem; font-size: 0.9rem; color: #cbd5e1; }
+    table tr:hover { background: #1e293b; }
+
+    /* Mermaid — light background for readability */
+    .mermaid { text-align: center; margin: 1.5rem 0; background: #f8fafc; border-radius: 12px; padding: 16px; }
+    .mermaid svg { max-width: 100%; cursor: pointer; }
+
+    /* ===== Diagram Zoom Modal ===== */
+    #diagram-zoom-overlay {
+      display: none; position: fixed; inset: 0; z-index: 10002;
+      background: rgba(0,0,0,0.85); align-items: center; justify-content: center;
+      cursor: default;
+    }
+    #diagram-zoom-overlay.open { display: flex; }
+    #diagram-zoom-container {
+      background: #f8fafc; border-radius: 16px; padding: 32px;
+      width: 92vw; height: 85vh; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      position: relative; cursor: grab;
+    }
+    #diagram-zoom-container.dragging { cursor: grabbing; }
+    #diagram-zoom-container svg {
+      position: absolute; top: 50%; left: 50%;
+      transform-origin: 0 0;
+    }
+    #diagram-zoom-controls {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      z-index: 10003; display: none; gap: 8px;
+      background: #1e293b; border-radius: 12px;
+      padding: 8px 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); border: 1px solid #334155;
+      font-family: -apple-system, system-ui, sans-serif;
+    }
+    #diagram-zoom-controls.open { display: flex; }
+    #diagram-zoom-controls button {
+      background: #6366f1; color: white; border: none; border-radius: 8px;
+      width: 36px; height: 36px; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #diagram-zoom-controls button:hover { background: #4f46e5; }
+    #diagram-zoom-controls span { font-size: 13px; color: #94a3b8; padding: 0 8px; display: flex; align-items: center; }
+    @media (max-width: 768px) { table { font-size: 0.8rem; } table th, table td { padding: 0.4rem; } }
+
+    /* ===== Ask AI Floating Button ===== */
+    #ask-ai-btn {
+      display: none; position: absolute; z-index: 9999;
+      background: #6366f1; color: white; border: none; border-radius: 20px;
+      padding: 6px 14px; font-size: 13px; font-weight: 600;
+      cursor: pointer; box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+      transition: all 0.15s ease; font-family: -apple-system, system-ui, sans-serif;
+    }
+    #ask-ai-btn:hover { background: #4f46e5; transform: translateY(-1px); }
+
+    /* ===== Chat Panel ===== */
+    #ai-chat-panel {
+      display: none; position: fixed; bottom: 24px; right: 24px; z-index: 10000;
+      width: 420px; max-height: 600px; background: #1e293b;
+      border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+      font-family: -apple-system, system-ui, 'Segoe UI', sans-serif;
+      flex-direction: column; overflow: hidden;
+    }
+    #ai-chat-panel.open { display: flex; }
+    #ai-chat-header {
+      background: linear-gradient(135deg, #6366f1, #4f46e5); color: white;
+      padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;
+    }
+    #ai-chat-header h3 { margin: 0; font-size: 15px; font-weight: 700; }
+    #ai-chat-header button {
+      background: rgba(255,255,255,0.2); border: none; color: white;
+      width: 28px; height: 28px; border-radius: 8px; cursor: pointer;
+      font-size: 14px; display: flex; align-items: center; justify-content: center;
+    }
+    #ai-chat-context {
+      background: #0f172a; border-bottom: 1px solid #334155; padding: 12px 20px;
+      font-size: 12px; color: #94a3b8; max-height: 80px; overflow-y: auto;
+    }
+    #ai-chat-context strong { color: #cbd5e1; }
+    #ai-chat-context:empty { display: none; }
+    #ai-chat-messages { flex: 1; overflow-y: auto; padding: 16px 20px; min-height: 200px; max-height: 350px; }
+    .ai-msg { margin-bottom: 12px; line-height: 1.5; font-size: 14px; }
+    .ai-msg.user {
+      background: #312e81; color: #e0e7ff; padding: 10px 14px;
+      border-radius: 14px 14px 4px 14px; margin-left: 40px;
+    }
+    .ai-msg.assistant {
+      background: #0f172a; color: #cbd5e1; padding: 10px 14px;
+      border-radius: 14px 14px 14px 4px; margin-right: 40px; border: 1px solid #334155;
+    }
+    .ai-msg.assistant strong { color: #f1f5f9; }
+    .ai-msg.assistant code { background: #334155; color: #a5b4fc; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+    #ai-chat-input-area { border-top: 1px solid #334155; padding: 12px 16px; display: flex; gap: 8px; }
+    #ai-chat-input {
+      flex: 1; border: 1px solid #334155; border-radius: 10px; padding: 10px 14px;
+      font-size: 14px; outline: none; resize: none; font-family: inherit;
+      background: #0f172a; color: #e2e8f0;
+    }
+    #ai-chat-input:focus { border-color: #818cf8; }
+    #ai-chat-input::placeholder { color: #64748b; }
+    #ai-chat-send {
+      background: #6366f1; color: white; border: none; border-radius: 10px;
+      padding: 0 16px; cursor: pointer; font-weight: 600; font-size: 14px;
+    }
+    #ai-chat-send:hover { background: #4f46e5; }
+    #ai-chat-send:disabled { background: #3730a3; cursor: not-allowed; }
+
+    /* ===== API Key Modal ===== */
+    #api-key-modal { display: none; position: fixed; inset: 0; z-index: 10001; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; font-family: -apple-system, system-ui, sans-serif; }
+    #api-key-modal.open { display: flex; }
+    #api-key-modal-inner { background: white; border-radius: 16px; padding: 32px; max-width: 440px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+    #api-key-modal-inner h3 { margin: 0 0 8px; font-size: 18px; color: #1e293b; }
+    #api-key-modal-inner p { margin: 0 0 16px; font-size: 14px; color: #64748b; line-height: 1.5; }
+    #api-key-input { width: 100%; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; font-family: monospace; outline: none; box-sizing: border-box; }
+    #api-key-input:focus { border-color: #6366f1; }
+    .btn-row { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+    .btn-row button { padding: 8px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #e2e8f0; background: white; }
+    #api-key-save { background: #6366f1 !important; color: white !important; border-color: #6366f1 !important; }
+
+    /* ===== FAB ===== */
+    #ai-fab {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9998;
+      width: 56px; height: 56px; border-radius: 50%; background: #6366f1;
+      color: white; border: none; cursor: pointer; font-size: 22px;
+      box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    #ai-fab:hover { background: #4f46e5; transform: scale(1.05); }
+    #ai-fab.hidden { display: none; }
+    @media (max-width: 500px) { #ai-chat-panel { width: calc(100vw - 16px); right: 8px; bottom: 8px; } }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <!-- Diagram Zoom Overlay -->
+  <div id="diagram-zoom-overlay" onclick="if(event.target===this)closeZoom()">
+    <div id="diagram-zoom-container"></div>
+  </div>
+  <div id="diagram-zoom-controls">
+    <button onclick="zoomDiagram(1.2)" title="Zoom in">+</button>
+    <button onclick="zoomDiagram(0.8)" title="Zoom out">-</button>
+    <button onclick="zoomDiagram(0)" title="Reset">R</button>
+    <span>Scroll to zoom &bull; Drag to pan</span>
+    <button onclick="closeZoom()" title="Close">X</button>
+  </div>
+
+  <button id="ask-ai-btn">Ask AI</button>
+  <button id="ai-fab" title="Ask AI about this documentation">?</button>
+
+  <div id="ai-chat-panel">
+    <div id="ai-chat-header">
+      <h3>Ask about OneSync</h3>
+      <div style="display:flex;gap:6px;">
+        <button onclick="clearChat()" title="Clear">C</button>
+        <button onclick="togglePanel()" title="Close">X</button>
+      </div>
+    </div>
+    <div id="ai-chat-context"></div>
+    <div id="ai-chat-messages">
+      <div class="ai-msg assistant">Hi! Select any text in the docs and click <strong>"Ask AI"</strong>, or type a question about OneSync here.</div>
+    </div>
+    <div id="ai-chat-input-area">
+      <textarea id="ai-chat-input" rows="1" placeholder="Ask about OneSync..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+      <button id="ai-chat-send" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <!-- API key is read from .env file server-side. No browser storage needed. -->
+
+  <script>
+    window.$docsify = {
+      name: '<span style="color:#6366f1">One</span>Sync',
+      nameLink: 'https://onesync-website-zs1p.vercel.app/', repo: '', loadSidebar: true, subMaxLevel: 3, auto2top: true,
+      search: { placeholder: 'Search docs...', noData: 'No results', depth: 3 },
+      coverpage: true, themeColor: '#6366f1',
+      pagination: { previousText: 'Previous', nextText: 'Next', crossChapter: true, crossChapterText: true },
+      copyCode: { buttonText: 'Copy', successText: 'Copied' },
+      markdown: { renderer: { code: function(code, lang) {
+        if (lang === 'mermaid') return '<div class="mermaid">' + code + '</div>';
+        return this.origin.code.apply(this, arguments);
+      }}}
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2/dist/docsify-copy-code.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-kotlin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-swift.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <script>
+    // Robust Mermaid rendering for Docsify
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#e0e7ff', primaryBorderColor: '#6366f1', primaryTextColor: '#1e293b',
+        lineColor: '#94a3b8', secondaryColor: '#f0fdf4', tertiaryColor: '#fef3c7',
+        fontFamily: '-apple-system, system-ui, sans-serif', fontSize: '14px',
+        nodeBorder: '#6366f1', mainBkg: '#e0e7ff', clusterBkg: '#f8fafc', clusterBorder: '#e2e8f0'
+      }
+    });
+
+    // Use Docsify hook to render Mermaid after each page load
+    window.$docsify.plugins = (window.$docsify.plugins || []).concat([
+      function(hook) {
+        hook.afterEach(function(html) { return html; });
+        hook.doneEach(function() {
+          renderMermaidDiagrams();
+        });
+      }
+    ]);
+
+    let mermaidCounter = 0;
+    async function renderMermaidDiagrams() {
+      const elements = document.querySelectorAll('.mermaid');
+      for (const el of elements) {
+        if (el.getAttribute('data-mermaid-done')) continue;
+        el.setAttribute('data-mermaid-done', 'true');
+        const code = el.textContent || el.innerText;
+        if (!code.trim()) continue;
+        try {
+          const id = 'mermaid-' + (++mermaidCounter);
+          const { svg } = await mermaid.render(id, code.trim());
+          el.innerHTML = svg;
+          // Add click-to-zoom
+          el.style.cursor = 'pointer';
+          el.title = 'Click to zoom';
+          el.addEventListener('click', () => openZoom(el.innerHTML));
+        } catch (e) {
+          console.warn('Mermaid render error:', e.message);
+          el.innerHTML = '<pre style="color:#ef4444;font-size:12px;">Diagram error: ' + e.message + '</pre>';
+        }
+      }
+    }
+
+    // Diagram Zoom + Pan functions
+    let zScale = 1, zX = 0, zY = 0;
+    let isDragging = false, dragStartX = 0, dragStartY = 0, dragStartZX = 0, dragStartZY = 0;
+
+    function openZoom(svgHtml) {
+      const container = document.getElementById('diagram-zoom-container');
+      container.innerHTML = svgHtml;
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+
+      // Show overlay first so container has dimensions
+      document.getElementById('diagram-zoom-overlay').classList.add('open');
+      document.getElementById('diagram-zoom-controls').classList.add('open');
+
+      // Use requestAnimationFrame to measure after layout
+      requestAnimationFrame(() => {
+        const cw = container.clientWidth - 48;
+        const ch = container.clientHeight - 48;
+
+        // Get actual SVG dimensions — try multiple methods
+        let sw, sh;
+        // Method 1: viewBox (most reliable for Mermaid SVGs)
+        const vb = svg.viewBox?.baseVal;
+        if (vb && vb.width > 0) { sw = vb.width; sh = vb.height; }
+        else {
+          // Method 2: explicit width/height attributes
+          const aw = parseFloat(svg.getAttribute('width'));
+          const ah = parseFloat(svg.getAttribute('height'));
+          if (aw > 0) { sw = aw; sh = ah; }
+          else {
+            // Method 3: getBoundingClientRect after render
+            // Reset any transforms first so we get true size
+            svg.style.transform = 'none';
+            svg.style.position = 'static';
+            const rect = svg.getBoundingClientRect();
+            sw = rect.width || 800;
+            sh = rect.height || 400;
+          }
+        }
+
+        // Scale to fill 90% of the viewport — no artificial cap
+        const scaleX = cw / sw;
+        const scaleY = ch / sh;
+        zScale = Math.min(scaleX, scaleY) * 0.9; // 90% fill, slight padding
+
+        // Center it
+        zX = (container.clientWidth - sw * zScale) / 2;
+        zY = (container.clientHeight - sh * zScale) / 2;
+
+        applyZoomTransform(svg);
+      });
+    }
+
+    function applyZoomTransform(svg) {
+      if (!svg) svg = document.querySelector('#diagram-zoom-container svg');
+      if (!svg) return;
+      svg.style.position = 'absolute';
+      svg.style.top = '0';
+      svg.style.left = '0';
+      svg.style.transform = 'translate(' + zX + 'px,' + zY + 'px) scale(' + zScale + ')';
+      svg.style.transformOrigin = '0 0';
+      svg.style.transition = isDragging ? 'none' : 'transform 0.15s ease';
+    }
+
+    function closeZoom() {
+      document.getElementById('diagram-zoom-overlay').classList.remove('open');
+      document.getElementById('diagram-zoom-controls').classList.remove('open');
+      isDragging = false;
+    }
+
+    function getSvgNaturalSize(svg) {
+      const vb = svg.viewBox?.baseVal;
+      if (vb && vb.width > 0) return { w: vb.width, h: vb.height };
+      const aw = parseFloat(svg.getAttribute('width'));
+      if (aw > 0) return { w: aw, h: parseFloat(svg.getAttribute('height')) };
+      return { w: 800, h: 400 };
+    }
+
+    function zoomDiagram(factor) {
+      const container = document.getElementById('diagram-zoom-container');
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+      const oldScale = zScale;
+      if (factor === 0) {
+        // Reset: re-fit to 90% of viewport
+        const { w: sw, h: sh } = getSvgNaturalSize(svg);
+        const cw = container.clientWidth - 48;
+        const ch = container.clientHeight - 48;
+        zScale = Math.min(cw / sw, ch / sh) * 0.9;
+        zX = (container.clientWidth - sw * zScale) / 2;
+        zY = (container.clientHeight - sh * zScale) / 2;
+      } else {
+        const cx = container.clientWidth / 2;
+        const cy = container.clientHeight / 2;
+        zScale = Math.max(0.2, Math.min(5, zScale * factor));
+        // Zoom toward center
+        zX = cx - (cx - zX) * (zScale / oldScale);
+        zY = cy - (cy - zY) * (zScale / oldScale);
+      }
+      applyZoomTransform(svg);
+    }
+
+    // Mouse drag to pan
+    const zoomContainer = document.getElementById('diagram-zoom-container');
+    zoomContainer.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      dragStartX = e.clientX; dragStartY = e.clientY;
+      dragStartZX = zX; dragStartZY = zY;
+      zoomContainer.classList.add('dragging');
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      zX = dragStartZX + (e.clientX - dragStartX);
+      zY = dragStartZY + (e.clientY - dragStartY);
+      applyZoomTransform();
+    });
+    document.addEventListener('mouseup', () => {
+      if (isDragging) { isDragging = false; zoomContainer.classList.remove('dragging'); }
+    });
+
+    // Scroll to zoom (toward mouse pointer)
+    zoomContainer.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = zoomContainer.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const oldScale = zScale;
+      const factor = e.deltaY < 0 ? 1.15 : 0.87;
+      zScale = Math.max(0.2, Math.min(5, zScale * factor));
+      // Zoom toward mouse pointer
+      zX = mx - (mx - zX) * (zScale / oldScale);
+      zY = my - (my - zY) * (zScale / oldScale);
+      applyZoomTransform();
+    }, { passive: false });
+
+    // Escape to close
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeZoom(); });
+  </script>
+
+  <script>
+    // ===== Ask AI Engine (uses local proxy → .env API key) =====
+    let selectedContext = '', panelOpen = false;
+
+    document.addEventListener('mouseup', (e) => {
+      const btn = document.getElementById('ask-ai-btn');
+      const sel = window.getSelection();
+      const text = sel.toString().trim();
+      if (text.length > 10 && !e.target.closest('#ai-chat-panel') && !e.target.closest('#ask-ai-btn')) {
+        selectedContext = text;
+        const rect = sel.getRangeAt(0).getBoundingClientRect();
+        btn.style.left = (rect.left + rect.width/2 - 40 + window.scrollX) + 'px';
+        btn.style.top = (rect.top - 40 + window.scrollY) + 'px';
+        btn.style.display = 'block';
+      } else if (!e.target.closest('#ask-ai-btn')) { btn.style.display = 'none'; }
+    });
+    document.getElementById('ask-ai-btn').addEventListener('click', () => {
+      document.getElementById('ask-ai-btn').style.display = 'none';
+      openPanelWithContext(selectedContext);
+    });
+    function togglePanel() {
+      panelOpen = !panelOpen;
+      document.getElementById('ai-chat-panel').classList.toggle('open', panelOpen);
+      document.getElementById('ai-fab').classList.toggle('hidden', panelOpen);
+    }
+    document.getElementById('ai-fab').addEventListener('click', () => {
+      selectedContext = '';
+      document.getElementById('ai-chat-context').innerHTML = '';
+      togglePanel();
+    });
+    function openPanelWithContext(text) {
+      if (!panelOpen) togglePanel();
+      const ctx = document.getElementById('ai-chat-context');
+      ctx.innerHTML = text ? '<strong>Selected:</strong> ' + (text.length > 200 ? text.substring(0,200)+'...' : text) : '';
+      document.getElementById('ai-chat-input').focus();
+    }
+    function clearChat() {
+      document.getElementById('ai-chat-messages').innerHTML = '<div class="ai-msg assistant">Chat cleared. Select text or ask anything!</div>';
+      selectedContext = '';
+      document.getElementById('ai-chat-context').innerHTML = '';
+    }
+    async function sendMessage() {
+      const input = document.getElementById('ai-chat-input');
+      const q = input.value.trim(); if (!q) return;
+      input.value = '';
+      const msgs = document.getElementById('ai-chat-messages');
+      const u = document.createElement('div'); u.className='ai-msg user'; u.textContent=q; msgs.appendChild(u);
+      const t = document.createElement('div'); t.className='ai-msg assistant'; t.style.color='#94a3b8'; t.style.fontStyle='italic'; t.textContent='Thinking...'; msgs.appendChild(t);
+      msgs.scrollTop = msgs.scrollHeight;
+      const page = document.querySelector('.markdown-section')?.innerText?.substring(0,3000) || '';
+      try {
+        const r = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q, context: selectedContext || null, pageContent: page })
+        });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        t.style.color=''; t.style.fontStyle='';
+        const text = d.content?.[0]?.text || d.error || 'No response';
+        t.innerHTML = text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/`(.*?)`/g,'<code>$1</code>').replace(/\n- /g,'<br>• ').replace(/\n/g,'<br>');
+      } catch(e) {
+        t.style.color='#ef4444'; t.style.fontStyle=''; t.textContent='Error: '+e.message;
+      }
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+  </script>
+</body>
+</html>
