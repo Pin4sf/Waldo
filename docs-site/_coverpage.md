@@ -12,6 +12,6 @@ A personal cognitive agent that reads your body, manages your tasks, and orchest
 
 **Ecosystem Play** — Biology layer that powers other agents via adapter architecture
 
-Architecture distilled from **13 production-grade agent systems**
+Architecture distilled from **13+ production-grade agent systems**
 
 [Get Started](#onesync-overview)
