@@ -1,10 +1,14 @@
-# OneSync — Master Reference Document
+# Waldo — Master Reference Document
 
 **Version:** 1.1 (post-critique)
 **Date:** March 17, 2026
-**Status:** The single source of truth for building OneSync. All previous docs are now archived reference material.
+**Status:** The single source of truth for building Waldo. All previous docs are now archived reference material.
 
-> **"Every AI agent knows your calendar. Only OneSync knows your body."**
+> **Brand:** Waldo — the biological intelligence agent. Dalmatian mascot. Tagline: "Already on it."
+> **Naming:** Morning Wag (daily briefing), Fetch (intervention), Spots (patterns), Patrol (24/7 analysis), Constellation (long-term map), Nap Score (consumer CRS).
+> **Tiers:** Pup (free), Pro (full), Pack (team/family).
+
+> **"Every AI agent knows your calendar. Only Waldo knows your body."**
 
 > This document supersedes all previous planning documents. When any prior doc conflicts with this one, this wins. The 15 previous docs in `Docs/` informed this document and remain as appendices for deep dives, but you should never need to open them during development.
 
@@ -23,7 +27,7 @@
 
 # PART 1: EXECUTIVE SUMMARY
 
-## 1.1 What OneSync Is
+## 1.1 What Waldo Is
 
 A **personal cognitive operating system** — an AI agent on your phone that reads your body signals from wearables (Apple Watch + Android), manages your tasks based on your cognitive state, and evolves into an autonomous OS that handles virtually any task in your life.
 
@@ -31,7 +35,7 @@ A **personal cognitive operating system** — an AI agent on your phone that rea
 
 | Pillar | Phase | What It Does |
 |--------|-------|-------------|
-| **Body Intelligence** | MVP | Reads HRV, HR, sleep, activity from any wearable (HealthKit + Health Connect). Computes CRS on-phone (offline). Detects stress. Messages you proactively — via your preferred channel — before you crash. |
+| **Body Intelligence** | MVP | Reads HRV, HR, sleep, activity from any wearable (HealthKit + Health Connect). Computes CRS (consumer name: Nap Score) on-phone (offline). Detects stress. Messages you proactively — via your preferred channel — before you crash. |
 | **Task Intelligence** | Phase 2 | Connects to calendar, email, Slack, tasks. Prioritizes work by CRS. Reschedules meetings when you're depleted. |
 | **Autonomous Personal OS** | Phase 3+ | Learns skills from you. Delegates to specialist sub-agents. Executes arbitrary tasks. Powers other agents (Cursor, Lindy, Claude Code) with your biological state. |
 
@@ -71,7 +75,7 @@ A **personal cognitive operating system** — an AI agent on your phone that rea
 
 62% of knowledge workers report burnout (HBR, Feb 2026). The tools meant to help are making it worse because they're blind to the body.
 
-**OneSync is the biological intelligence layer for the agentic economy.** It's the agent that knows your body — and the one that every other agent will eventually need to talk to. Architecture distilled from 14 production-grade agent systems (OpenFang, Paperclip, OpenViking, CoPaw, Pi Mono, NemoClaw, Agency-Agents, and 7 more).
+**Waldo is the biological intelligence layer for the agentic economy.** It's the agent that knows your body — and the one that every other agent will eventually need to talk to. Architecture distilled from 14 production-grade agent systems (OpenFang, Paperclip, OpenViking, CoPaw, Pi Mono, NemoClaw, Agency-Agents, and 7 more).
 
 ## 1.2 Market Position
 
@@ -81,7 +85,7 @@ A **personal cognitive operating system** — an AI agent on your phone that rea
                         Agent Autonomy
                     Low <------------------> High
 
-        High  | Oura Advisor, WHOOP  |  * OneSync *          |
+        High  | Oura Advisor, WHOOP  |  * Waldo *          |
   Body        | Coach, Garmin,       |  Biology + Agency     |
   Awareness   | Samsung Health       |  (knows body + acts)  |
               | (track, don't act)   |                       |
@@ -93,7 +97,7 @@ A **personal cognitive operating system** — an AI agent on your phone that rea
               '----------------------------------------------'
 ```
 
-**The agentic economy needs a biological layer.** Every AI agent managing tasks, emails, and calendars is operating without the most important context: the human's cognitive and physical state. OneSync fills that gap — first as a standalone agent, eventually as the "body API" that other agents query via MCP/A2A protocols.
+**The agentic economy needs a biological layer.** Every AI agent managing tasks, emails, and calendars is operating without the most important context: the human's cognitive and physical state. Waldo fills that gap — first as a standalone agent, eventually as the "body API" that other agents query via MCP/A2A protocols.
 
 **Window estimate:** Apple Health+ was scaled back (Bloomberg, Feb 2026). WHOOP has proactive nudges but is single-device/$30/mo. Execution speed is the moat.
 
@@ -112,41 +116,41 @@ A **personal cognitive operating system** — an AI agent on your phone that rea
 
 ### Competitive Landscape
 
-| Market Player | What They Do | OneSync Advantage | Relationship |
+| Market Player | What They Do | Waldo Advantage | Relationship |
 |-----------|-------------|-------------------|-------------|
 | **WHOOP** ($3.6B) | WHOOP Coach AI (GPT-4 powered) now has **proactive nudges** — Daily Outlook (morning), Day in Review (evening), rising stress alerts. Strength Trainer, AI memory, WHOOP Age/healthspan. $199-359/yr subscription. | Single-device (proprietary band required), **in-app only** (confirmed: no Telegram/WhatsApp/SMS for coaching), device-locked ecosystem, $199-359/yr. Coach UX "fairly mixed since 2023 launch." | **HIGH overlap** — closest to proactive model; potential data partner (they lack cross-platform biology) |
-| **Oura** ($5.2B) | Oura Advisor AI active. Launched proprietary AI model for women's health (Feb 2026). Personalized, clinically grounded. | Single-device, no proactive messaging outside app, coaching not agency | **MEDIUM overlap** — specialized AI; potential partner (Oura data → OneSync agent) |
-| **Apple Health+** | AI health coach was **SCALED BACK** (Bloomberg, Feb 2026). Features rolling out individually in Health app, not as unified service. Siri + Health with iOS 27. | Apple-only, fragmented rollout, no proactive external messaging | **LOW overlap** (near-term) — complementary; OneSync adds cross-platform + external messaging |
+| **Oura** ($5.2B) | Oura Advisor AI active. Launched proprietary AI model for women's health (Feb 2026). Personalized, clinically grounded. | Single-device, no proactive messaging outside app, coaching not agency | **MEDIUM overlap** — specialized AI; potential partner (Oura data → Waldo agent) |
+| **Apple Health+** | AI health coach was **SCALED BACK** (Bloomberg, Feb 2026). Features rolling out individually in Health app, not as unified service. Siri + Health with iOS 27. | Apple-only, fragmented rollout, no proactive external messaging | **LOW overlap** (near-term) — complementary; Waldo adds cross-platform + external messaging |
 | **Nori** (YC F25) | Concierge AI health coach aggregating Apple Health + medical records + wearables into daily plan. Built **HealthMCP** (Model Context Protocol for health data — validates the "body API" concept). **iOS only — no Android.** Founders: 2x YC, 2x exits (Chartable → Spotify, Octopart → Altium). | **iOS only** (no Android at all). Scheduled morning plan only (no real-time proactive alerts). No external messaging. Users report data syncing issues ("getting a lot of things wrong"). Strong founders are the threat, not the current product. | **MEDIUM overlap** — strong team; potential integration (HealthMCP aligns with our body API vision) |
-| **Lindy** ($50M+ raised) | AI Chief of Staff, 4000+ integrations | Zero biology awareness | **LOW overlap** — integration partner (Lindy + OneSync biology = smarter task agent) |
+| **Lindy** ($50M+ raised) | AI Chief of Staff, 4000+ integrations | Zero biology awareness | **LOW overlap** — integration partner (Lindy + Waldo biology = smarter task agent) |
 | **ChatGPT Health** | 230M weekly health queries (Jan 2026) | Purely reactive Q&A, no biometric integration | **LOW overlap** — complementary (reactive Q&A vs proactive agent) |
 | **Sahha.ai** | Health AI SDK for developers | B2B SDK, not end-user product | **LOW overlap** — potential data partner (their SDK, our agent) |
 | **Welltory** | HRV analysis + recommendations. Notable: has native Galaxy Watch app that measures HRV directly (bypassing Samsung Health's sync gap). | No proactive messaging, no AI agent, no unified score | **LOW overlap** — potential data partner (Galaxy Watch HRV) |
 
-**Critical competitive update (March 2026):** WHOOP Coach proactive nudges are **confirmed in-app only** — no delivery via Telegram, WhatsApp, SMS, or any external channel. WHOOP remains device-locked ($199-359/yr), powered by GPT-4. Nori (YC F25) is iOS-only with no Android version. **Neither competitor delivers coaching via external messaging channels. OneSync's clearest differentiators: (1) device-agnostic, (2) channel-agnostic delivery via adapter pattern, (3) biology as a service for the agent ecosystem.**
+**Critical competitive update (March 2026):** WHOOP Coach proactive nudges are **confirmed in-app only** — no delivery via Telegram, WhatsApp, SMS, or any external channel. WHOOP remains device-locked ($199-359/yr), powered by GPT-4. Nori (YC F25) is iOS-only with no Android version. **Neither competitor delivers coaching via external messaging channels. Waldo's clearest differentiators: (1) device-agnostic, (2) channel-agnostic delivery via adapter pattern, (3) biology as a service for the agent ecosystem.**
 
-**OneSync's differentiation pillars:** (1) device-agnosticism via Health Connect + HealthKit, (2) channel-agnostic delivery via adapter pattern (Telegram → WhatsApp → Discord → Slack → in-app), (3) free/affordable pricing (50-100x cheaper than WHOOP), (4) CRS as a transparent unified score (algorithm published, unlike all competitors), (5) cross-platform (Android + iOS from MVP).
+**Waldo's differentiation pillars:** (1) device-agnosticism via Health Connect + HealthKit, (2) channel-agnostic delivery via adapter pattern (Telegram → WhatsApp → Discord → Slack → in-app), (3) free/affordable pricing (50-100x cheaper than WHOOP), (4) CRS as a transparent unified score (algorithm published, unlike all competitors), (5) cross-platform (Android + iOS from MVP).
 
-**Apple threat reduced:** Bloomberg reported Apple scaled back Health+ AI coach plans. Features being rolled out incrementally, not as a unified service. This gives OneSync more runway than the 12-18 month estimate in earlier docs.
+**Apple threat reduced:** Bloomberg reported Apple scaled back Health+ AI coach plans. Features being rolled out incrementally, not as a unified service. This gives Waldo more runway than the 12-18 month estimate in earlier docs.
 
-### Positioning: "Morning Cognitive Brief" → "Cognitive Co-Pilot"
+### Positioning: "Morning Wag" → "Cognitive Co-Pilot"
 
-**External framing (what users and investors hear first):** "An AI that reads your smartwatch and tells you each morning how to make the most of your day." The morning brief is the wedge — tangible, testable, habitual. It uses overnight data (most reliable), doesn't interrupt, and delivers the core value proposition in 30 seconds.
+**External framing (what users and investors hear first):** "An AI that reads your smartwatch and tells you each morning how to make the most of your day." The Morning Wag is the wedge — tangible, testable, habitual. It uses overnight data (most reliable), doesn't interrupt, and delivers the core value proposition in 30 seconds.
 
 **Internal architecture:** A general-purpose Agent OS with biological intelligence. The market doesn't need to know that yet.
 
-**Wedge:** Enter as "your AI morning brief that reads your body" → add stress pattern tracking → add workspace connectors (calendar, email, Slack, tasks) → become "the cognitive performance optimizer that knows your body AND your world."
+**Wedge:** Enter as "your AI Morning Wag that reads your body" → add stress pattern tracking → add workspace connectors (calendar, email, Slack, tasks) → become "the cognitive performance optimizer that knows your body AND your world."
 
 ### The Two Intelligence Layers
 
-OneSync's real power comes from combining **biological intelligence** with **life/work context**:
+Waldo's real power comes from combining **biological intelligence** with **life/work context**:
 
 | Layer | Sources | What It Knows |
 |-------|---------|--------------|
 | **Biology** | Wearable via Health Connect (HRV, HR, sleep, steps, SpO2) | Cognitive state right now — sharp, fatigued, stressed, recovering |
 | **Life Context** | Calendar, email, Slack/Teams, task managers (Phase 2+) | What's coming, what's urgent, what can move, who's waiting |
 
-Neither layer alone is sufficient. Health apps know your body but not your calendar. Productivity agents know your calendar but not your body. **OneSync combines both to automate tasks that no other agent can:**
+Neither layer alone is sufficient. Health apps know your body but not your calendar. Productivity agents know your calendar but not your body. **Waldo combines both to automate tasks that no other agent can:**
 
 | Agentic Task | Bio Signal + Context Signal | What Agent Does |
 |-------------|---------------------------|-----------------|
@@ -160,7 +164,7 @@ Neither layer alone is sufficient. Health apps know your body but not your calen
 
 **MVP = Biology layer only** (Health Connect + HealthKit + CRS + Channel Adapter [Telegram first]) — proves the plumbing works and proactive messaging creates engagement.
 
-**MVP v2 (Phase 2) = The real product.** Add workspace connectors + user-created skills + conversational learning. This is where OneSync becomes a true autonomous agent:
+**MVP v2 (Phase 2) = The real product.** Add workspace connectors + user-created skills + conversational learning. This is where Waldo becomes a true autonomous agent:
 - Agent learns from conversation what the user wants automated
 - User can teach the agent new skills ("when my CRS drops below 50 and I have a presentation, move it")
 - Agent builds skills dynamically from user behavior patterns, not just pre-programmed triggers
@@ -170,7 +174,7 @@ Neither layer alone is sufficient. Health apps know your body but not your calen
 
 ### The Agent Skills Vision (Phase 2)
 
-The end-state agent is not limited to pre-built stress alerts and morning briefs. **The user should be able to create any skill the agent can execute:**
+The end-state agent is not limited to pre-built Fetch Alerts and Morning Wags. **The user should be able to create any skill the agent can execute:**
 
 | How Skills Get Created | Example |
 |----------------------|---------|
@@ -186,11 +190,11 @@ The agent's intelligence comes from combining **biology + workspace context + co
 | Connector | Phase | What It Unlocks |
 |-----------|-------|----------------|
 | Google Calendar / Outlook | Phase 2 | Meeting-aware interventions, schedule optimization, focus protection |
-| Gmail / Outlook | Phase 2 | Communication timing, morning brief includes email context |
+| Gmail / Outlook | Phase 2 | Communication timing, Morning Wag includes email context |
 | Slack / Teams | Phase 2 | Context-switching detection, meeting fatigue correlation |
 | Linear / Notion / Jira | Phase 3 | Workload balancing, sprint strain detection |
 | Zoom / Google Meet | Phase 3 | Meeting join/leave detection, meeting fatigue measurement |
-| MCP / A2A protocol | Phase 4 | OneSync as "body API" for other agents (Lindy, OpenClaw query your CRS) |
+| MCP / A2A protocol | Phase 4 | Waldo as "body API" for other agents (Lindy, OpenClaw query your CRS) |
 
 ## 1.3 Business Model
 
@@ -198,9 +202,9 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 | Tier | Price | What You Get | Per-User AI Cost | Gross Margin |
 |------|-------|-------------|-----------------|-------------|
-| **Free** | Rs 0 | Daily CRS + morning brief + messaging channel + 3 msgs/day | ~$0.27/user | N/A (acquisition) |
-| **Pro** | Rs 399/mo ($4.34) | Full CRS + stress alerts + unlimited msgs + weekly analysis | ~$0.90/user | 79% |
-| **Team** | Rs 999/mo/seat | Team dashboard + API access + priority support | ~$0.90/user | 92% |
+| **Pup (Free)** | Rs 0 | Daily CRS + Morning Wag + messaging channel + 3 msgs/day | ~$0.27/user | N/A (acquisition) |
+| **Pro** | Rs 399/mo ($4.34) | Full CRS + Fetch Alerts + unlimited msgs + weekly analysis | ~$0.90/user | 79% |
+| **Pack** | Rs 999/mo/seat | Team dashboard + API access + priority support | ~$0.90/user | 92% |
 
 **Comparisons:** Oura Rs 599/mo, WHOOP Rs 2,500/mo, Lindy $50/mo.
 
@@ -208,7 +212,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 **API pricing:** Claude Haiku 4.5 = $1/$5 per MTok (input/output). Cache read = $0.10/MTok. 1-hour cache write = $2/MTok.
 
-**Per-user call volume:** ~7 Claude calls/day for Pro users (morning brief + ~1 stress alert + ~5 conversation calls). The 96 daily 15-min background checks are handled by the rules-based pre-filter — no Claude call unless something is actually abnormal.
+**Per-user call volume:** ~7 Claude calls/day for Pro users (Morning Wag + ~1 Fetch Alert + ~5 conversation calls). The 96 daily 15-min background checks are handled by the rules-based pre-filter — no Claude call unless something is actually abnormal.
 
 **Per-call cost with caching:** ~$0.003-0.005 (2000 tokens cached at 0.1x + 1000 fresh at 1x + 350 output at 5x + amortized cache writes).
 
@@ -345,7 +349,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 |------|--------|------------|
 | **User retention** (health apps: 3-12% 30-day retention — Headspace 7.65%, Calm 8.34%, median ~6%) | Fatal | Proactive messaging IS the retention mechanism — app comes to you. Noom proves proactive coaching reaches 40%+ Day 30 retention. Academic evidence: tailored push notifications increase engagement by 4-12 percentage points vs passive (Klasnja et al. 2018, JMIR mHealth). |
 | **Samsung HRV not in Health Connect** (confirmed: Samsung Health does NOT write HRV to Health Connect) | High | CRS designed for missing data — dynamic weight redistribution. HR BPM series as stress proxy. Pixel Watch + Fitbit DO write HRV to HC. Apple Watch via HealthKit. Samsung Sensor SDK in Phase 2 for true HRV. Validate in Phase A. |
-| **HRV stress detection accuracy** (false positives destroy trust) | High | Multi-signal gating, conservative thresholds, 7-day learning period, feedback loop. Stress alerts gated on Phase G self-test (if false positive rate > 30%, defer to Phase 2). |
+| **HRV stress detection accuracy** (false positives destroy trust) | High | Multi-signal gating, conservative thresholds, 7-day learning period, feedback loop. Fetch Alerts gated on Phase G self-test (if false positive rate > 30%, defer to Phase 2). |
 | **OEM battery killing background sync** (Samsung/Xiaomi) | High | Foreground service notification, WorkManager, device-specific setup guide. #1 technical risk per developer community. |
 | **Solo founder risk** | Medium | The "AI-augmented solo founder" is the 2026 meta: 36.3% of new startups are solo-founded (Carta 2025), solo founders are 2.6x more likely to own ongoing ventures (MIT Sloan), 52.3% of successful exits are solo-founded (Crunchbase). YC: "We believe it's now possible for solo founders to build multi-billion dollar companies." Claude Code users save 4.1 hours/week avg. Actively searching for cofounder in IIT/hackathon network. |
 
@@ -360,7 +364,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 **Pre-seed target:** Rs 50L - 1Cr ($55K-$110K USD)
 
-**Capital efficiency framing:** OneSync MVP total cost: ~$966 USD. Average health tech MVP costs $50K-$150K. This is 50-150x more capital-efficient. Pre-seed funds accelerate growth (iOS polish, first hire, academic validation), not survival.
+**Capital efficiency framing:** Waldo MVP total cost: ~$966 USD. Average health tech MVP costs $50K-$150K. This is 50-150x more capital-efficient. Pre-seed funds accelerate growth (iOS polish, first hire, academic validation), not survival.
 
 ---
 
@@ -376,13 +380,13 @@ The agent's intelligence comes from combining **biology + workspace context + co
 1. Health Connect (Android) and HealthKit (iOS) give enough signal for meaningful CRS computation
 2. Stress detection via HRV + HR is useful (even without raw IBI)
 3. Proactive messaging (via user's preferred channel) creates genuine engagement
-4. **The morning brief becomes a daily habit** (hero feature — uses overnight data, most reliable, most habitual)
+4. **The Morning Wag becomes a daily habit** (hero feature — uses overnight data, most reliable, most habitual)
 5. Claude agent personality + health context = valuable, non-generic advice
 6. Cross-platform (Android + iOS) is viable from Day 1
 
 ### MVP Done Definition
 
-> 5-7 people (including you) using OneSync daily across Android and iOS. Agent sends at least 1 useful proactive message per person per day (morning brief minimum). Users reply to the agent. CRS updates every 15 minutes. No critical bugs in a 7-day window. Morning brief open rate > 60%.
+> 5-7 people (including you) using Waldo daily across Android and iOS. Agent sends at least 1 useful proactive message per person per day (Morning Wag minimum). Users reply to the agent. CRS updates every 15 minutes. No critical bugs in a 7-day window. Morning Wag open rate > 60%.
 
 ### IN SCOPE
 
@@ -397,7 +401,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - Messaging channel linking (6-digit code, Telegram first)
 - Simple 3-step onboarding: Connect wearable → Grant permissions → Link messaging channel
 - Settings (profile, notification preferences)
-- **Caffeine/alcohol self-report** — "I had coffee" inline button suppresses stress alerts 45 min, "I drank last night" adjusts morning CRS interpretation. Low effort, high personalization signal.
+- **Caffeine/alcohol self-report** — "I had coffee" inline button suppresses Fetch Alerts 45 min, "I drank last night" adjusts morning CRS interpretation. Low effort, high personalization signal.
 - "Not a medical device" disclaimer
 - Encrypted local storage (op-sqlite + SQLCipher)
 - Dark mode (system-aware)
@@ -410,8 +414,8 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - Mode-specific soul files (base, stress-alert, morning-brief, conversational) as string constants
 - Tiered context: BODY_L0 (~60 tokens always) + BODY_L1 (~400 tokens default) + L2 on-demand
 - Prompt caching (2 cache blocks: personality + user profile)
-- Morning brief (daily — pg_cron every 15 min checks who needs briefing based on wake_time_estimate)
-- Proactive stress alert (confidence >= 0.60, 2h cooldown)
+- Morning Wag (daily — pg_cron every 15 min checks who needs briefing based on wake_time_estimate)
+- Proactive Fetch Alert (confidence >= 0.60, 2h cooldown)
 - Conversational replies (user messages bot anytime)
 - 7-day learning messages
 - Rules-based pre-filter (skip Claude when CRS > 60 AND confidence < 0.3) — savings estimated 60-80%, **must validate during Phase G self-test**
@@ -423,7 +427,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - Blueprint versioning, A/B testing, rollback → add when you have 50+ users
 - Inference middleware with multi-provider routing → add when adding DeepSeek/Qwen
 - Declarative policy enforcement → add when you have multiple developers or model routing
-- Operator-in-the-loop escalation → add when expanding beyond stress alerts
+- Operator-in-the-loop escalation → add when expanding beyond Fetch Alerts
 - Plan-apply-rollback lifecycle → add when config changes need governance
 - *For MVP: hardcode everything. Change config by editing code and redeploying. You have 5 users.*
 
@@ -433,7 +437,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - **No NemoClaw tables for MVP** — add agent_blueprints, policy_violations, escalation_requests, config_runs in Phase 2
 - pg_cron + **pg_net**: single cron job every 15 min calls `check-triggers` Edge Function via `net.http_post()`. **pg_net is required** — pg_cron runs SQL only, cannot invoke Edge Functions directly without it.
 - **No pgmq for MVP** — check-triggers sends messages directly via channel adapter. pgmq adds reliability (retries, dead letter) but also complexity and latency. Add in Phase 2 when scale requires it.
-- Edge Functions: channel-webhook, check-triggers (handles stress alerts + morning briefs + sends messages directly)
+- Edge Functions: channel-webhook, check-triggers (handles Fetch Alerts + Morning Wags + sends messages directly)
 - Messaging bot (grammY for Telegram on Deno — first channel adapter)
 - RLS on all user data tables (Edge Functions use service_role, bypassing RLS)
 - UNIQUE constraint on health_snapshots(user_id, timestamp) to prevent duplicate uploads
@@ -466,25 +470,25 @@ The agent's intelligence comes from combining **biology + workspace context + co
 | AI interview onboarding | Phase 2 | Manual 3-step setup for beta |
 | Knowledge graph | Phase 3 | Need 3+ months of user data first |
 | Adaptive CRS weights | Phase 3 | Need 15+ feedback events per user |
-| DND intelligence (auto-toggle DND during deep work windows) | Phase 2 | Promising feature (Android system APIs are trivial), but not core to validating the morning brief thesis |
+| DND intelligence (auto-toggle DND during deep work windows) | Phase 2 | Promising feature (Android system APIs are trivial), but not core to validating the Morning Wag thesis |
 
 ### MVP Success Criteria
 
 **Technical:**
 - Background sync works on Samsung Galaxy Watch + Pixel Watch + Apple Watch (15-min intervals on Android, HealthKit observer queries on iOS)
 - CRS updates within 1 minute of new health data
-- Stress detection false positive rate < 30% (self-tested over 2 weeks). If > 30%, defer stress alert delivery to Phase 2.
+- Stress detection false positive rate < 30% (self-tested over 2 weeks). If > 30%, defer Fetch Alert delivery to Phase 2.
 - Proactive messages delivered within 2-5 minutes of detection
 - Agent conversation feels natural and context-aware
-- **Morning brief includes sleep + CRS + 1 actionable insight + sleep coaching suggestion**
-- Morning brief includes weekend recovery prediction when sleep debt > 3h
+- **Morning Wag includes sleep + CRS + 1 actionable insight + sleep coaching suggestion**
+- Morning Wag includes weekend recovery prediction when sleep debt > 3h
 - App works offline (CRS computes without internet)
 - Onboarding completes in < 5 minutes on both Android and iOS
 
 **User:**
 - Founder uses it daily for 2 weeks
 - At least 5 beta users (mix of Android + iOS) complete onboarding and use for 7 days
-- **Morning brief open rate > 60%** (the hero metric)
+- **Morning Wag open rate > 60%** (the hero metric)
 - At least 1 user says "this message was actually useful"
 - 7-day retention >= 40%
 
@@ -521,8 +525,8 @@ The agent's intelligence comes from combining **biology + workspace context + co
 - **Samsung Sensor SDK deferred to post-MVP.** Work with whatever Samsung gives via Health Connect (HR, sleep, steps). Add Samsung Sensor SDK companion watch app once core agent is working well and Samsung HRV is the bottleneck.
 - Channel adapter pattern from Day 1 — Telegram is the first adapter implementation. WhatsApp, Discord, Slack are future adapters. Never hardcode channel assumptions into agent logic.
 - 3-step onboarding (not 5-step + AI interview — too complex for beta)
-- **Caffeine/alcohol self-report in MVP** — Messaging inline buttons, suppresses stress alerts
-- **Morning brief + simple calendar scheduling (Reclaim AI-style)** — the two core user-facing features for MVP
+- **Caffeine/alcohol self-report in MVP** — Messaging inline buttons, suppresses Fetch Alerts
+- **Morning Wag + simple calendar scheduling (Reclaim AI-style)** — the two core user-facing features for MVP
 
 **Samsung HRV data gap (confirmed March 2026):** Samsung Health does NOT write HRV (HeartRateVariabilityRmssdRecord) to Health Connect. This is a deliberate omission, not a bug. Confirmed across Samsung Community forums, developer forums, Sleep as Android, Intervals.icu. **MVP approach:** Work with whatever Samsung gives (HR, sleep, steps). CRS dynamic weight redistribution handles missing HRV. Samsung users get a functional but degraded CRS. Samsung Sensor SDK in post-MVP unlocks true HRV for 38M+ Samsung watches in India.
 
@@ -530,7 +534,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 **Latest tech updates (March 2026, from web research):**
 - **Health Connect background read** is now available via `FEATURE_READ_HEALTH_DATA_IN_BACKGROUND` permission. Request this during onboarding — it may allow reading Health Connect data from WorkManager without foreground requirements. **Validate in Phase B.**
-- **Claude prompt caching** now supports **1-hour TTL** at 2x write cost (vs 5-min at 1.25x). For OneSync: use 1-hour cache for SOUL files (stable across calls), 5-min cache for user profile (changes slowly). Cache reads are 0.1x regardless of TTL.
+- **Claude prompt caching** now supports **1-hour TTL** at 2x write cost (vs 5-min at 1.25x). For Waldo: use 1-hour cache for SOUL files (stable across calls), 5-min cache for user profile (changes slowly). Cache reads are 0.1x regardless of TTL.
 - **Anthropic Cookbook** (March 2026) documents **session memory compaction with cache sharing** — ~90% cost reduction on prefix tokens by sharing cache between main chat and compaction calls. Implement this for conversation summaries.
 - **OSS repos confirmed** (March 17, 2026 cross-reference — all active):
   - [badlogic/pi-mono](https://github.com/badlogic/pi-mono) — v0.58.3 (March 15, 2026). Layered architecture, extension lifecycle hooks.
@@ -543,7 +547,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
   - [muratcankoylan/Agent-Skills-for-Context-Engineering](https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering) — Four-bucket context management, progressive disclosure, BDI mental states.
   - [volcengine/OpenViking](https://github.com/volcengine/OpenViking) — 11.3K stars (ByteDance). L0/L1/L2 tiered context loading (our tiered BODY context came from here).
   - [msitarzewski/agency-agents](https://github.com/msitarzewski/agency-agents) — 44K+ stars. Specialized soul files per interaction mode.
-- **Google Fit APIs deprecated in 2026** — all traffic moving to Health Connect. Good for OneSync (one API to rule them all).
+- **Google Fit APIs deprecated in 2026** — all traffic moving to Health Connect. Good for Waldo (one API to rule them all).
 - **WHOOP Coach** now has proactive nudges powered by OpenAI. WHOOP is the first major competitor to implement our proactive hero feature. See competitive analysis above.
 
 ## 2.3 Phased Build Plan
@@ -552,7 +556,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 ### Phase A: Pre-Code Setup
 
-**Objective:** De-risk everything before writing app code. Validate the two existential questions: (1) Does the morning brief feel useful? (2) Is the health data pipeline viable on both platforms?
+**Objective:** De-risk everything before writing app code. Validate the two existential questions: (1) Does the Morning Wag feel useful? (2) Is the health data pipeline viable on both platforms?
 
 **Deliverables:**
 1. Create Telegram bot via @BotFather (needed for Wizard of Oz)
@@ -561,14 +565,14 @@ The agent's intelligence comes from combining **biology + workspace context + co
 4. **Tech spike: op-sqlite + SQLCipher** — create a minimal Expo project, install op-sqlite with SQLCipher, verify it builds and runs on both Android and iOS. If it fails, evaluate alternatives (expo-sqlite, WatermelonDB). **Do not proceed to Phase B without confirming this works.**
 5. **Validate Samsung HRV → Health Connect (2-hour test).** Export Samsung Health data, check Health Connect for `HeartRateVariabilityRmssdRecord` entries. Expected result: NOT available (confirmed by developer community). Document what IS available (HR, sleep, steps). This validates the HR-proxy fallback strategy.
 6. **Validate Apple Watch HRV → HealthKit.** Check that HealthKit provides `HKQuantityTypeIdentifierHeartRateVariabilitySDNN` from Apple Watch. Expected result: available and reliable. This confirms Apple Watch users get the best CRS.
-7. **Wizard of Oz test (5-7 people, including Apple Watch teammates).** Export 7 days of health data from Samsung Health AND Apple Health. Manually compute CRS for each person. Send morning briefs to all 5-7 people on Telegram for 5-7 days. Track: Do they open? Do they reply? Do they want more after day 5? This is the single highest-ROI test before writing code.
+7. **Wizard of Oz test (5-7 people, including Apple Watch teammates).** Export 7 days of health data from Samsung Health AND Apple Health. Manually compute CRS for each person. Send Morning Wags to all 5-7 people on Telegram for 5-7 days. Track: Do they open? Do they reply? Do they want more after day 5? This is the single highest-ROI test before writing code.
 8. Commit 5-7 beta users by name (confirmed, not "maybe") — mix of Android + iOS
 9. Start WhatsApp Cloud API verification (2-4 weeks for healthcare, runs in parallel, non-blocking)
 10. Register Google Play Console ($25) + Apple Developer Program ($99/yr) + Samsung Developer (free)
 11. Set up Expo account + EAS CLI
 12. Begin cofounder search in IIT/hackathon/Atlan network. Target: Android/health background or growth/distribution skills. Not blocking — but actively searching.
 
-**Gate:** Wizard of Oz morning briefs feel useful to at least 3 of 5-7 testers AND op-sqlite spike works on both platforms AND Samsung HRV gap confirmed. If WoO fails, fix the morning brief format before proceeding.
+**Gate:** Wizard of Oz Morning Wags feel useful to at least 3 of 5-7 testers AND op-sqlite spike works on both platforms AND Samsung HRV gap confirmed. If WoO fails, fix the Morning Wag format before proceeding.
 
 ### Phase B: Foundation — Data Connectors (HealthKit First, Then Health Connect)
 
@@ -630,13 +634,13 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 ### Phase D: Agent Core + Messaging
 
-**Objective:** Claude agent responds via channel adapter with health context. Morning brief + simple calendar-aware scheduling (Reclaim AI-style — know what's coming today, suggest optimal timing for deep work based on CRS + schedule).
+**Objective:** Claude agent responds via channel adapter with health context. Morning Wag + simple calendar-aware scheduling (Reclaim AI-style -- know what's coming today, suggest optimal timing for deep work based on CRS + schedule).
 
 **Deliverables:**
 1. Soul files as hardcoded string constants in `_shared/config.ts`:
    - `SOUL_BASE` — always-loaded personality (~300 tokens)
-   - `SOUL_STRESS_ALERT` — mode-specific for proactive stress messages
-   - `SOUL_MORNING_BRIEF` — mode-specific for morning briefings. Includes: sleep summary, CRS, sleep coaching insight, weekend recovery prediction (if debt > 3h), and simple schedule awareness ("You have 3 meetings today — your peak window is 10am-1pm")
+   - `SOUL_STRESS_ALERT` — mode-specific for proactive Fetch Alert messages
+   - `SOUL_MORNING_BRIEF` — mode-specific for Morning Wag briefings. Includes: sleep summary, CRS, sleep coaching insight, weekend recovery prediction (if debt > 3h), and simple schedule awareness ("You have 3 meetings today — your peak window is 10am-1pm")
    - `SOUL_CONVERSATIONAL` — mode-specific for user-initiated chat
 2. Agent loop Edge Function (`invoke-agent`):
    - ReAct loop with `anthropic.messages.create()` + `tool_use`
@@ -683,17 +687,17 @@ The agent's intelligence comes from combining **biology + workspace context + co
 3. `message-sender` Edge Function (pgmq worker):
    - Drain queue, deliver via channel adapter
    - Exponential backoff on failure
-4. Stress alert delivery — **reframed as awareness + preparation, not in-the-moment intervention:**
+4. Fetch Alert delivery — **reframed as awareness + preparation, not in-the-moment intervention:**
    - The user may be in a meeting when the alert arrives. They can't leave or do a breathing exercise on camera.
    - **MVP framing:** "I noticed your stress levels are elevated. When you get a moment: [micro-action]. Also, I'm tracking this pattern for you."
    - The real value is (a) the micro-action suggestion doable in any context ("take 3 slow breaths through your nose — no one will notice"), (b) the pattern accumulation over weeks ("Your Monday 2pm meetings consistently spike your stress"), and (c) Phase 2 prevention ("Next week, I've suggested a 10-min buffer before your Monday 1:1")
    - Include feedback buttons: [Helpful] [Not helpful] [Too frequent]
    - "Too frequent" → increase cooldown for this user to 4h (stored in `users.stress_cooldown_minutes`)
    - Store feedback in `feedback_events` for threshold tuning
-5. Cooldown enforcement: 2h between stress alerts, max 3 proactive/day
-6. **First 7 days (no HRV baseline):** Disable stress alerts entirely. Send learning messages instead. Only morning briefs are proactive during learning period.
+5. Cooldown enforcement: 2h between Fetch Alerts, max 3 proactive/day
+6. **First 7 days (no HRV baseline):** Disable Fetch Alerts entirely. Send learning messages instead. Only Morning Wags are proactive during learning period.
 
-**Gate:** You wake up to a morning brief. Agent messages you when it detects stress.
+**Gate:** You wake up to a Morning Wag. Agent messages you when it detects stress.
 
 ### Phase F: Onboarding + Polish
 
@@ -737,7 +741,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 1. Onboard 3 committed beta users (from IIT network)
 2. Deploy separate blueprint version for beta users if needed
 3. Collect feedback weekly (15-min conversation, not a survey)
-4. Track metrics: DAU, morning brief open rate, stress alert response rate, thumbs-up %
+4. Track metrics: DAU, Morning Wag open rate, Fetch Alert response rate, thumbs-up %
 5. Iterate on agent quality based on feedback
 6. Hit MVP Done criteria: 5 people daily, 1+ useful proactive message/person/day, 7-day retention >= 40%
 
@@ -747,7 +751,7 @@ The agent's intelligence comes from combining **biology + workspace context + co
 
 ```sql
 -- ================================================================
--- ONESYNC MVP — COMPLETE SUPABASE SCHEMA
+-- WALDO MVP — COMPLETE SUPABASE SCHEMA
 -- Run this as a single migration
 -- ================================================================
 
@@ -765,7 +769,7 @@ CREATE TABLE users (
   wake_time_estimate TIME DEFAULT '07:00',
   notification_preferences JSONB DEFAULT '{"morning_brief": true, "stress_alerts": true, "max_proactive_per_day": 5}',
   onboarding_completed BOOLEAN DEFAULT FALSE,
-  learning_period_start DATE,                -- Set when first health data arrives; stress alerts disabled for 7 days
+  learning_period_start DATE,                -- Set when first health data arrives; Fetch Alerts disabled for 7 days
   last_morning_brief_date DATE,              -- Tracks whether today's brief was sent
   stress_cooldown_minutes INT DEFAULT 120,   -- Default 2h; "too frequent" feedback increases to 240
   device_manufacturer TEXT,                  -- 'samsung', 'google', 'garmin', 'xiaomi', etc. (from Health Connect DataOrigin)
@@ -1159,18 +1163,18 @@ function computeStressConfidence(
 
 ## 2.8 Architecture Influences — What We Took From Each Repo
 
-> These 10 repos were analyzed in depth. Here's what OneSync adopts from each, mapped to specific implementation points.
+> These 10 repos were analyzed in depth. Here's what Waldo adopts from each, mapped to specific implementation points.
 
 ### Patterns Adopted for MVP
 
-| Pattern | Source Repo | OneSync Implementation | Phase |
+| Pattern | Source Repo | Waldo Implementation | Phase |
 |---------|-----------|----------------------|-------|
 | **Layered module design** (LLM → Agent Core → Health App) | [Pi Mono](https://github.com/badlogic/pi-mono) | `_shared/` in Supabase Edge Functions separates LLM calls from agent logic from health tools | MVP |
 | **Context assembly pipeline** (static → user → dynamic) | All repos + [HumanLayer](https://github.com/humanlayer/context-engineering) | `buildSystemPrompt()` assembles cached soul + user profile + fresh biometrics per call | MVP |
 | **File-based evolving memory** (SOUL.md + MEMORY.md) | [PicoClaw](https://github.com/sipeed/picoclaw), [CoPaw](https://github.com/agentscope-ai/CoPaw) | `core_memory` table with structured JSONB + soul files as string constants | MVP |
 | **Pre-reasoning hooks** (safety, context injection, compaction) | [CoPaw](https://github.com/agentscope-ai/CoPaw) | Safety hook (emergency keywords), context injection (latest biometrics), rate limit check — all run before agent loop | MVP |
-| **Autonomous Hands / cron tasks** | [OpenFang](https://github.com/RightNow-AI/openfang) | Morning Brief Hand, Stress Monitor Hand — scheduled via pg_cron, each with focused scope and tools | MVP |
-| **Dynamic tool loading** per intent | [OpenFang](https://github.com/RightNow-AI/openfang), HumanLayer | Only load relevant tools per trigger type (3 for stress alerts, 4 for morning brief, 8 for user chat) | MVP |
+| **Autonomous Hands / cron tasks** | [OpenFang](https://github.com/RightNow-AI/openfang) | Morning Wag Hand, Stress Monitor Hand — scheduled via pg_cron, each with focused scope and tools | MVP |
+| **Dynamic tool loading** per intent | [OpenFang](https://github.com/RightNow-AI/openfang), HumanLayer | Only load relevant tools per trigger type (3 for Fetch Alerts, 4 for Morning Wag, 8 for user chat) | MVP |
 | **Provider failover chain** | [PicoClaw](https://github.com/sipeed/picoclaw) | Haiku → template fallback (MVP). Haiku → Sonnet → template (Phase 2) | MVP |
 | **Tiered context loading** (L0/L1/L2) | [OpenViking](https://github.com/volcengine/OpenViking) | BODY_L0 (~60 tokens always) + BODY_L1 (~400 tokens default) + L2 on-demand via tools. 65-70% token reduction vs flat loading. | MVP |
 | **Specialized soul files** per interaction mode | [Agency-Agents](https://github.com/msitarzewski/agency-agents) | `SOUL_STRESS_ALERT`, `SOUL_MORNING_BRIEF`, `SOUL_CONVERSATIONAL` — different personality per trigger type | MVP |
@@ -1179,10 +1183,10 @@ function computeStressConfidence(
 
 ### Patterns Adopted for Phase 2+
 
-| Pattern | Source Repo | OneSync Implementation | Phase |
+| Pattern | Source Repo | Waldo Implementation | Phase |
 |---------|-----------|----------------------|-------|
 | **Context Engine Plugins** with lifecycle hooks | [OpenClaw v2026.3.7](https://github.com/openclaw/openclaw) | Make context assembly pluggable: `ingest` (inject new data), `assemble` (build prompt), `compact` (summarize old conversations), `afterTurn` (post-reasoning updates). Enables A/B testing different context strategies. | Phase 2 |
-| **Per-topic agent routing** (different agents per Telegram topic) | [OpenClaw v2026.3.7](https://github.com/openclaw/openclaw) | One Telegram group with topics: "Health Alerts" (stress monitor hand), "Morning Briefs" (briefing hand), "Chat" (conversational hand). Each topic routes to different agent config. | Phase 2 |
+| **Per-topic agent routing** (different agents per Telegram topic) | [OpenClaw v2026.3.7](https://github.com/openclaw/openclaw) | One Telegram group with topics: "Fetch Alerts" (stress monitor hand), "Morning Wags" (briefing hand), "Chat" (conversational hand). Each topic routes to different agent config. | Phase 2 |
 | **LanceDB long-term memory** with auto-recall | [OpenClaw v2026.3.7](https://github.com/openclaw/openclaw) | Replace pgvector semantic search with LanceDB for conversation history retrieval. Auto-capture important health moments without explicit tool calls. | Phase 2 |
 | **Heartbeat-based execution** with session persistence | [Paperclip](https://github.com/paperclipai/paperclip) | Wake agent on biometric triggers + schedules. Persist session state between invocations so agent resumes health narrative, not re-reads everything. | Phase 2 |
 | **Per-agent budget control** with token throttling | [Paperclip](https://github.com/paperclipai/paperclip) | Daily AI cost budget per user ($0.10). Auto-throttle to template responses when budget exceeded. | MVP (basic), Phase 2 (full) |
@@ -1194,7 +1198,7 @@ function computeStressConfidence(
 | **BDI mental states** (Belief-Desire-Intention reasoning) | [Agent-Skills-for-CE](https://github.com/muratcankoylan/Agent-Skills-for-Context-Engineering) | Agent logs WHY it recommended each intervention: Belief ("HRV dropped 25%") → Desire ("reduce stress") → Intention ("suggest breathing"). Audit trail for IIT Ropar study. | Phase 2 |
 | **Session memory compaction with cache sharing** (~90% cost reduction) | [Anthropic Cookbook](https://github.com/anthropics/anthropic-cookbook) (March 2026) | Share cache prefix between main agent calls and compaction calls. Compaction reads same cached soul + user profile. | MVP |
 | **Versioned blueprints with plan-apply-rollback** | [NemoClaw](https://github.com/NVIDIA/NemoClaw) | All agent config (souls, tools, thresholds, routing) in versioned `agent_blueprints` table. A/B testing, instant rollback, audit trail. | Phase 2 |
-| **Declarative per-hand policies** | [NemoClaw](https://github.com/NVIDIA/NemoClaw) | Each Hand (stress monitor, morning brief, etc.) has explicit allowed tools, data scopes, and constraints enforced at runtime. | Phase 2 |
+| **Declarative per-hand policies** | [NemoClaw](https://github.com/NVIDIA/NemoClaw) | Each Hand (stress monitor, Morning Wag, etc.) has explicit allowed tools, data scopes, and constraints enforced at runtime. | Phase 2 |
 | **Operator-in-the-loop escalation** | [NemoClaw](https://github.com/NVIDIA/NemoClaw) | High-stakes recommendations (suggest doctor visit, alert emergency contact) require user approval. "Ask first time, remember preference." | Phase 2 |
 
 ### What We Explicitly Did NOT Adopt
@@ -1222,7 +1226,7 @@ These MUST be tested during development. Do not assume they are true:
 | CRS zone thresholds (80/50) produce meaningful distinctions | Users see "moderate" 80% of the time | Phase G self-test (measure zone distribution) |
 | Prompt caching achieves 60-70% savings | Token costs higher than projected | Phase D first cached call (verify cache hits in Anthropic dashboard) |
 | 5-7 beta users (mix Android + iOS) are committed | No beta testers when you need them | Phase A (get confirmed commitments NOW) |
-| Stress alert false positive rate < 30% | Users mute the bot, retention collapses | Phase G self-test. **If > 30%, defer stress alert delivery to Phase 2.** |
+| Fetch Alert false positive rate < 30% | Users mute the bot, retention collapses | Phase G self-test. **If > 30%, defer Fetch Alert delivery to Phase 2.** |
 
 **Data retention plan (not yet addressed):**
 - health_snapshots: ~96 rows/day/user = ~35K/year/user
@@ -1258,7 +1262,7 @@ SELECT cron.schedule(
 ### check-triggers (called by pg_cron via pg_net every 15 min)
 
 ```typescript
-// Handles BOTH stress alerts AND morning briefs in a single function
+// Handles BOTH Fetch Alerts AND Morning Wags in a single function
 // Sends messages directly via channel adapter (no pgmq for MVP)
 Deno.serve(async () => {
   // BATCH QUERY: single SQL query returns users needing action
@@ -1268,15 +1272,15 @@ Deno.serve(async () => {
   });
 
   for (const user of usersNeedingAction) {
-    // Morning brief check
+    // Morning Wag check
     if (user.needs_morning_brief) {
       const response = await invokeAgent(user.id, 'morning_brief', {});
       await sendViaChannel(user.id, response);  // Routes through channel adapter
       await supabase.from('users').update({ last_morning_brief_date: today() }).eq('id', user.id);
-      continue; // Don't also send stress alert in same cycle
+      continue; // Don't also send Fetch Alert in same cycle
     }
 
-    // Stress alert check (rules-based pre-filter already applied in SQL query)
+    // Fetch Alert check (rules-based pre-filter already applied in SQL query)
     if (user.stress_confidence >= 0.60) {
       const response = await invokeAgent(user.id, 'stress_alert', {
         confidence: user.stress_confidence, crs: user.crs,
@@ -1308,7 +1312,7 @@ Deno.serve(async (req) => {
 });
 ```
 
-*Morning briefs and message sending are handled directly by `check-triggers` via the channel adapter for MVP (no separate Edge Functions, no pgmq). Add pgmq + dedicated message-sender in Phase 2 when scale requires reliability/retry logic.*
+*Morning Wags and message sending are handled directly by `check-triggers` via the channel adapter for MVP (no separate Edge Functions, no pgmq). Add pgmq + dedicated message-sender in Phase 2 when scale requires reliability/retry logic.*
 
 ## 2.11 Safety Guardrails
 
@@ -1323,10 +1327,10 @@ Deno.serve(async (req) => {
 **Rate limits:**
 | Limit | Value |
 |-------|-------|
-| Max proactive messages/day | 3 (stress alerts) + 1 (morning brief) = 4 total |
+| Max proactive messages/day | 3 (Fetch Alerts) + 1 (Morning Wag) = 4 total |
 | Max agent loop iterations | 3 |
 | Max tokens per response | 1024 |
-| Cooldown between stress alerts | 2 hours |
+| Cooldown between Fetch Alerts | 2 hours |
 | Daily AI cost budget per user | $0.10 (typical spend: $0.03-0.05/day) |
 
 **Emergency keywords:** "chest pain", "can't breathe", "suicidal", "kill myself", "overdose" → bypass agent loop, return emergency response immediately.
@@ -1368,16 +1372,16 @@ APP_ENV=development
 
 ## 3.1 Phase 2: Expand
 
-**Focus:** Workspace connectors, richer messaging, deeper agent intelligence. This is where OneSync goes from "biology-only agent" to "biology + context agent."
+**Focus:** Workspace connectors, richer messaging, deeper agent intelligence. This is where Waldo goes from "biology-only agent" to "biology + context agent."
 
 **Workspace Connectors (the big unlock):**
 - **Google Calendar / Outlook** — meeting-aware interventions, schedule optimization, focus protection
-- **Gmail / Outlook email** — communication timing, morning brief includes email context
+- **Gmail / Outlook email** — communication timing, Morning Wag includes email context
 - **Slack / Teams** — context-switching detection, meeting fatigue correlation
 - NemoClaw-inspired infrastructure (blueprints, policies, middleware) — now justified with multiple connectors and growing complexity
 
 **Messaging:**
-- **Push notifications** (FCM) — stress alerts when app is backgrounded
+- **Push notifications** (FCM) — Fetch Alerts when app is backgrounded
 - **In-app chat** (Supabase Realtime) — becomes primary channel
 - **WhatsApp integration** — if verified
 
@@ -1408,7 +1412,7 @@ Phase 2:  WhatsApp adapter → Discord adapter → Slack adapter → In-App Chat
 
 **Adapter Architecture (applies to ALL external integrations):**
 
-OneSync uses adapter interfaces for all external boundaries. This ensures any component can be swapped without rewriting agent logic:
+Waldo uses adapter interfaces for all external boundaries. This ensures any component can be swapped without rewriting agent logic:
 
 | Adapter | MVP Implementation | Future Implementations |
 |---------|-------------------|----------------------|
@@ -1419,7 +1423,7 @@ OneSync uses adapter interfaces for all external boundaries. This ensures any co
 
 Each adapter exposes a standard interface. Agent logic, CRS computation, and delivery orchestration never reference a specific provider directly — they call the adapter interface.
 
-**Ecosystem partner integration:** OneSync's biology layer can power other agents. Via MCP/A2A protocol (Phase 4), external agents (Lindy, Cursor, Claude Code) can query a user's CRS through a standard interface — making OneSync the "body API" for the agent economy.
+**Ecosystem partner integration:** Waldo's biology layer can power other agents. Via MCP/A2A protocol (Phase 4), external agents (Lindy, Cursor, Claude Code) can query a user's CRS through a standard interface — making Waldo the "body API" for the agent economy.
 
 ## 3.2 Phase 3: Deep Intelligence + Scale (iOS now in MVP)
 
@@ -1464,12 +1468,12 @@ Each adapter exposes a standard interface. Agent logic, CRS computation, and del
 **Focus:** Monetization, enterprise, agent economy integration.
 
 **New capabilities:**
-- **Freemium model** live (Free/Pro/Team tiers)
+- **Freemium model** live (Pup/Pro/Pack tiers)
 - **FHIR/EHR integration** — lab results in agent context
 - **Skills marketplace** — users create and share health protocols (jet-lag-recovery, marathon-training, exam-prep)
 - **Multi-agent collaboration** — specialist sub-agents for complex queries (sleep agent + stress agent + activity agent coordinated by orchestrator)
 - **Predictive cognitive modeling** — ML models for next-day energy/stress predictions ("Tomorrow looks like a high-stress day — here's how to prepare")
-- **Agent-to-agent interop** — OneSync as a biological data provider for other agents (Lindy, OpenClaw) via MCP or A2A protocol. OneSync becomes the "body API" of the agentic economy.
+- **Agent-to-agent interop** — Waldo as a biological data provider for other agents (Lindy, OpenClaw) via MCP or A2A protocol. Waldo becomes the "body API" of the agentic economy.
 - **Team cognitive dashboards** — startup teams, remote teams see aggregate cognitive readiness
 
 ## 3.4 NemoClaw-Inspired Infrastructure (Complete)

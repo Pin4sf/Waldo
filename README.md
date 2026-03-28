@@ -1,4 +1,4 @@
-# OneSync
+# Waldo
 
 **The biological intelligence layer for the agentic economy.**
 
@@ -14,7 +14,7 @@ Every AI agent today — Lindy, Manus, Claude — can manage your calendar and d
 
 Health apps show you a dashboard. You glance at a score. You make the same decisions anyway. 3-12% Day 30 retention across the industry.
 
-OneSync is different: it **comes to you**. A morning brief on Telegram. A stress alert when your body is struggling. Personalized, proactive, and it learns.
+Waldo is different: it **comes to you**. A morning brief on Telegram. A stress alert when your body is struggling. Personalized, proactive, and it learns.
 
 ## What It Does
 
@@ -68,19 +68,19 @@ Grounded in **SAFTE-FAST** (US Army biomathematical fatigue model). All baseline
 
 ## The Vision
 
-| Phase | What OneSync Becomes |
+| Phase | What Waldo Becomes |
 |-------|---------------------|
 | **MVP** | Health agent — CRS + stress alerts + morning brief via Telegram |
 | **Phase 2** | Cognitive co-pilot — calendar, email, Slack, task manager, all CRS-aware |
 | **Phase 3+** | Autonomous personal OS — learns skills from you, delegates to sub-agents, powers other agents with your biology |
 
-The endgame: OneSync as the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with Lindy or Manus — powering them with the one signal they don't have.
+The endgame: Waldo as the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with Lindy or Manus — powering them with the one signal they don't have.
 
 ## Competitive Position
 
 | | Biology | Proactive | External Messaging | Multi-Device | Cross-Platform | Price |
 |---|:---:|:---:|:---:|:---:|:---:|---|
-| **OneSync** | Deep (HRV, CRS) | Telegram | Yes | Any HC/HK | Android + iOS | Free / $4/mo |
+| **Waldo** | Deep (HRV, CRS) | Telegram | Yes | Any HC/HK | Android + iOS | Free / $4/mo |
 | WHOOP Coach | Deep | In-app only | No | WHOOP only | Both | $17-30/mo |
 | Oura Advisor | Deep | No | No | Oura only | Both | $6/mo |
 | Nori (YC) | Aggregated | Limited | No | Multi | iOS only | TBD |
@@ -97,8 +97,8 @@ Total MVP build cost: **~$966 USD** (50-150x cheaper than average health tech MV
 
 ## Documentation
 
-- **[Full Documentation](https://pin4sf.github.io/OneSync)** — Architecture, algorithms, agent intelligence, MVP scope
-- **[Presentation Deck](https://pin4sf.github.io/OneSync/presentation.html)** — Internal technical brief with diagrams
+- **[Full Documentation](https://pin4sf.github.io/Waldo)** — Architecture, algorithms, agent intelligence, MVP scope
+- **[Presentation Deck](https://pin4sf.github.io/Waldo/presentation.html)** — Internal technical brief with diagrams
 - **[Website](https://onesync-website-zs1p.vercel.app/)** — Product website
 
 ## Status
@@ -107,4 +107,4 @@ Total MVP build cost: **~$966 USD** (50-150x cheaper than average health tech MV
 
 ---
 
-*In the agentic economy, every agent will need to know your body. OneSync is that layer.*
+*In the agentic economy, every agent will need to know your body. Waldo is that layer.*

@@ -1,11 +1,11 @@
 ---
 name: security-reviewer
-description: Health data security and privacy review for OneSync
+description: Health data security and privacy review for Waldo
 tools: ["Read", "Grep", "Glob"]
 model: sonnet
 ---
 
-You review OneSync code for security and privacy, with special focus on health data protection.
+You review Waldo code for security and privacy, with special focus on health data protection.
 
 ## What to Check
 

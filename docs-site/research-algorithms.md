@@ -1,10 +1,10 @@
-# OneSync — Research, Algorithms & Intelligence Roadmap
+# Waldo — Research, Algorithms & Intelligence Roadmap
 
 **Date:** March 18, 2026
 **Audience:** Co-founders, technical advisors, research partners
-**Context:** This is the third of three shareable documents. Read the [One-Pager](ONESYNC_ONEPAGER.md) first for the pitch, the [Master Reference](ONESYNC_MASTER_REFERENCE.md) for the full build spec, and this document for the science and intelligence layer underneath.
+**Context:** This is the third of three shareable documents. Read the [One-Pager](WALDO_ONEPAGER.md) first for the pitch, the [Master Reference](WALDO_MASTER_REFERENCE.md) for the full build spec, and this document for the science and intelligence layer underneath.
 
-> OneSync's moat is not the app — it's the algorithms, the personalization loop, and the data they generate. This document covers what's proven, what's assumed, what's unvalidated, and what comes next.
+> Waldo's moat is not the app — it's the algorithms, the personalization loop, and the data they generate. This document covers what's proven, what's assumed, what's unvalidated, and what comes next.
 
 ---
 
@@ -105,7 +105,7 @@ When components are unavailable (user didn't wear watch to bed, no HRV from devi
 
 ### What Production Systems Teach Us
 
-| System | Key Lesson for OneSync |
+| System | Key Lesson for Waldo |
 |--------|----------------------|
 | Garmin Body Battery | Consider "battery" trajectory view alongside CRS snapshot |
 | WHOOP Recovery | 30-day baselines more stable than 7-day. Falls back to sleep-only when HRV unavailable |
@@ -150,7 +150,7 @@ Weighted confidence:
 
 ### 8-Point False Positive Reduction Strategy
 
-This is where OneSync lives or dies. False positives destroy trust faster than missed alerts.
+This is where Waldo lives or dies. False positives destroy trust faster than missed alerts.
 
 1. **Personal baselines, not population norms** — your "normal" HRV is the reference, not an age table
 2. **Time-of-day normalization** — HRV naturally dips in the afternoon. Without adjustment, 3pm looks like stress every day. 6 time blocks with ratios (afternoon = 0.85x baseline). **The single most impactful correction.**
@@ -194,7 +194,7 @@ This is why we use multi-signal weighted confidence, not HRV alone.
 
 ### Why RMSSD and Nothing Else
 
-| Metric | OneSync Verdict |
+| Metric | Waldo Verdict |
 |--------|----------------|
 | **RMSSD** | PRIMARY — 2-min windows, responsive to acute changes |
 | lnRMSSD | Use internally for statistics (log-normalizes skewed distribution) |
@@ -358,7 +358,7 @@ Apple Watch via HealthKit provides the richest data available to any third-party
 
 ## 7. The Personalization Engine
 
-### How OneSync Gets Smarter Over Time
+### How Waldo Gets Smarter Over Time
 
 ```
 Week 1:  Population defaults → functional CRS (rough but useful)
@@ -403,7 +403,7 @@ Every thumbs-up/down on a CRS prediction is **labeled training data** that no co
 
 ### Not a Custom ML Model — An LLM With Health Context
 
-OneSync does NOT train a custom model for MVP. It uses **Claude Haiku with carefully engineered context** (soul files + tiered health data + conversation memory). The intelligence comes from:
+Waldo does NOT train a custom model for MVP. It uses **Claude Haiku with carefully engineered context** (soul files + tiered health data + conversation memory). The intelligence comes from:
 
 1. **Context assembly** — the right health data in the right format at the right time
 2. **Mode-specific personality** — different soul files for stress alerts vs morning briefs vs conversation
@@ -412,7 +412,7 @@ OneSync does NOT train a custom model for MVP. It uses **Claude Haiku with caref
 
 ### Why LLM Reasoning, Not ML Classification
 
-Google's PHIA (Personal Health Information Agent) achieves 84% accuracy on health reasoning benchmarks — not by reading one number, but by **reasoning across multiple signals with contextual awareness.** This is exactly what OneSync does:
+Google's PHIA (Personal Health Information Agent) achieves 84% accuracy on health reasoning benchmarks — not by reading one number, but by **reasoning across multiple signals with contextual awareness.** This is exactly what Waldo does:
 
 - ML classifier: "HRV = 28ms → stress probability 0.73"
 - LLM reasoning: "HRV dropped 25% from your personal baseline at 2:30pm. You've been in back-to-back meetings since noon. You slept 5.2 hours last night. Your CRS is 42. This looks like accumulated cognitive fatigue, not acute stress. I'd suggest a 15-minute walk before your 3pm call, which is your most important meeting today."
@@ -494,7 +494,7 @@ These are the decisions and research directions that need co-founder input:
 3. **Should we weight CRS by device quality?** Oura users would get a "better" CRS than Garmin users. Is this confusing or honest?
 
 ### Product Questions
-4. **When do we introduce workspace connectors?** Phase 2 adds calendar/email/Slack. These transform OneSync from "health alert bot" to "cognitive performance optimizer." Should this be the real MVP?
+4. **When do we introduce workspace connectors?** Phase 2 adds calendar/email/Slack. These transform Waldo from "health alert bot" to "cognitive performance optimizer." Should this be the real MVP?
 
 5. **Menstrual cycle awareness** — HRV varies significantly across the cycle (lower in luteal phase). Should we offer cycle-aware baselines for users who opt in? This prevents systematic false stress alerts for half the population.
 
@@ -508,7 +508,7 @@ These are the decisions and research directions that need co-founder input:
 9. ~~**Open-source the CRS algorithm?**~~ **RESOLVED: YES, after Phase G.** Open-source the validated CRS v1.0 (not the raw v0.1 — wait until tuned on real data). The algorithm isn't the moat — personalization data is. Open-sourcing builds credibility, attracts contributors, creates content for dev community marketing, and gives academic citations if researchers use it. Competitive risk is minimal because implementing the full system (data pipeline + agent + messaging + personalization) is 100x more work than the CRS formula. Decision date: March 20, 2026.
 
 ### Business Questions
-10. **Is OneSync a product or a platform?** Product = end-user app with subscription. Platform = the "body API" that other agents (Lindy, OpenClaw) query via MCP/A2A. Both? Which first?
+10. **Is Waldo a product or a platform?** Product = end-user app with subscription. Platform = the "body API" that other agents (Lindy, OpenClaw) query via MCP/A2A. Both? Which first?
 
 ---
 
@@ -532,4 +532,4 @@ These are the decisions and research directions that need co-founder input:
 
 ---
 
-*This document is the science behind OneSync. Share it with co-founders who want to understand what's proven, what's assumed, and where the intelligence roadmap goes.*
+*This document is the science behind Waldo. Share it with co-founders who want to understand what's proven, what's assumed, and where the intelligence roadmap goes.*

@@ -44,9 +44,11 @@ This ensures any component can be swapped without rewriting agent logic. "Plug a
 
 ## Source of Truth
 When in doubt, read these docs (in priority order):
-1. `Docs/ONESYNC_MASTER_REFERENCE.md`
-2. `Docs/ONESYNC_NORTHSTAR.md`
-3. `Docs/ONESYNC_ONEPAGER.md`
-4. `Docs/ONESYNC_RESEARCH_AND_ALGORITHMS.md`
+1. `Docs/WALDO_MASTER_REFERENCE.md`
+2. `Docs/WALDO_NORTHSTAR.md`
+3. `Docs/WALDO_ONEPAGER.md`
+4. `Docs/WALDO_RESEARCH_AND_ALGORITHMS.md`
 
 Anything in `Docs/archive/` is superseded by these four.
+
+> **Note:** File paths still use the `WALDO_` prefix for historical reasons. The product is now called **Waldo**.

@@ -1,4 +1,4 @@
-# OneSync MVP — Definitive Scope
+# Waldo MVP — Definitive Scope
 
 **Version:** 1.0
 **Date:** March 15, 2026
@@ -55,14 +55,14 @@ This loop is the MVP. Everything else is Phase 2+.
 - [ ] Claude Haiku as single model (no routing for MVP)
 - [ ] 8 core tools: `get_crs`, `get_sleep`, `get_stress_events`, `get_activity`, `send_message`, `read_memory`, `update_memory`, `get_user_profile`
 - [ ] SOUL.md (personality) + BODY.md (today's vitals) context — both cached
-- [ ] Morning brief (daily, 7am local time)
-- [ ] Proactive stress alert (when confidence ≥ 0.60)
+- [ ] Morning Wag (daily, 7am local time)
+- [ ] Proactive Fetch Alert (when confidence ≥ 0.60)
 - [ ] Conversational replies (user can message the bot anytime)
 - [ ] 7-day learning messages ("Here's what I'm learning about you…")
 
 ### Backend (Supabase)
 - [ ] Core schema: users, health_snapshots, stress_events, conversation_history, core_memory, feedback_events
-- [ ] pg_cron: morning brief + trigger check every 15 min
+- [ ] pg_cron: Morning Wag + trigger check every 15 min
 - [ ] pgmq: message queue for delivery
 - [ ] Edge Functions: channel-webhook, check-triggers, message-sender, morning-brief
 - [ ] Messaging adapter (grammY for Telegram — first channel adapter)
@@ -105,7 +105,7 @@ This loop is the MVP. Everything else is Phase 2+.
 - Stress detection false positive rate < 20% (self-tested over 2 weeks)
 - Proactive messages delivered within 2–5 minutes of detection
 - Agent conversation feels natural and context-aware (not robotic)
-- Morning brief includes last night's sleep + today's CRS + 1 actionable insight
+- Morning Wag includes last night's sleep + today's CRS + 1 actionable insight
 - App works offline (CRS computes without internet)
 - Onboarding completes in < 5 minutes
 
@@ -119,7 +119,7 @@ This loop is the MVP. Everything else is Phase 2+.
 
 ## Definition of "MVP Done"
 
-> 5 people (including you) are using OneSync daily. The agent is sending at least 1 useful proactive message per person per day. Users are replying to the agent. CRS is updating every 15 minutes. No critical bugs in a 7-day window.
+> 5 people (including you) are using Waldo daily. The agent is sending at least 1 useful proactive message per person per day. Users are replying to the agent. CRS is updating every 15 minutes. No critical bugs in a 7-day window.
 
 ---
 
@@ -128,7 +128,7 @@ This loop is the MVP. Everything else is Phase 2+.
 1. Health Connect gives enough signal for meaningful CRS computation
 2. Stress detection via HRV + HR is useful (even without raw IBI)
 3. Proactive messaging creates genuine engagement
-4. The morning brief becomes a daily habit
+4. The Morning Wag becomes a daily habit
 5. Claude agent personality + health context = valuable, non-generic advice
 
 ---
@@ -142,7 +142,7 @@ This loop is the MVP. Everything else is Phase 2+.
 | 2 | CRS Engine | On-phone CRS, stress detection, SQLite sync, WorkManager |
 | 3 | Dashboard | CRS gauge, metric cards, sleep card (NativeWind) |
 | 4 | Agent Core | Claude Haiku agent, SOUL + BODY context, 8 tools, Telegram webhook |
-| 5 | Proactive | Morning brief (pg_cron), stress trigger, message delivery |
+| 5 | Proactive | Morning Wag (pg_cron), stress trigger, message delivery |
 | 6 | Onboarding | 3-step flow, linking codes, permission UX, 7-day learning messages |
 | 7 | Self-Test | 2 weeks of daily use by founder, false positive tuning |
 | 8 | Beta | 3–5 beta testers, iterate on agent quality |

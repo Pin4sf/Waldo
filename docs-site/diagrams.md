@@ -73,7 +73,7 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant APP as OneSync App
+    participant APP as Waldo App
     participant AI as Claude Haiku<br/>(SOUL_ONBOARDING)
     participant MEM as core_memory
 
@@ -110,7 +110,7 @@ sequenceDiagram
     AI->>MEM: stress_triggers: ["consecutive meetings"]
 
     Note over U,MEM: Day 14 — Check-In
-    AI->>U: "How's OneSync working for you so far?"
+    AI->>U: "How's Waldo working for you so far?"
 ```
 
 ## Memory Architecture

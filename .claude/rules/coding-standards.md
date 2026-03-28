@@ -1,4 +1,4 @@
-# OneSync Coding Standards
+# Waldo Coding Standards
 
 ## TypeScript (App + Edge Functions)
 - Strict mode always (`"strict": true` in tsconfig)
@@ -42,7 +42,67 @@
 - MVP implementations: Telegram (channel), Claude Haiku (LLM), HealthKit/Health Connect (health), op-sqlite (storage)
 - When adding a new integration, implement the existing adapter interface — do not add provider-specific code to agent logic
 
+## Folder Structure
+```
+src/
+  adapters/
+    channels/         # ChannelAdapter implementations (telegram.ts, whatsapp.ts, etc.)
+    llm/              # LLMProvider implementations (anthropic.ts, deepseek.ts, etc.)
+    health/           # HealthDataSource implementations (healthkit.ts, health-connect.ts)
+    storage/          # StorageAdapter implementations (opsqlite.ts)
+  crs/                # CRS computation engine (platform-agnostic TypeScript)
+  modules/
+    health-connect/   # Kotlin native module (Android)
+    healthkit/        # Swift native module (iOS)
+    workmanager/      # Kotlin background sync (Android)
+  screens/            # React Native screens (NativeWind)
+  components/         # Reusable UI components
+  hooks/              # React hooks (useCRS, useHealthData, etc.)
+  store/              # Zustand stores
+  utils/              # Shared utilities
+  types/              # TypeScript type definitions
+  __tests__/          # Test files mirror src/ structure
+
+supabase/
+  functions/
+    _shared/          # Shared code across Edge Functions (config.ts, soul files, types)
+    channel-webhook/  # Incoming messages from any channel
+    check-triggers/   # pg_cron handler (Fetch Alerts + Morning Wags)
+    invoke-agent/     # Agent loop (Claude Haiku + tools)
+  migrations/         # SQL migration files
+
+Docs/                 # Source-of-truth documentation
+  handoffs/           # Phase handoff documents
+```
+
+## Naming Conventions
+- **Files**: kebab-case (`channel-adapter.ts`, `health-connect.ts`)
+- **Components**: PascalCase files and exports (`CrsGauge.tsx`, `SleepCard.tsx`)
+- **Types/Interfaces**: PascalCase with descriptive names (`HealthSnapshot`, `ChannelAdapter`)
+- **Constants**: UPPER_SNAKE_CASE (`MAX_AGENT_ITERATIONS`, `CRS_WEIGHTS`)
+- **Functions**: camelCase (`computeCrs`, `sendViaChannel`)
+- **Zustand stores**: camelCase with `use` prefix (`useHealthStore`, `useCrsStore`)
+- **Edge Functions**: kebab-case directory names (`check-triggers/`, `channel-webhook/`)
+- **Test files**: same name as source with `.test.ts` suffix (`crs-engine.test.ts`)
+- **Native modules**: PascalCase for module name (`HealthConnectModule`, `HealthKitModule`)
+
+## Import Ordering
+1. React / React Native imports
+2. External library imports
+3. Internal absolute imports (adapters, modules, utils)
+4. Relative imports (same directory)
+5. Type-only imports last
+
+## Error Handling
+- Use early returns for guard clauses
+- At system boundaries (API, user input, webhooks): validate with Zod, return structured errors
+- Internal code: throw typed errors, catch at the boundary
+- Never swallow errors silently — at minimum log error code + context
+- Health data functions: return `null` or `undefined` for missing data, never throw for absence
+
 ## Testing
 - Test edge cases first: null HRV, empty sleep, zero steps, watch disconnect
 - Integration tests for health data pipeline (real data shapes, not mocks)
 - Unit tests for CRS computation (known inputs → expected outputs)
+- Test files live in `src/__tests__/` mirroring the source structure
+- Name test files `[source-name].test.ts`

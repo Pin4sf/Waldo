@@ -1,17 +1,17 @@
 <!-- _coverpage.md -->
 
-# OneSync
+# Waldo
 
-> The Biological Intelligence Layer for the Agent Economy
+> The only AI that reads your body before it reads your calendar.
 
-A personal cognitive agent that reads your body, manages your tasks, and orchestrates your day — proactively, via your preferred channel, before you have to think about it.
+Already on it. Waldo reads your wearable data, computes your readiness, and acts — before you have to think about it.
 
-**Body Intelligence** — Wearable data, CRS scoring, stress detection, proactive messaging via any channel
+**The Morning Wag** — Your daily biological briefing. Not a dashboard. Waldo wags at you every morning.
 
-**Task Intelligence** — Calendar, email, Slack, tasks — all CRS-aware
+**The Patrol** — 24/7 background analysis. The Patrol never sleeps.
 
-**Autonomous Personal OS** — Learns skills from you, delegates to specialists, powers other agents with your biology
+**The Constellation** — Months of Spots connected into a bigger picture. The long game.
 
 Architecture distilled from **13+ production-grade agent systems**
 
-[Get Started](#onesync-overview)
+[Get Started](#waldo-overview)

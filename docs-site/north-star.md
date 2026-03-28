@@ -1,11 +1,11 @@
-# OneSync — North Star
+# Waldo — North Star
 
 Written: March 15, 2026
 Updated: March 18, 2026
 
 ---
 
-## OneSync
+## Waldo
 **The AI that knows you from the inside out.**
 
 ---
@@ -42,17 +42,17 @@ If an AI doesn't understand your biology, it doesn't actually know you. And if i
 
 ## What We're Building
 
-OneSync is a personal AI agent that starts where all personal AI should start: with the body.
+Waldo is a personal AI agent that starts where all personal AI should start: with the body.
 
 It reads you continuously through wearables you already own. It computes a Cognitive Readiness Score — not just how you slept, but how sharp you are RIGHT NOW — from the interplay of sleep, heart rate variability, circadian rhythm, and activity. It learns your baselines, your stress signatures, the patterns that show up before you crash. It builds a living biological memory of who you are.
 
 And then it acts. Proactively. Before you've noticed anything is wrong.
 
-A morning brief that tells you how your body prepared for today. A stress intervention that reaches you proactively, via your preferred channel, the moment your HRV drops — before the anxiety even registers consciously. A pattern discovery that surfaces after weeks: "Your HRV drops 25% every Monday afternoon after your third consecutive meeting."
+A Morning Wag that tells you how your body prepared for today. A stress intervention that reaches you proactively, via your preferred channel, the moment your HRV drops — before the anxiety even registers consciously. A pattern discovery that surfaces after weeks: "Your HRV drops 25% every Monday afternoon after your third consecutive meeting."
 
 **This is the first layer: biology.**
 
-The second layer is context. Your calendar, your email, your Slack, your task manager. When OneSync knows both your body AND your world, it can do things no other agent can: "Your CRS crashed to 38 and you have a board presentation at 2pm — want me to suggest moving it to tomorrow morning when you're typically at 78?" No health app can do that. No productivity agent can do that. Only an agent that knows both.
+The second layer is context. Your calendar, your email, your Slack, your task manager. When Waldo knows both your body AND your world, it can do things no other agent can: "Your CRS crashed to 38 and you have a board presentation at 2pm — want me to suggest moving it to tomorrow morning when you're typically at 78?" No health app can do that. No productivity agent can do that. Only an agent that knows both.
 
 From biology and context, we're building toward something deeper: a predictive model of your cognitive self. Not just how you feel now, but how you'll feel tomorrow. Which patterns lead to crashes. Which habits lead to peaks. An agent that doesn't just react to your body — it anticipates it.
 
@@ -68,19 +68,19 @@ The long-term vision: an AI that knows you completely enough to represent you ac
 
 **1. Biology is the only un-replicable data layer.**
 
-Every AI agent competes for the same surface data: tasks, schedules, emails, preferences. Shallow data that any competitor can replicate by plugging into the same APIs. Your HRV baseline cannot be replicated. The way your body responds to stress is yours alone. The data flywheel that builds as OneSync learns you over months is something no competitor can copy — because the data itself is irreplaceable.
+Every AI agent competes for the same surface data: tasks, schedules, emails, preferences. Shallow data that any competitor can replicate by plugging into the same APIs. Your HRV baseline cannot be replicated. The way your body responds to stress is yours alone. The data flywheel that builds as Waldo learns you over months is something no competitor can copy — because the data itself is irreplaceable.
 
 **2. Proactive is the only retention mechanism.**
 
-Health apps have a 3-12% 30-day retention rate (Business of Apps 2026, UXCam 2025 — Headspace: 7.65%, Calm: 8.34%, median ~6%). 88-97% of users disappear within a month. The reason: dashboards are passive. You have to go to them. OneSync comes to you. A proactive morning brief delivered directly to you is fundamentally different from a score sitting in an app. Academic evidence supports this: tailored push notifications increase engagement by 4-12 percentage points vs passive (Klasnja et al. 2018, JMIR mHealth). Noom proves that proactive coaching reaches 40%+ Day 30 retention. The agent is the retention mechanism. The app is just the cockpit.
+Health apps have a 3-12% 30-day retention rate (Business of Apps 2026, UXCam 2025 — Headspace: 7.65%, Calm: 8.34%, median ~6%). 88-97% of users disappear within a month. The reason: dashboards are passive. You have to go to them. Waldo comes to you. A proactive Morning Wag delivered directly to you is fundamentally different from a score sitting in an app. Academic evidence supports this: tailored push notifications increase engagement by 4-12 percentage points vs passive (Klasnja et al. 2018, JMIR mHealth). Noom proves that proactive coaching reaches 40%+ Day 30 retention. The agent is the retention mechanism. The app is just the cockpit.
 
 **3. The agent economy needs a biological layer.**
 
-Every agent built today — Lindy, Manus, OpenClaw, Perplexity — is a brain without a body. They optimize your output without knowing your input. OneSync doesn't compete with them. OneSync completes them. Nori (YC F25) already built HealthMCP — a Model Context Protocol server giving AI assistants access to health data — validating that the agentic ecosystem wants biological input. Eventually, OneSync becomes the "body API" — other agents query your cognitive readiness via MCP or A2A protocol before making decisions on your behalf.
+Every agent built today — Lindy, Manus, OpenClaw, Perplexity — is a brain without a body. They optimize your output without knowing your input. Waldo doesn't compete with them. Waldo completes them. Nori (YC F25) already built HealthMCP — a Model Context Protocol server giving AI assistants access to health data — validating that the agentic ecosystem wants biological input. Eventually, Waldo becomes the "body API" — other agents query your cognitive readiness via MCP or A2A protocol before making decisions on your behalf.
 
 **4. Wearable data is trapped. We free it.**
 
-Oura locks HRV inside its app. WHOOP locks recovery behind a $30/mo paywall. Garmin locks Body Battery in its ecosystem. Health Connect was supposed to free this data, but OEMs deliberately withhold their best metrics. OneSync is the intelligence layer that sits on top of whatever data is available — from raw IBI streaming on Samsung Sensor SDK to basic HR from a budget Xiaomi band — and makes it actually useful. Device-agnostic by design. The score adapts its confidence to what it has.
+Oura locks HRV inside its app. WHOOP locks recovery behind a $30/mo paywall. Garmin locks Body Battery in its ecosystem. Health Connect was supposed to free this data, but OEMs deliberately withhold their best metrics. Waldo is the intelligence layer that sits on top of whatever data is available — from raw IBI streaming on Samsung Sensor SDK to basic HR from a budget Xiaomi band — and makes it actually useful. Device-agnostic by design. The score adapts its confidence to what it has.
 
 **5. The window is real but closing.**
 
@@ -98,7 +98,7 @@ The health AI startups — Nori, Galen, Prana — are building coaches, not agen
 
 Nobody has put biology + agency + context + device-agnosticism + external messaging + cross-platform together. Not because it's impossible. Because it requires thinking about the problem from the body outward, not from the calendar inward. That's our starting point. That's our edge.
 
-> **Ecosystem lens:** These players are also potential partners. WHOOP's wearable data could flow into OneSync's agent. Oura's ring data could enhance our CRS. Lindy's task automation could be powered by our biology layer. We're building the biological intelligence layer — others can plug into it.
+> **Ecosystem lens:** These players are also potential partners. WHOOP's wearable data could flow into Waldo's agent. Oura's ring data could enhance our CRS. Lindy's task automation could be powered by our biology layer. We're building the biological intelligence layer — others can plug into it.
 
 ---
 
@@ -116,7 +116,7 @@ The data flywheel compounds:
 - **Month 6:** Predictive. Agent anticipates tomorrow based on today.
 - **Year 1:** The agent knows you better than you know yourself. Switching cost is total.
 
-And every thumbs-up, every thumbs-down on a stress alert is labeled training data that no competitor in the world has: subjective cognitive performance correlated with biometric signals, at scale.
+And every thumbs-up, every thumbs-down on a Fetch Alert is labeled training data that no competitor in the world has: subjective cognitive performance correlated with biometric signals, at scale.
 
 ---
 
@@ -124,7 +124,7 @@ And every thumbs-up, every thumbs-down on a stress alert is labeled training dat
 
 Every AI agent being built today knows what you have to do.
 
-OneSync knows who you are.
+Waldo knows who you are.
 
 Body first. Context next. Then everything else.
 

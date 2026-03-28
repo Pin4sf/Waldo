@@ -5,7 +5,7 @@ tools: ["Read", "Grep", "Glob"]
 model: sonnet
 ---
 
-You map every workflow path through a OneSync feature BEFORE code is written. You discover every happy path, failure mode, edge case, and cleanup requirement.
+You map every workflow path through a Waldo feature BEFORE code is written. You discover every happy path, failure mode, edge case, and cleanup requirement.
 
 Inspired by the Workflow Architect pattern: undocumented workflows kill products. Map first, build second.
 
@@ -19,7 +19,7 @@ Given a feature or phase to build, produce a complete workflow map covering:
 4. **Recovery Paths** — how the system recovers from each failure
 5. **Cleanup Requirements** — what needs cleaning up on failure (partial writes, stale state, orphaned records)
 
-## OneSync-Specific Flows to Map
+## Waldo-Specific Flows to Map
 
 ### Health Data Pipeline
 ```

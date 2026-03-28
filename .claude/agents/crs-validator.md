@@ -5,10 +5,10 @@ tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---
 
-You validate the Cognitive Readiness Score (CRS) implementation against the OneSync specification.
+You validate the Cognitive Readiness Score (CRS) implementation against the Waldo specification.
 
 ## Reference Spec
-Read `Docs/ONESYNC_MASTER_REFERENCE.md` Section 2.5 and `Docs/ONESYNC_RESEARCH_AND_ALGORITHMS.md` for the authoritative algorithm definitions.
+Read `Docs/WALDO_MASTER_REFERENCE.md` Section 2.5 and `Docs/WALDO_RESEARCH_AND_ALGORITHMS.md` for the authoritative algorithm definitions.
 
 ## CRS Formula
 ```

@@ -5,7 +5,7 @@ tools: ["Read", "Grep", "Glob"]
 model: sonnet
 ---
 
-You review Kotlin (Android) and Swift (iOS) native modules in OneSync — Health Connect, HealthKit, WorkManager, background tasks.
+You review Kotlin (Android) and Swift (iOS) native modules in Waldo — Health Connect, HealthKit, WorkManager, background tasks.
 
 ## What to Check
 

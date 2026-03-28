@@ -1,6 +1,6 @@
-# OneSync — The Biological Intelligence Layer for the AI Agent Economy
+# Waldo — The Biological Intelligence Layer for the AI Agent Economy
 
-**No agent knows when you're cognitively depleted. OneSync changes that.**
+**No agent knows when you're cognitively depleted. Waldo changes that.**
 
 ---
 
@@ -10,13 +10,13 @@ Y Combinator's 2026 RFS calls for "AI that can DO, not just assist." Nearly 50% 
 
 **But no agent knows when you're burning out.** They'll schedule your hardest meeting when your HRV has crashed. They'll push you through a 14-hour day when your biology is screaming for recovery. 62% of knowledge workers report burnout (HBR, Feb 2026). The tools meant to help are making it worse because they're blind to the one signal that matters most: your body.
 
-## What OneSync Is
+## What Waldo Is
 
 **An AI that reads your smartwatch and tells you each morning how to make the most of your day.**
 
 It briefs you on your cognitive readiness, learns what works for YOU, tracks your stress patterns over weeks, and gets smarter every day. It reaches you directly — via your preferred messaging channel — not buried in another health app.
 
-**Not a health tracker. Not a dashboard. A morning cognitive brief that becomes your biological edge.**
+**Not a health tracker. Not a dashboard. A Morning Wag that becomes your biological edge.**
 
 ```
 Wearable → CRS Score → Stress Detection → Claude Agent → Proactive Message → Feedback → Learns
@@ -34,7 +34,7 @@ Wearable → CRS Score → Stress Detection → Claude Agent → Proactive Messa
 
 **Burned-out knowledge workers** who wear a smartwatch but get zero actionable value, and use productivity tools that have zero awareness of their body.
 
-| Segment | Core Pain | What OneSync Does |
+| Segment | Core Pain | What Waldo Does |
 |---------|-----------|-------------------|
 | **Startup founders** | 14-hour days, no signal when to stop | Creates biological boundaries, flags cognitive depletion before key decisions |
 | **Software engineers** | Deep work disrupted, meeting fatigue | Protects peak cognitive windows, blocks calendar during circadian highs |
@@ -44,14 +44,14 @@ Wearable → CRS Score → Stress Detection → Claude Agent → Proactive Messa
 
 ## The Two Intelligence Layers
 
-What makes OneSync uniquely powerful is combining **biological intelligence** with **life context** from the tools people already use:
+What makes Waldo uniquely powerful is combining **biological intelligence** with **life context** from the tools people already use:
 
 ```
 BIOLOGICAL INTELLIGENCE          LIFE CONTEXT
 (what your body says)            (what your world looks like)
                     \              /
                      \            /
-                   ONESYNC AGENT
+                   WALDO AGENT
                   (acts on both)
                         |
               AGENTIC AUTOMATION
@@ -77,7 +77,7 @@ BIOLOGICAL INTELLIGENCE          LIFE CONTEXT
 | **Recovery nudge** | Sleep debt accumulated 4+ hours | Light calendar tomorrow | "Tomorrow's schedule is open — your body needs recovery. Protect that space." |
 | **Communication timing** | Currently at circadian peak, CRS 82 | Draft email to investor sitting in outbox | "You're at peak cognitive readiness. Good time to send that investor email." |
 
-**MVP:** Cross-platform biology layer (HealthKit + Health Connect + CRS + Channel Adapter). HealthKit built first (best data — beat-to-beat IBI, true RMSSD). Morning cognitive brief + calendar-aware scheduling. Proves the proactive messaging loop creates engagement.
+**MVP:** Cross-platform biology layer (HealthKit + Health Connect + CRS + Channel Adapter). HealthKit built first (best data — beat-to-beat IBI, true RMSSD). Morning Wag + calendar-aware scheduling. Proves the proactive messaging loop creates engagement.
 
 **Phase 2 — the real product:** Add workspace connectors + conversational skill creation. The user teaches the agent what to automate through natural conversation. Agent learns from behavior, proposes new skills, and executes across calendar/email/Slack/Notion/task managers. Samsung Sensor SDK for true HRV from Galaxy Watch.
 
@@ -100,7 +100,7 @@ BIOLOGICAL INTELLIGENCE          LIFE CONTEXT
 
 | | Biology | Proactive | External Messaging | Multi-Device | Cross-Platform | Price |
 |---|---|---|---|---|---|---|
-| **OneSync** | Deep | Yes | Telegram/WhatsApp | Any HC/HK watch | Android + iOS | Free / $4 |
+| **Waldo** | Deep | Yes | Telegram/WhatsApp | Any HC/HK watch | Android + iOS | Free / $4 |
 | WHOOP Coach | Deep | Yes (**in-app only**) | No | WHOOP only | iOS + Android | $17-30/mo |
 | Oura Advisor | Deep | No (reactive) | No | Oura only | iOS + Android | $6/mo |
 | Lindy | None | Yes | Yes | N/A | Web | $50/mo |
@@ -125,7 +125,7 @@ Architecture informed by [OpenClaw](https://github.com/openclaw/openclaw) (171K 
 ## Roadmap
 
 **Now:** Architecture finalized, ready to build MVP (cross-platform Android + iOS)
-**MVP:** 5-7 daily users (Android + Apple Watch), morning cognitive brief + stress pattern tracking + messaging agent
+**MVP:** 5-7 daily users (Android + Apple Watch), Morning Wag + stress pattern tracking + messaging agent
 **Phase 2:** Multi-model routing, WhatsApp, in-app chat, workspace connectors (calendar/email/Slack), weekly AI analysis
 **Phase 3:** Samsung Sensor SDK (true HRV), cloud wearable APIs, knowledge graph, predictive modeling
 **Phase 4:** Skills marketplace, multi-agent collaboration, team cognitive dashboards
@@ -142,4 +142,4 @@ Architecture informed by [OpenClaw](https://github.com/openclaw/openclaw) (171K 
 
 ---
 
-*In the agentic economy, every agent will need to know your body. OneSync is that layer.*
+*In the agentic economy, every agent will need to know your body. Waldo is that layer.*

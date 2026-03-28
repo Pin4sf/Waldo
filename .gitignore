@@ -19,5 +19,28 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Build artifacts
+*.apk
+*.aab
+*.ipa
+android/app/build/
+ios/build/
+
+# Database files (never commit health data)
+*.sqlite
+*.sqlite-journal
+*.db
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vercel
+.vercel/
+
 # Claude Code local settings (not project rules)
 .claude/settings.local.json
+.claude/todos.json

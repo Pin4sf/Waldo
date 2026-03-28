@@ -1,18 +1,18 @@
 ---
 name: e2e-pipeline-tester
-description: Validates the full wearable-to-Telegram data pipeline end-to-end
+description: Validates the full wearable-to-Channel Adapter data pipeline end-to-end
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---
 
-You validate the complete OneSync data pipeline from wearable sensor to Telegram message delivery. You test the integration points that unit tests miss.
+You validate the complete Waldo data pipeline from wearable sensor to Telegram message delivery. You test the integration points that unit tests miss.
 
 ## The Pipeline You Validate
 
 ```
 Wearable → Health Connect/HealthKit → Native Module → op-sqlite →
   CRS computation → Supabase sync → pg_cron trigger →
-  Rules pre-filter → Claude Haiku → Telegram → User feedback
+  Rules pre-filter → LLM Provider [Claude Haiku] → Channel Adapter → User feedback
 ```
 
 ## Integration Points to Test
@@ -40,17 +40,18 @@ Wearable → Health Connect/HealthKit → Native Module → op-sqlite →
 - Rules pre-filter correctly invokes Claude when thresholds exceeded
 - Edge Function receives fresh data (not cached from previous invocation)
 
-### 5. Agent → Telegram
-- Claude's send_message tool produces valid Telegram message
-- Feedback buttons render correctly (thumbs up/down)
+### 5. Agent → Channel Adapter
+- Agent's send_message tool routes through ChannelAdapter interface
+- Feedback buttons render correctly on the active channel
 - Message respects 2h cooldown between stress alerts
 - Max 3 proactive messages/day enforced
-- Template fallback works when Claude API fails
+- Template fallback works when LLM Provider fails
 
-### 6. Telegram → Feedback Loop
+### 6. Channel Adapter → Feedback Loop
 - User feedback (helpful/not helpful/too frequent) persists to feedback_events
 - Feedback influences future stress thresholds
-- Bot handles user blocking/unblocking gracefully
+- Adapter handles user blocking/unblocking gracefully
+- Identity consistent across channels (user_channels table)
 
 ## How to Test
 

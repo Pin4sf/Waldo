@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>OneSync — Documentation</title>
+  <title>Waldo — Documentation</title>
   <script>
   (function(){
-    var k='onesync_auth',h='5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8';
+    var k='waldo_auth',h='5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8';
     if(sessionStorage.getItem(k)==='1'){document.write('<style>body{visibility:visible!important}</style>');return}
     document.write('<style>body{visibility:hidden!important}</style>');
     function s(t){var e=new TextEncoder().encode(t);return crypto.subtle.digest('SHA-256',e).then(function(b){return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('')})}
     function go(){
-      var p=prompt('Enter password to view OneSync docs:');
+      var p=prompt('Enter password to view Waldo docs:');
       if(!p){document.body&&(document.body.innerHTML='');return}
       s(p).then(function(d){if(d===h){sessionStorage.setItem(k,'1');location.reload()}else{alert('Wrong password.');go()}})
     }
@@ -18,7 +18,7 @@
   })();
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="OneSync — The biological intelligence layer for the agentic economy">
+  <meta name="description" content="Waldo — The only AI that reads your body before it reads your calendar">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css">
   <style>
     :root {
@@ -238,7 +238,7 @@
 
   <div id="ai-chat-panel">
     <div id="ai-chat-header">
-      <h3>Ask about OneSync</h3>
+      <h3>Ask about Waldo</h3>
       <div style="display:flex;gap:6px;">
         <button onclick="clearChat()" title="Clear">C</button>
         <button onclick="togglePanel()" title="Close">X</button>
@@ -246,10 +246,10 @@
     </div>
     <div id="ai-chat-context"></div>
     <div id="ai-chat-messages">
-      <div class="ai-msg assistant">Hi! Select any text in the docs and click <strong>"Ask AI"</strong>, or type a question about OneSync here.</div>
+      <div class="ai-msg assistant">Hi! Select any text in the docs and click <strong>"Ask AI"</strong>, or type a question about Waldo here.</div>
     </div>
     <div id="ai-chat-input-area">
-      <textarea id="ai-chat-input" rows="1" placeholder="Ask about OneSync..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
+      <textarea id="ai-chat-input" rows="1" placeholder="Ask about Waldo..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
       <button id="ai-chat-send" onclick="sendMessage()">Send</button>
     </div>
   </div>
@@ -258,7 +258,7 @@
 
   <script>
     window.$docsify = {
-      name: '<span style="color:#6366f1">One</span>Sync',
+      name: '<span style="color:#6366f1">Wal</span>do',
       nameLink: 'https://onesync-website-zs1p.vercel.app/', repo: '', loadSidebar: true, subMaxLevel: 3, auto2top: true,
       search: { placeholder: 'Search docs...', noData: 'No results', depth: 3 },
       coverpage: true, themeColor: '#6366f1',

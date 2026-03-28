@@ -4,11 +4,11 @@
 
 ## Strategic Positioning
 
-OneSync is **not a health AI** — it's a personal cognitive agent. Body intelligence is the wedge and the moat. The product expands to full task delegation in the agent economy.
+Waldo is **not a health AI** — it's a personal cognitive agent. Body intelligence is the wedge and the moat. The product expands to full task delegation in the agent economy.
 
-> **"Every AI agent knows your calendar. Only OneSync knows your body."**
+> **"Every AI agent knows your calendar. Only Waldo knows your body."**
 
-The players below are not just competitors — they're potential **ecosystem partners**. OneSync's biology layer is something other agents and platforms can integrate with. We build the biological intelligence substrate; others can plug into it.
+The players below are not just competitors — they're potential **ecosystem partners**. Waldo's biology layer is something other agents and platforms can integrate with. We build the biological intelligence substrate; others can plug into it.
 
 ## The Empty Quadrant
 
@@ -17,7 +17,7 @@ quadrantChart
     title Agent Autonomy vs Body Awareness
     x-axis "Low Body Awareness" --> "High Body Awareness"
     y-axis "Low Agent Autonomy" --> "High Agent Autonomy"
-    quadrant-1 "OneSync Territory"
+    quadrant-1 "Waldo Territory"
     quadrant-2 "Task Agents (No Biology)"
     quadrant-3 "Basic Dashboards"
     quadrant-4 "Health Trackers"
@@ -29,42 +29,42 @@ quadrantChart
     Welltory: [0.65, 0.20]
     Nori: [0.50, 0.45]
     Galen AI: [0.55, 0.60]
-    OneSync: [0.90, 0.85]
+    Waldo: [0.90, 0.85]
 ```
 
-**No one else combines deep body awareness with high agent autonomy.** WHOOP has the biology but stays in-app. Lindy has autonomy but zero biology. OneSync sits in the empty quadrant.
+**No one else combines deep body awareness with high agent autonomy.** WHOOP has the biology but stays in-app. Lindy has autonomy but zero biology. Waldo sits in the empty quadrant.
 
 ## Market Players — Detailed Analysis
 
 ### HIGH Overlap
 
-| Player | What They Do | Relationship to OneSync |
+| Player | What They Do | Relationship to Waldo |
 |--------|-------------|------------------------|
-| **WHOOP** ($3.6B) | Proactive nudges powered by OpenAI. Daily Outlook, Day in Review, rising stress alerts. $199-359/yr + proprietary band required. | **Potential data partner.** WHOOP has deep biometrics but is device-locked, in-app only, and expensive. OneSync is device-agnostic, channel-agnostic, and 50-100x cheaper. WHOOP users could benefit from OneSync's channel delivery; WHOOP data could enhance OneSync's CRS. |
-| **Oura** ($5.2B) | Oura Advisor AI. Proprietary women's health AI model. Ring ~$349 + $5.99/mo. | **Potential partner.** Oura ring data flowing into OneSync's agent would give users cross-device intelligence (ring + watch). Oura stays hardware-focused; OneSync is the agent layer. |
-| **Galen AI** (YC) | Healthcare agent with LLM memory. 20+ wearable integrations. Clinical/medical focus. | **Adjacent, not competing.** Galen handles chronic conditions and medications. OneSync handles daily cognitive performance. Users could have both — Galen for medical, OneSync for performance. |
+| **WHOOP** ($3.6B) | Proactive nudges powered by OpenAI. Daily Outlook, Day in Review, rising stress alerts. $199-359/yr + proprietary band required. | **Potential data partner.** WHOOP has deep biometrics but is device-locked, in-app only, and expensive. Waldo is device-agnostic, channel-agnostic, and 50-100x cheaper. WHOOP users could benefit from Waldo's channel delivery; WHOOP data could enhance Waldo's CRS. |
+| **Oura** ($5.2B) | Oura Advisor AI. Proprietary women's health AI model. Ring ~$349 + $5.99/mo. | **Potential partner.** Oura ring data flowing into Waldo's agent would give users cross-device intelligence (ring + watch). Oura stays hardware-focused; Waldo is the agent layer. |
+| **Galen AI** (YC) | Healthcare agent with LLM memory. 20+ wearable integrations. Clinical/medical focus. | **Adjacent, not competing.** Galen handles chronic conditions and medications. Waldo handles daily cognitive performance. Users could have both — Galen for medical, Waldo for performance. |
 
 ### MEDIUM Overlap
 
-| Player | What They Do | Relationship to OneSync |
+| Player | What They Do | Relationship to Waldo |
 |--------|-------------|------------------------|
 | **Nori** (YC F25) | Concierge AI health coach. Built HealthMCP. iOS-only. Strong founders (2x YC exits). | **Potential integration.** HealthMCP (Model Context Protocol for health data) validates our "body API" vision. iOS-only = no Android. Data sync issues reported. |
 | **Welltory** | HRV analysis + AI coach from 1000+ wearables. $8-15/mo. | **Potential data partner.** Notable: has native Galaxy Watch app measuring HRV directly (bypasses Samsung Health's sync gap). No proactive messaging, no agent. |
-| **Prana Health** (YC W26) | AI primary care doctor. Continuous monitoring via wearables + EHRs. | **Different market.** Prana is medical-grade (prescriptions, clinical). OneSync is wellness/performance. Non-competing. |
+| **Prana Health** (YC W26) | AI primary care doctor. Continuous monitoring via wearables + EHRs. | **Different market.** Prana is medical-grade (prescriptions, clinical). Waldo is wellness/performance. Non-competing. |
 | **Microsoft Copilot Health** | Wearable + medical records + AI Q&A hub. 50,000+ US hospitals. | **Complementary.** Reactive Q&A tool, not autonomous agent. No proactive messaging. |
-| **Apple watchOS 26 AI** | Native health coaching + Workout Buddy on Apple Watch. | **Complementary.** Apple-only. OneSync adds cross-platform + external messaging + CRS + agent autonomy. |
+| **Apple watchOS 26 AI** | Native health coaching + Workout Buddy on Apple Watch. | **Complementary.** Apple-only. Waldo adds cross-platform + external messaging + CRS + agent autonomy. |
 
 ### LOW Overlap (Ecosystem Partners)
 
 | Player | Relationship |
 |--------|-------------|
-| **Lindy** ($50M+ raised) | **Integration partner.** AI Chief of Staff with 4000+ integrations but zero biology. Lindy + OneSync biology = a smarter task agent that knows when you're depleted. |
-| **ChatGPT Health** | **Complementary.** Reactive Q&A (230M weekly health queries). OneSync is proactive. Different interaction model. |
+| **Lindy** ($50M+ raised) | **Integration partner.** AI Chief of Staff with 4000+ integrations but zero biology. Lindy + Waldo biology = a smarter task agent that knows when you're depleted. |
+| **ChatGPT Health** | **Complementary.** Reactive Q&A (230M weekly health queries). Waldo is proactive. Different interaction model. |
 | **Sahha.ai** | **Potential data partner.** Health AI SDK for developers. Their SDK could feed into our agent. |
 
 ## Wearable Data Platforms
 
-| Platform | Devices | Pricing | Relevance to OneSync |
+| Platform | Devices | Pricing | Relevance to Waldo |
 |----------|---------|---------|---------------------|
 | **Terra API** (YC) | 150+ sources | $399-499/mo | Too expensive for MVP. Post-scale option. |
 | **Vital (Tryvital)** | 500+ devices + labs | Enterprise | Post-scale option for lab integration. |
@@ -76,21 +76,21 @@ quadrantChart
 
 ## Ecosystem Changes (2025-2026)
 
-| Change | Impact on OneSync |
+| Change | Impact on Waldo |
 |--------|------------------|
 | **Google Fit deprecated** (July 2025) | Health Connect is the only path. Validates our architecture. |
 | **Samsung HRV gap persists** | Samsung still doesn't write RMSSD to Health Connect. Our HR-proxy fallback is confirmed necessary. |
 | **Samsung Health SDK deprecated** (July 2025) | Must use Samsung Health Data SDK. |
-| **Apple adding health AI to watchOS 26** | Competitive for iOS users, but Apple-only. OneSync adds cross-platform + external messaging. |
+| **Apple adding health AI to watchOS 26** | Competitive for iOS users, but Apple-only. Waldo adds cross-platform + external messaging. |
 | **MCP donated to Linux Foundation** (Dec 2025) | Open Wearables MCP Server could be future integration path. |
 | **WHOOP + OpenAI partnership** | WHOOP building proactive nudges. Still in-app only, device-locked. |
 | **61% of healthcare leaders building agentic AI** (Deloitte 2026) | Market timing is right. But most agentic health AI is enterprise/clinical, not consumer. |
 
-## OneSync's Unique Position
+## Waldo's Unique Position
 
 ```mermaid
 graph TB
-    subgraph OneSync["What Only OneSync Has"]
+    subgraph Waldo["What Only Waldo Has"]
         DA["Device-Agnostic<br/>Any watch, no hardware lock-in"]
         CA["Channel-Agnostic<br/>Adapter pattern: Telegram,<br/>WhatsApp, Discord, Slack"]
         CRS["CRS (SAFTE-FAST)<br/>Military-validated cognitive<br/>readiness score"]
@@ -99,16 +99,16 @@ graph TB
         ECO["Ecosystem Play<br/>Biology layer that powers<br/>other agents via MCP/A2A"]
     end
 
-    style OneSync fill:#eef2ff,stroke:#6366f1,stroke-width:2px
+    style Waldo fill:#eef2ff,stroke:#6366f1,stroke-width:2px
 ```
 
 ### The Adapter Advantage
 
-While competitors lock users into their app and their hardware, OneSync's adapter architecture means:
+While competitors lock users into their app and their hardware, Waldo's adapter architecture means:
 - **Users choose** where the agent lives (Telegram today, WhatsApp tomorrow, Slack at work)
 - **Users choose** which watch they wear (Apple, Samsung, Pixel, Garmin)
-- **Developers can** build on top of OneSync's biology layer via MCP/A2A (Phase 4)
-- **Partners can** send their data into OneSync (Oura ring + Apple Watch = richer CRS)
+- **Developers can** build on top of Waldo's biology layer via MCP/A2A (Phase 4)
+- **Partners can** send their data into Waldo (Oura ring + Apple Watch = richer CRS)
 
 ### What Competitors Cannot Easily Replicate
 

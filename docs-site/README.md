@@ -1,10 +1,10 @@
-# OneSync Overview
+# Waldo Overview
 
 > **Status:** Pre-code. Planning finalized. Ready to build. (March 2026)
 
-## What is OneSync?
+## What is Waldo?
 
-OneSync is a **personal cognitive operating system** — an AI agent that reads your body signals from wearables, manages your tasks based on your cognitive state, and evolves into a full autonomous OS that can handle virtually any task in your life.
+Waldo is a **personal cognitive operating system** — an AI agent that reads your body signals from wearables, manages your tasks based on your cognitive state, and evolves into a full autonomous OS that can handle virtually any task in your life.
 
 **Three pillars, built in sequence:**
 
@@ -42,7 +42,7 @@ graph LR
     classDef p fill:#f3e8ff,stroke:#8b5cf6,stroke-width:2px
 ```
 
-**The endgame:** OneSync becomes the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with WHOOP, Oura, Lindy, or Claude Code — **complementing and powering them** with the one signal they don't have: your cognitive state. These players are potential ecosystem partners, not just competitors.
+**The endgame:** Waldo becomes the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with WHOOP, Oura, Lindy, or Claude Code — **complementing and powering them** with the one signal they don't have: your cognitive state. These players are potential ecosystem partners, not just competitors.
 
 ## The Empty Quadrant
 
@@ -50,7 +50,7 @@ No competitor combines all of these:
 
 | | Body Awareness | Proactive Messaging | External Channel | Multi-Device | Cross-Platform | Price |
 |---|:---:|:---:|:---:|:---:|:---:|---|
-| **OneSync** | Deep (HRV, CRS) | Any channel (adapter) | Yes | Any HC/HK | Android + iOS | Free / $4.34/mo |
+| **Waldo** | Deep (HRV, CRS) | Any channel (adapter) | Yes | Any HC/HK | Android + iOS | Free / $4.34/mo |
 | WHOOP Coach | Deep | In-app only | No | WHOOP only | Both | $17-30/mo |
 | Oura Advisor | Deep | No | No | Oura only | Both | $6/mo |
 | Nori (YC) | Aggregated | Limited | No | Multi | iOS only | TBD |
@@ -93,7 +93,7 @@ graph TB
 
 ```mermaid
 gantt
-    title OneSync Build Phases (No Timelines — Gate-Based)
+    title Waldo Build Phases (No Timelines — Gate-Based)
     dateFormat X
     axisFormat %s
 
@@ -138,9 +138,9 @@ The Agent OS is distilled from 13 production-grade agent systems:
 
 ## All 13 Source Systems — Complete Reference
 
-Every architecture pattern in OneSync traces back to a production-grade open-source agent system. Here's the full lineage:
+Every architecture pattern in Waldo traces back to a production-grade open-source agent system. Here's the full lineage:
 
-| # | System | What It Is | What We Took for OneSync |
+| # | System | What It Is | What We Took for Waldo |
 |---|--------|-----------|-------------------------|
 | 1 | **Production Agent Platform** (enterprise, internal) | Production-grade agent OS with Brain + Orchestrator + Execution layers. Runs on Pi Mono. | Three-layer architecture (Brain → Orchestrator → Execution). Workspace files as config. Learning flywheel. Async tool dispatch. Context engine with distillation loop. Immutable decision records. |
 | 2 | **OpenFang** (Rust, 137K LOC, 14 crates) | Agent Operating System with Hands, triple-layer memory, 16 security systems. | 25-field prompt builder. Autonomous Hands pattern with multi-phase playbooks. Loop guard (SHA256). Triple-layer memory. Taint tracking. Prompt caching separation (system vs user message). |

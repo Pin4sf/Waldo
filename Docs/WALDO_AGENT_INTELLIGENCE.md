@@ -1,18 +1,19 @@
-# OneSync Agent OS — Definitive Intelligence Architecture
+# Waldo Agent OS — Definitive Intelligence Architecture
 
-> **What this document is:** The consolidated agent architecture for OneSync — a personal cognitive operating system that combines **body intelligence** (health signals from wearables), **task intelligence** (planning, organization, getting things done), and **proactive agency** (acts before you ask). This is the definitive reference for HOW the agent thinks, learns, communicates, and evolves.
+> **What this document is:** The consolidated agent architecture for Waldo — a personal cognitive operating system that combines **body intelligence** (health signals from wearables), **task intelligence** (planning, organization, getting things done), and **proactive agency** (acts before you ask). This is the definitive reference for HOW the agent thinks, learns, communicates, and evolves.
 >
 > **Sources:** 14 production-grade agent systems — Pi Mono, OpenClaw, PicoClaw, OpenFang, CoPaw, Paperclip, OpenViking (ByteDance), Swarms, Agency-Agents, Agent-Skills-for-Context-Engineering, context-hub (Andrew Ng), Context Engineering (HumanLayer/YC), **Production Agent Platform** (enterprise-grade Brain + Orchestrator + Execution architecture, running on Pi Mono), and **NemoClaw** (NVIDIA's enterprise agent governance framework — versioned blueprints, declarative policies, operator-in-the-loop escalation, multi-model routing)
 >
 > **Relationship to Master Reference:** Master Reference defines WHAT to build. This document defines HOW the agent should behave. Use BOTH when building Phase D (Agent Core) and Phase E (Proactive Delivery).
 >
+>
 > **Last updated:** March 2026
 
 ---
 
-## 0. What OneSync Actually Is
+## 0. What Waldo Actually Is
 
-OneSync is **not just a health app**. It is a **personal cognitive operating system** with three pillars:
+Waldo is **not just a health app**. It is a **personal cognitive operating system** with three pillars:
 
 ### Pillar 1: Body Intelligence (MVP)
 Reads HRV, HR, sleep, activity from any wearable. Computes CRS. Detects stress. Proactively messages you — via your preferred channel — before you crash. All health data encrypted, on-device computation, personal baselines.
@@ -27,28 +28,28 @@ This is the production agent platform philosophy applied to personal life: **Bra
 
 - **Execute arbitrary tasks** — "Research the best standing desks under $500, but only show me results tomorrow morning when my CRS is peak" (the agent researches now, delivers when you're sharp)
 - **Learn new skills from you** — "When I say 'prep for standup', pull my Linear tickets, check my sleep score, and draft 3 talking points" (agent stores as a reusable skill)
-- **Compose multi-step workflows** — Chain tools into automations: health check → calendar scan → task reranking → Slack status update → morning brief — all triggered by your wake time
+- **Compose multi-step workflows** — Chain tools into automations: health check → calendar scan → task reranking → Slack status update → Morning Wag — all triggered by your wake time
 - **Delegate to specialist sub-agents** — Sleep agent, productivity agent, research agent, creative agent — each expert in their domain, all coordinated by the brain
 - **Connect to any service via MCP** — Each new MCP server = a new domain the agent operates in. Notion, GitHub, Figma, banking, travel, food ordering — the tool ecosystem is unbounded
 - **Write and run code** — The agent can spin up ephemeral execution environments (code capsules) to accomplish tasks that don't have pre-built tools (data analysis, report generation, web scraping)
-- **Manage other agents** — OneSync becomes the orchestration layer UNDER your other AI tools, providing biological context to Lindy, Manus, Cursor, Claude Code — any agent that would benefit from knowing your cognitive state
+- **Manage other agents** — Waldo becomes the orchestration layer UNDER your other AI tools, providing biological context to Lindy, Manus, Cursor, Claude Code — any agent that would benefit from knowing your cognitive state
 
-**The key insight:** Every AI agent (Lindy, Manus, OpenClaw) can schedule meetings and draft emails. **None know when you're cognitively depleted.** OneSync adds the biological layer that makes every other agent smarter — it's the intelligence layer UNDER all your other tools. And because we build on the same infrastructure patterns (Hands, Heartbeats, Adapters, Skills, Memory) that power enterprise-grade agent platforms, the architecture scales to handle any domain, any task, any persona.
+**The key insight:** Every AI agent (Lindy, Manus, OpenClaw) can schedule meetings and draft emails. **None know when you're cognitively depleted.** Waldo adds the biological layer that makes every other agent smarter — it's the intelligence layer UNDER all your other tools. And because we build on the same infrastructure patterns (Hands, Heartbeats, Adapters, Skills, Memory) that power enterprise-grade agent platforms, the architecture scales to handle any domain, any task, any persona.
 
 ### The Three-Layer Architecture (Production Agent Platform Pattern)
 
 ```
-Brain Layer                         → OneSync Agent Core
+Brain Layer                         → Waldo Agent Core
   Thinks, remembers, delegates       Claude Haiku + soul files + memory
   Workspace files as config           IDENTITY + SOUL + CALIBRATION + RULES
   Daily memory + learning flywheel    Session summaries + pattern log
 
-Orchestrator Layer                  → OneSync Edge Functions
+Orchestrator Layer                  → Waldo Edge Functions
   State management + routing          Supabase + pg_cron + RLS
   Adapter pattern (source-agnostic)   HealthKit/HealthConnect/Samsung adapters
   Sub-agent supervisor                Future: specialist agents
 
-Execution Layer                     → OneSync Tool Execution
+Execution Layer                     → Waldo Tool Execution
   Ephemeral task execution            8 MVP tools → 50+ tools
   Workspace connectors                Calendar, email, Slack, tasks, music
   Multi-domain capability             Health + productivity + life management
@@ -58,7 +59,7 @@ Execution Layer                     → OneSync Tool Execution
 
 ## 1. Agent OS Architecture Overview
 
-Synthesized from all 12 repos into OneSync's serverless health agent:
+Synthesized from all 12 repos into Waldo's serverless health agent:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -134,7 +135,7 @@ Synthesized from all 12 repos into OneSync's serverless health agent:
 ┌──────────────────────────────────────────────────────────────┐
 │  PROACTIVE HANDS (from OpenFang + Paperclip Heartbeat)        │
 │                                                               │
-│  Morning Brief Hand — daily at wake time, multi-phase playbook│
+│  Morning Wag Hand — daily at wake time, multi-phase playbook│
 │  Stress Monitor Hand — every 15 min, gated on confidence      │
 │  Baseline Updater Hand — daily 4 AM, no LLM (pure compute)   │
 │  Weekly Review Hand — Sunday evening, Opus (Phase 2)          │
@@ -161,9 +162,9 @@ Synthesized from all 12 repos into OneSync's serverless health agent:
 
 ## 2. Prompt Builder — 25-Field Context Assembly
 
-**Source:** OpenFang's `PromptContext` (25 fields, 14 sections). Adapted for OneSync's health agent.
+**Source:** OpenFang's `PromptContext` (25 fields, 14 sections). Adapted for Waldo's health agent.
 
-### OneSync Prompt Fields
+### Waldo Prompt Fields
 
 | # | Field | Source | Cached? | Tokens |
 |---|-------|--------|---------|--------|
@@ -238,7 +239,7 @@ Replace 4 static soul files with **5 personality zones × 4 modes**. Zone is sel
 
 ### Zone × Mode Examples
 
-| | Morning Brief | Stress Alert | Conversational |
+| | Morning Wag | Fetch Alert | Conversational |
 |---|---|---|---|
 | **ENERGIZED** | "CRS 87 — peak zone. This is your deep work window. What's the hardest thing on your plate?" | "Quick flag: HRV dipped 15%. Probably just a passing spike since you're in great shape today." | Full engagement, challenge them |
 | **DEPLETED** | "Rough night. CRS 34. One thing: water and take it slow." | "Your body needs a reset. Step away for 2 minutes. Nothing else matters right now." | Short answers, no pressure |
@@ -284,7 +285,7 @@ Hook 2: QUALITY GATES (1, 3, 4)
 Hook 3: CONTEXT INJECTION
   Inject: latest CRS + biometric snapshot (if not already in context)
   Inject: calendar events (if morning or meeting in next 2h)
-  Inject: pending followups (if morning brief)
+  Inject: pending followups (if Morning Wag)
   Source: CoPaw context injection hook
 
 Hook 4: COMPACTION
@@ -313,7 +314,7 @@ Hook 6: HEALTH LANGUAGE SAFETY (Gate 2)
   Source: Agency-Agents healthcare compliance
 
 Hook 7: CONFIDENCE CHECK (Gate 5)
-  Stress alerts: confidence ≥ 0.60
+  Fetch Alerts: confidence ≥ 0.60
   Morning insights: ≥3 data points behind any claimed pattern
   Memory claims: only reference "high" confidence patterns
   Action: If fail → omit uncertain claim (better to say less)
@@ -436,7 +437,7 @@ Don't stuff raw HRV/sleep/activity data into context. Generate compressed summar
 | Layer | Content | When Loaded | Tokens |
 |-------|---------|-------------|--------|
 | L0 (Abstract) | "Day was high-stress, poor sleep, CRS 42" | Always — for quick triage | ~20 |
-| L1 (Overview) | Sleep 5.2h, HRV down 18%, 3 stress events, steps 4200 | Default — morning briefs, alerts | ~100 |
+| L1 (Overview) | Sleep 5.2h, HRV down 18%, 3 stress events, steps 4200 | Default — Morning Wags, alerts | ~100 |
 | L2 (Detail) | Full minute-by-minute HRV readings, sleep stage transitions, all data points | On-demand — user asks "show me the data" | ~1500 |
 
 **Baseline Updater Hand** generates fresh L0/L1 summaries daily at 4 AM (no LLM — pure computation). These summaries are what the agent loads, not raw sensor data.
@@ -449,12 +450,12 @@ Don't stuff raw HRV/sleep/activity data into context. Generate compressed summar
 
 Each proactive feature is a self-contained **Hand** with a manifest, tools, schedule, gate condition, and multi-phase playbook (from OpenFang's numbered-phase system prompts).
 
-### Morning Brief Hand
+### Morning Wag Hand
 
 ```
 Schedule: Daily at user's estimated wake time (from sleep midpoint)
 Model: Claude Haiku 4.5
-Gate: Always fire (morning brief is the hero feature)
+Gate: Always fire (Morning Wag is the hero feature)
 Tools: get_crs, get_sleep, read_memory, send_message
 Wakeup coalescing: If multiple health events overnight, summarize into one brief
 
@@ -531,7 +532,7 @@ PLAYBOOK:
   Phase 1 — Detect significant baseline shifts (>10% change from 30d average)
   Phase 2 — Generate L0/L1 health summaries for yesterday
   Phase 3 — Update health_baselines table
-  Phase 4 — If major shift detected → flag for next morning brief
+  Phase 4 — If major shift detected → flag for next Morning Wag
   Phase 5 — Validate/decay memory entries (hot → warm → cold based on recency)
 ```
 
@@ -595,7 +596,7 @@ Track and store in `core_memory.preferences`:
 T+0:  Send nudge
 T+2h: If engaged → log signal, check if CRS improved
 T+4h: If CRS improved → "Your HRV recovered 15% since that break. Small resets work for you."
-T+24h: In morning brief → "Yesterday's break correlated with faster recovery. Adding to your pattern."
+T+24h: In Morning Wag → "Yesterday's break correlated with faster recovery. Adding to your pattern."
 Never: If not engaged → silently reduce that nudge type's frequency
 ```
 
@@ -720,7 +721,7 @@ triggers: [sleep, insomnia, tired, exhausted, waking, bedtime, nap]
 
 ## When to Use
 - User asks about sleep quality
-- Morning brief includes sleep data below baseline
+- Morning Wag includes sleep data below baseline
 - Sleep score drops below 60
 
 ## Assessment Steps
@@ -752,7 +753,7 @@ This converts O(n) static token cost into O(1) per invocation.
 
 ## 12. AI Onboarding Interview — Cold Start Killer
 
-The agent's first act of intelligence. Not a static form — a dynamic, AI-driven conversation that builds a deep user profile and calibrates the agent's personality before the first morning brief.
+The agent's first act of intelligence. Not a static form — a dynamic, AI-driven conversation that builds a deep user profile and calibrates the agent's personality before the first Morning Wag.
 
 ### Why This Matters
 
@@ -771,7 +772,7 @@ Same agent core, different mode. Uses `SOUL_ONBOARDING` (curious, warm, professi
 | **Core Interview** | Day 0 (onboarding) | 3-5 min | Goals, device, chronotype, communication style, medications, key health context | Sets up the agent from Day 1 |
 | **Sleep Deep-Dive** | Day 3 | 2 min | "You slept 5.8h last night. Is that typical? What usually keeps you up?" | Has 3 nights of real data to make questions contextual |
 | **Stress Calibration** | Day 7 | 2 min | "I noticed your HRV dropped at 2pm. What was happening?" | Triggered by first stress detection — real context |
-| **Relationship Check-In** | Day 14 | 2 min | "How's OneSync working? What should I do differently?" | Enough history to course-correct |
+| **Relationship Check-In** | Day 14 | 2 min | "How's Waldo working? What should I do differently?" | Enough history to course-correct |
 
 Each wave has CONTEXT from real data, making questions sharper than Day 0 could ever be.
 
@@ -862,7 +863,7 @@ Top Goal: "Optimize cognitive performance"
 
 **Why this matters:** The agent can explain WHY it's recommending something by tracing the ancestry: "I'm suggesting this breathing exercise because your goal is to reduce Monday crashes, and your HRV just dropped 22% — which is the exact pattern we've been working on."
 
-**Implementation:** Store in `core_memory.active_goals` with `parent` field. Morning brief references top-level goals. Stress alerts reference the specific sub-goal at risk.
+**Implementation:** Store in `core_memory.active_goals` with `parent` field. Morning Wag references top-level goals. Fetch Alerts reference the specific sub-goal at risk.
 
 ---
 
@@ -879,7 +880,7 @@ Each level requires the previous to work well. Don't skip.
 
 ### Level 4: The Autonomous Personal OS (Full Detail)
 
-Level 4 is where OneSync stops being an "agent" and becomes a **personal operating system**. The agent can perform almost any task because it has three things no other system has: (1) your biological state, (2) your full workspace context, (3) months of learned patterns about how YOU work best.
+Level 4 is where Waldo stops being an "agent" and becomes a **personal operating system**. The agent can perform almost any task because it has three things no other system has: (1) your biological state, (2) your full workspace context, (3) months of learned patterns about how YOU work best.
 
 **Architecture (Brain → Orchestrator → Execution pattern):**
 
@@ -892,7 +893,7 @@ Brain (always-on, persistent)
 ├── Orchestrator (routes to the right execution path)
 │   │
 │   ├── Health Hands
-│   │   ├── Morning Brief Hand (daily)
+│   │   ├── Morning Wag Hand (daily)
 │   │   ├── Stress Monitor Hand (every 15 min)
 │   │   ├── Sleep Coach Hand (nightly)
 │   │   └── Activity Nudge Hand (sedentary detection)
@@ -956,29 +957,29 @@ Next time: "Board prep" → agent executes all 4 steps, delivers result.
 
 **Cross-Agent Orchestration:**
 
-OneSync becomes the biological intelligence layer that other agents tap into:
+Waldo becomes the biological intelligence layer that other agents tap into:
 
 ```
 Cursor (coding agent)
-  └── Asks OneSync: "Is the user in a good cognitive state for a complex refactor?"
-  └── OneSync: "CRS is 41. Suggest simpler tasks or defer to tomorrow morning."
+  └── Asks Waldo: "Is the user in a good cognitive state for a complex refactor?"
+  └── Waldo: "CRS is 41. Suggest simpler tasks or defer to tomorrow morning."
 
 Lindy (workflow agent)
-  └── Asks OneSync: "Should I schedule the investor call for 4pm?"
-  └── OneSync: "User's CRS historically crashes at 3pm on Thursdays. Suggest 10am."
+  └── Asks Waldo: "Should I schedule the investor call for 4pm?"
+  └── Waldo: "User's CRS historically crashes at 3pm on Thursdays. Suggest 10am."
 
 Claude Code (dev agent)
-  └── Asks OneSync: "User has been coding for 4 hours straight. Should I suggest a break?"
-  └── OneSync: "HRV dropped 18% in the last hour. Yes, suggest a 10-min walk."
+  └── Asks Waldo: "User has been coding for 4 hours straight. Should I suggest a break?"
+  └── Waldo: "HRV dropped 18% in the last hour. Yes, suggest a 10-min walk."
 ```
 
-**This is the endgame:** OneSync as the biological substrate that every other AI agent consults before acting. Not competing with Lindy or Manus — powering them with the one signal they don't have.
+**This is the endgame:** Waldo as the biological substrate that every other AI agent consults before acting. Not competing with Lindy or Manus — powering them with the one signal they don't have.
 
 ---
 
 ## 14. Security Architecture
 
-**Source:** OpenFang (16 systems) + Agency-Agents quality gates. OneSync-relevant subset:
+**Source:** OpenFang (16 systems) + Agency-Agents quality gates. Waldo-relevant subset:
 
 ### MVP (7 systems)
 1. **Output validation** — Banned medical phrase scanning before delivery
@@ -1017,7 +1018,7 @@ In a messaging context:
 **Source:** PicoClaw + OpenFang
 
 ```
-Conversation/Morning Brief:
+Conversation/Morning Wag:
   1. Claude Haiku 4.5 (primary)
   2. Template-based response with actual CRS data (fallback — no AI personality but still useful)
 
@@ -1041,7 +1042,7 @@ Error Classification:
 - Personality Spectrum (5 zones × 4 modes)
 - Pre/post reasoning hook pipeline (10 hooks)
 - Two-tier memory with temporal validity + proactive recording
-- Morning Brief + Stress Monitor + Baseline Updater Hands with multi-phase playbooks
+- Morning Wag + Stress Monitor + Baseline Updater Hands with multi-phase playbooks
 - Four-Phase Nudge system for every proactive message
 - 5 quality gates + risk-weighted priority
 - L0/L1/L2 health data summaries (not raw data in context)
@@ -1080,7 +1081,7 @@ Error Classification:
 
 ### The 3-Layer Context Graph
 
-| Layer | Purpose | OneSync Equivalent |
+| Layer | Purpose | Waldo Equivalent |
 |-------|---------|-------------------|
 | **Knowledge Graph** | What exists — entities and relationships | Health profile, device capabilities, user identity, goal hierarchy |
 | **Activity Traces** | What happened — individual event records | Health events, stress detections, intervention outcomes, conversation summaries |
@@ -1151,11 +1152,11 @@ Supersedes: None
 
 ## 18. Task Intelligence — Beyond Health
 
-**OneSync is not just a health agent.** It's a personal cognitive OS that manages your tasks, schedule, and work alongside your biology.
+**Waldo is not just a health agent.** It's a personal cognitive OS that manages your tasks, schedule, and work alongside your biology.
 
 ### How Body Intelligence Enhances Task Management
 
-| Without OneSync | With OneSync |
+| Without Waldo | With Waldo |
 |----------------|-------------|
 | You schedule the hard meeting at 4pm | Agent knows your CRS crashes at 3pm on Tuesdays — suggests moving it to 10am |
 | You grind through email at 9am | Agent knows this is your peak CRS window — suggests deep work first, email at noon |
@@ -1170,13 +1171,13 @@ Supersedes: None
 | `get_calendar` | Read today/tomorrow's schedule | Overlay CRS predictions on each time slot |
 | `block_time` | Block focus/recovery time | Auto-block when CRS is predicted to dip |
 | `prioritize_tasks` | Rerank task list | CRS-aware: hard tasks during peak, admin during dip |
-| `get_emails` | Surface urgent emails | Include in morning brief: "3 emails need response before 11am" |
+| `get_emails` | Surface urgent emails | Include in Morning Wag: "3 emails need response before 11am" |
 | `set_slack_status` | Auto-DND / custom status | "In deep work — back at 2pm" when CRS is in peak zone |
 | `reschedule` | Move meetings | "Your CRS will be 38 at 4pm — move the strategy session to tomorrow morning?" |
 | `create_task` | Add to task manager | Break goals into CRS-aware daily tasks |
 | `delegate_task` | Reassign work | "You're depleted today. Can this be delegated?" |
 
-### The Unified Morning Brief (Health + Tasks)
+### The Unified Morning Wag (Health + Tasks)
 
 ```
 Good morning, Shivansh. Here's your day:
@@ -1206,7 +1207,7 @@ TASKS: 3 items need attention. Ranked by CRS-optimal timing:
 - Personality Spectrum (5 zones × 4 modes)
 - Pre/post reasoning hook pipeline (10 hooks)
 - Two-tier memory with temporal validity + proactive recording
-- Morning Brief + Stress Monitor + Baseline Updater Hands with multi-phase playbooks
+- Morning Wag + Stress Monitor + Baseline Updater Hands with multi-phase playbooks
 - Four-Phase Nudge system for every proactive message
 - 5 quality gates + risk-weighted priority
 - L0/L1/L2 health data summaries (not raw data in context)
@@ -1224,7 +1225,7 @@ TASKS: 3 items need attention. Ranked by CRS-optimal timing:
 
 ### Phase 2: Cognitive Co-Pilot (Health + Tasks + Workspace)
 - Task intelligence tools (calendar, email, Slack, task manager)
-- Unified morning brief (body + work + tasks)
+- Unified Morning Wag (body + work + tasks)
 - Tier 3 memory (pgvector + knowledge graph)
 - Weekly Review Hand (Opus)
 - MixtureOfAgents for complex synthesis
@@ -1244,7 +1245,7 @@ The agent becomes a full personal operating system that can handle virtually any
 
 **Agent Ecosystem:**
 - Multi-agent specialists (sleep, stress, activity, nutrition, productivity, research, creative)
-- Cross-agent orchestration — OneSync provides biological context to Cursor, Lindy, Claude Code, any agent
+- Cross-agent orchestration — Waldo provides biological context to Cursor, Lindy, Claude Code, any agent
 - Sub-agent delegation — brain spawns specialist sub-agents for different tasks, coordinates results
 - User-defined automations — "Every Monday at 7am, if CRS > 70, auto-accept the standup; if < 50, send apologies"
 
@@ -1256,7 +1257,7 @@ The agent becomes a full personal operating system that can handle virtually any
 - Full life management — music, notes, habits, social, finance, travel
 
 **The Endgame:**
-OneSync as the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with Lindy, Manus, or Claude Code — **powering them** with the one signal they don't have: your cognitive state. The agent that makes every other agent smarter.
+Waldo as the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with Lindy, Manus, or Claude Code — **powering them** with the one signal they don't have: your cognitive state. The agent that makes every other agent smarter.
 
 ---
 

@@ -1,4 +1,4 @@
-# OneSync MVP -- Consolidated Engineering PRD
+# Waldo MVP -- Consolidated Engineering PRD
 
 **Version:** 4.0 (Final)
 **Date:** March 15, 2026
@@ -138,10 +138,10 @@
 | react-native-health-connect | Community-maintained with permission edge cases. Native Kotlin via Expo Modules API gives direct HealthConnectClient access |
 | expo-background-task | Brand new (SDK 53), unproven at scale. Native Kotlin WorkManager eliminates JS cold-start (1-3s overhead) |
 | react-native-wear-connectivity | Low adoption (~50-100 stars), unreliable callbacks. Native Kotlin Data Layer API gives full access |
-| Gluestack-UI v3 | OneSync dashboard is custom enough that pre-built components save minimal time. NativeWind v4 gives more flexibility |
+| Gluestack-UI v3 | Waldo dashboard is custom enough that pre-built components save minimal time. NativeWind v4 gives more flexibility |
 | Terra API ($399/mo) | Health Connect + native Kotlin covers all target devices for $0 |
 | LangChain / LangGraph | Claude API with tool_use gives us the ReAct loop natively. No middleware needed |
-| Claude Agent SDK | Overkill -- expects persistent runtime. OneSync agent is well-defined: wake, read, compose, sleep |
+| Claude Agent SDK | Overkill -- expects persistent runtime. Waldo agent is well-defined: wake, read, compose, sleep |
 | Vercel AI SDK | Marginal benefit over raw API for server-side Edge Functions |
 | Mastra | Too new, too risky for a health app |
 | Firebase | Supabase gives Postgres + Edge Functions + Auth + Realtime in one |
@@ -160,7 +160,7 @@ These decisions override the March 6 plan wherever conflicts exist.
 
 **What changed:** PowerSync removed. Using op-sqlite + SQLCipher with a hand-built upload queue.
 
-**Why:** Health sensor readings are append-only immutable facts. A heart rate of 72 BPM at 14:30:05 will never change. No conflicts possible (phone is sole writer). No bidirectional sync needed. PowerSync solves a problem OneSync does not have, at $49+/month past free tier.
+**Why:** Health sensor readings are append-only immutable facts. A heart rate of 72 BPM at 14:30:05 will never change. No conflicts possible (phone is sole writer). No bidirectional sync needed. PowerSync solves a problem Waldo does not have, at $49+/month past free tier.
 
 **Sync architecture:**
 ```
@@ -1055,7 +1055,7 @@ Transparency builds trust and helps users understand what is affecting their sco
 
 ### Production System Lessons
 
-| System | Key Lesson for OneSync |
+| System | Key Lesson for Waldo |
 |--------|----------------------|
 | Garmin Body Battery | Consider "battery" view alongside CRS (trajectory vs snapshot) |
 | WHOOP Recovery | Uses 30-day baselines (more stable than 7-day). Falls back to sleep-only model |
@@ -1086,7 +1086,7 @@ Add importance scoring per memory entry (high-relevance items included first if 
 1. **SQLCipher overhead:** ~10-15% read/write overhead. Recommended for health data sensitivity, but optional for wellness (not medical) app. Recommendation: use it.
 2. **Raw IBI storage policy:** Store raw IBI locally for 7 days (reprocessing window), upload only computed RMSSD to server. Delete raw IBI older than 7 days on device.
 3. **Samsung Sensor SDK distribution:** Research if watch companion app needs Samsung partner approval before Week 10. Fallback: sideload for beta.
-4. **Foreground service notification:** Persistent "OneSync is monitoring" notification keeps background tasks alive on aggressive OEMs. Make it optional: auto-enable on Samsung/Xiaomi, hide on Pixel/stock Android.
+4. **Foreground service notification:** Persistent "Waldo is monitoring" notification keeps background tasks alive on aggressive OEMs. Make it optional: auto-enable on Samsung/Xiaomi, hide on Pixel/stock Android.
 
 ### Build Order Risks
 
@@ -1107,7 +1107,7 @@ Add importance scoring per memory entry (high-relevance items included first if 
 
 ### Performance Concerns
 
-- SQLCipher adds 10-15% read/write overhead. Acceptable for OneSync's data volume but monitor.
+- SQLCipher adds 10-15% read/write overhead. Acceptable for Waldo's data volume but monitor.
 - Edge Function cold starts (500ms-2s) add latency to first call after idle. Warm functions with a health ping.
 - Prompt caching hit rate depends on TTL (5min vs 1hr). If 1hr TTL is unavailable, costs roughly double.
 
@@ -1239,4 +1239,4 @@ onesync/
 
 ---
 
-*This document is the consolidated engineering source of truth for OneSync MVP. It incorporates the original PRD, the synthesized MVP plan, and all 7 critical changes from the March 7 tech stack deep dive. Build from this.*
+*This document is the consolidated engineering source of truth for Waldo MVP. It incorporates the original PRD, the synthesized MVP plan, and all 7 critical changes from the March 7 tech stack deep dive. Build from this.*
