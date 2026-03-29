@@ -21,6 +21,21 @@ This loop is non-negotiable. No feature ships without qa-breaker approval.
 - **planner** → break down WoO test, tech spikes, account setup
 - No code review agents needed yet
 
+### Phase A0: Data Parser + CRS Validation (COMPLETE ✅)
+Built `tools/health-parser/` (5,251 lines) + `tools/waldo-demo/` (2,567 lines) = 7,818 total.
+- Streaming XML parser: 289MB in 2.2s, 683K records, 12 data types
+- CRS engine validated: range 30-89, avg 73 across 85 rich days
+- Stress detector: 219 alert-level events across 149 days
+- Day Strain (WHOOP-style 0-21), Sleep Debt (14-day weighted)
+- Pattern detector: 2 high-confidence patterns from 856 days
+- Spots engine: 1,498 observations across 843 days
+- User Intelligence profile: cross-day routine analysis
+- Weather enrichment: 778 days. Air Quality: 90 days.
+- Web demo: SVG CRS gauge, constellation visualization, onboarding, chat
+- 11-section prompt builder with full user context
+- Bugs found and fixed: UTC timezone (critical), step double-counting (critical), safety gaps (high)
+- Documentation: adapter ecosystem spec, designer brief, 7 new mermaid diagrams
+
 ### Phase B1: HealthKit Connector (iOS)
 - **workflow-mapper** → map every HealthKit data flow path BEFORE writing code
 - **planner** → task breakdown for Swift native module

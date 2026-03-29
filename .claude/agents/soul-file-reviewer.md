@@ -17,9 +17,15 @@ These branded feature names MUST be used consistently in all soul files, message
 |---|---|---|
 | Morning brief | **Morning Wag** | Daily biological briefing |
 | Stress alert | **Fetch Alert** / **Fetch** | Proactive stress intervention |
-| CRS score display | **Spots** | Visual CRS representation (more spots = more energy) |
-| Background monitoring | **Patrol** | Waldo's continuous health watch |
+| CRS score | **Nap Score** | Daily readiness number (0-100) |
+| Single observation | **Spot** | Individual thing Waldo noticed ("Waldo spotted something") |
+| Background monitoring | **The Patrol** | 24/7 continuous analysis ("The Patrol never sleeps") |
+| Long-term pattern map | **The Constellation** | Months of Spots connected — premium insight layer |
+| Stress detection engine | **The Sniff** | "Dogs smell what you can't see" |
 | Learning period | **Sniff Phase** | First 7 days of pattern learning |
+| Free tier | **Pup** | Morning Wag + basic Spots |
+| Pro tier | **Pro** | Full Patrol, Fetches, interventions |
+| Team/Family tier | **Pack** | Multiple Waldos, shared Constellations |
 
 If a soul file or message uses a generic term (e.g., "stress alert", "morning brief") instead of the brand name, flag it as a **[BRAND]** issue.
 

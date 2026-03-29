@@ -1,15 +1,18 @@
-- **Getting Started**
+- **Getting started**
   - [Overview](README.md)
-  - [Vision & Why](north-star.md)
-  - [One-Pager & Market](one-pager.md)
-  - [Competitive Landscape](competitive-landscape.md)
+  - [Vision & why](north-star.md)
+  - [One-pager & market](one-pager.md)
+  - [Competitive landscape](competitive-landscape.md)
 
 - **Architecture**
-  - [Master Build Reference](master-reference.md)
-  - [Agent OS Intelligence](agent-intelligence.md)
-  - [CRS & Algorithms](research-algorithms.md)
+  - [Master build reference](master-reference.md)
+  - [Agent OS intelligence](agent-intelligence.md)
+  - [CRS & algorithms](research-algorithms.md)
+  - [Adapter ecosystem](adapter-ecosystem.md)
+  - [Security & reliability](security-reliability.md)
 
-- **Quick Reference**
-  - [Architecture at a Glance](architecture-glance.md)
-  - [MVP Scope](mvp-scope.md)
-  - [Data Flow & Diagrams](diagrams.md)
+- **Quick reference**
+  - [Architecture at a glance](architecture-glance.md)
+  - [MVP scope](mvp-scope.md)
+  - [Data flow & diagrams](diagrams.md)
+  - [Designer brief](designer-brief.md)

@@ -74,7 +74,9 @@ Synthesized from all 12 repos into Waldo's serverless health agent:
 │    trigger_context + biometric_snapshot + last_interaction     │
 │    + pending_followups + calendar_context                     │
 │                                                               │
-│  Token budget: 2500 max. U-shaped: critical at START + END.  │
+│  Token budget: DYNAMIC per trigger. U-shaped attention.      │
+│    Morning Wag: 4000  |  Fetch Alert: 4500                  │
+│    User Chat: 7000    |  Constellation: 10000 (Phase 2)     │
 │  Canonical context as SEPARATE user message (cache-friendly). │
 └──────────────────┬───────────────────────────────────────────┘
                    │
@@ -212,12 +214,58 @@ Synthesized from all 12 repos into Waldo's serverless health agent:
 
 ### Token Budget Enforcement
 
+**Dynamic budget per trigger type** — not one-size-fits-all. The agent should have access to as much relevant context as possible for quality responses. Cost is managed via prompt caching (cached tokens cost 10x less) and the rules pre-filter (60-80% of checks skip Claude entirely).
+
+| Trigger Type | Total Budget | Why |
+|-------------|-------------|-----|
+| **Morning Wag** | 4,000 tokens | Formulaic but needs sleep detail + evolution params + personality |
+| **Fetch Alert** | 4,500 tokens | Needs stress context + memory + empathetic framing |
+| **User Chat** | 7,000 tokens | Full conversation history (8-10 turns) + all tools + rich context |
+| **Constellation Query** (Phase 2) | 10,000 tokens | Weeks of pattern summaries + cross-correlation |
+
+**Budget allocation (Morning Wag — 4,000 tokens):**
+
 | Component | Budget | Compression Trigger |
 |-----------|--------|-------------------|
-| System message (fields 1-5) | 1200 tokens | Summarize memory if exceeding |
-| User message (fields 6-9) | 800 tokens | Truncate history, drop calendar |
-| Tool definitions | 500 tokens | Load only 3-4 most relevant tools |
-| **Total input** | **2500 tokens** | Trigger optimization at 70% (1750) |
+| System message: soul + zone + mode + safety sandwich (cached 1h) | 750 tokens | N/A — stable, high cache hit |
+| User block: profile + evolution params + baselines (cached 5min) | 400 tokens | Summarize if exceeding |
+| Health context L0+L1 (fresh per invocation) | 800 tokens | Drop to L0 only if exceeding |
+| Tool definitions (dynamic 3-4 tools) | 500 tokens | Load only relevant tools |
+| Conversation history | 600 tokens | Compact older turns |
+| Tool output headroom | 600 tokens | Compress large outputs to ~500 |
+| Reserve | 350 tokens | For template wrapping, markers |
+| **Total** | **4,000 tokens** | Trigger optimization at 70% (2800) |
+
+**Budget allocation (User Chat — 7,000 tokens):**
+
+| Component | Budget | Compression Trigger |
+|-----------|--------|-------------------|
+| System message (cached 1h) | 750 tokens | N/A |
+| User block + evolution params (cached 5min) | 400 tokens | Summarize if exceeding |
+| Health context L0+L1+L2 on-demand | 1,000 tokens | Drop L2, then L1 |
+| Tool definitions (all 8 tools) | 800 tokens | N/A — user chat gets all tools |
+| Conversation history (8-10 turns) | 2,000 tokens | Compact to summaries beyond 10 turns |
+| Tool output headroom (multi-iteration) | 1,200 tokens | Compress large outputs |
+| Reserve | 850 tokens | For complex multi-tool chains |
+| **Total** | **7,000 tokens** | Trigger optimization at 70% (4900) |
+
+**Cost impact of dynamic budgets:**
+
+| Tier | Old ($0.90/mo Pro) | New | Delta |
+|------|-------------------|-----|-------|
+| Free (3 calls/day) | $0.27/mo | $0.35/mo | +$0.08 |
+| Pro (7 calls/day) | $0.90/mo | $1.15/mo | +$0.25 |
+| Heavy Pro (15/day) | $1.50/mo | $1.95/mo | +$0.45 |
+
+Negligible increase. Quality improvement is worth 100x the cost.
+
+**Key principle:** The agent should gather as much relevant context as it needs for the best possible response. Cost control comes from:
+1. Prompt caching (cached tokens cost 0.1x) — soul files, user profiles stay cached
+2. Rules pre-filter (60-80% of checks skip Claude) — biggest savings lever
+3. Dynamic tool loading (fewer tools = fewer definition tokens)
+4. Tool output compression (cap at ~500 tokens, leave retrieval markers)
+5. Session compaction (summarize old conversation turns)
+NOT from starving the agent of context.
 
 ---
 
@@ -636,7 +684,7 @@ Threshold: > 0.40 to send. The 0.60 stress confidence is still the MINIMUM.
 | Prompt caching (stable system msg → high hit rate) | ~60% on cached tokens | MVP |
 | Dynamic tool loading (3-4 tools, not 8) | ~300 tokens/call | MVP |
 | L0/L1/L2 health summaries (not raw data) | ~83% token reduction on health context | MVP |
-| Token budget enforcement (2500 max) | Prevents bloat | MVP |
+| Dynamic token budget (4K-10K per trigger type) | Right-size context to task | MVP |
 | Haiku-only for MVP | ~$0.90/Pro user/month | MVP |
 | Template fallback on API failure | $0 on failures | MVP |
 | Session compaction (summaries, not raw history) | ~50% on conversation tokens | MVP |
@@ -1046,7 +1094,7 @@ Error Classification:
 - Four-Phase Nudge system for every proactive message
 - 5 quality gates + risk-weighted priority
 - L0/L1/L2 health data summaries (not raw data in context)
-- Token budget enforcement (2500 max)
+- Dynamic token budget (4K Morning Wag, 4.5K Fetch, 7K Chat, 10K Constellation)
 - Loop guard (SHA256, block at 3)
 - Provider failover (Haiku → template)
 - Adapter pattern for wearables and channels
@@ -1211,7 +1259,7 @@ TASKS: 3 items need attention. Ranked by CRS-optimal timing:
 - Four-Phase Nudge system for every proactive message
 - 5 quality gates + risk-weighted priority
 - L0/L1/L2 health data summaries (not raw data in context)
-- Token budget enforcement (2500 max)
+- Dynamic token budget (4K Morning Wag, 4.5K Fetch, 7K Chat, 10K Constellation)
 - Loop guard (SHA256, block at 3)
 - Provider failover (Haiku → template)
 - Adapter pattern for wearables and channels

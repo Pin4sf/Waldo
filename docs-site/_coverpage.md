@@ -12,6 +12,6 @@ Already on it. Waldo reads your wearable data, computes your readiness, and acts
 
 **The Constellation** — Months of Spots connected into a bigger picture. The long game.
 
-Architecture distilled from **13+ production-grade agent systems**
+Architecture distilled from **14 production-grade agent systems** | Defense-in-depth security from Day 1
 
 [Get Started](#waldo-overview)

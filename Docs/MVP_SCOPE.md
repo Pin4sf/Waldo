@@ -17,11 +17,11 @@ An AI agent on your phone that reads your body signals from your wearable and me
 ## The Core Loop We're Proving
 
 ```
-WEARABLE → HEALTH CONNECT → ON-PHONE CRS → STRESS DETECTION
-                                                    ↓
-              CHANNEL ADAPTER ← CLAUDE AGENT ← TRIGGER CHECK (Supabase)
-                  ↓
-         USER REPLY → FEEDBACK → AGENT LEARNS
+WEARABLE → HEALTHKIT / HEALTH CONNECT → ON-PHONE CRS → STRESS DETECTION
+                                                              ↓
+                    CHANNEL ADAPTER ← CLAUDE AGENT ← TRIGGER CHECK (Supabase)
+                        ↓
+               USER REPLY → FEEDBACK → AGENT LEARNS
 ```
 
 This loop is the MVP. Everything else is Phase 2+.
@@ -30,18 +30,21 @@ This loop is the MVP. Everything else is Phase 2+.
 
 ## Target User (MVP)
 
-- Android phone (Samsung or Pixel preferred)
-- Samsung Galaxy Watch 5/6/7 **or** Google Pixel Watch 2/3 **or** any watch that writes to Health Connect
+- **iOS-first** — iPhone + Apple Watch (Series 6+) is the primary target
+- Android (Samsung/Pixel + Health Connect watch) follows after iOS is validated
 - Knowledge worker / student experiencing burnout or high stress
 - Willing to use Telegram (or another messaging app) for their AI agent
+
+> **Platform decision (2026-03-28):** Pivoted to iOS-first because team members have Apple Watch hardware for testing. Android support follows once iOS pipeline is validated. Architecture remains cross-platform (React Native + Expo).
 
 ---
 
 ## IN SCOPE — 8 Weeks
 
 ### App (React Native / Expo)
-- [ ] Health Connect integration (HR, HRV, sleep, steps, SpO2)
-- [ ] Background sync every 15 minutes (WorkManager)
+- [ ] HealthKit integration — iOS first (HR, HRV, sleep, steps, SpO2, respiratory rate)
+- [ ] Health Connect integration — Android second (HR, HRV, sleep, steps, SpO2)
+- [ ] Background sync (iOS: BGTaskScheduler, Android: WorkManager)
 - [ ] On-phone CRS computation (offline-capable)
 - [ ] Weighted stress confidence scoring
 - [ ] CRS gauge dashboard

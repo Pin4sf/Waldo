@@ -121,9 +121,9 @@ gantt
 
 **Build order:** Data quality is the foundation. Get the health pipeline right (B1/B2) before intelligence (D/E), before workspace (Phase 2), before autonomy (Phase 3+).
 
-## The Agent OS — Architecture from 13 Systems
+## The Agent OS — Architecture from 14 Systems
 
-The Agent OS is distilled from 13 production-grade agent systems:
+The Agent OS is distilled from 14 production-grade agent systems:
 
 | System | What We Took |
 |--------|-------------|
@@ -157,7 +157,52 @@ Every architecture pattern in Waldo traces back to a production-grade open-sourc
 | 13 | **Context Engineering** (HumanLayer/YC talk) | Y Combinator talk on context engineering for agents. | FIC framework (focus on what matters). 40-60% context utilization rule. Compaction as first-class pattern. Human leverage pyramid. |
 | 14 | **NemoClaw** (NVIDIA) | Enterprise agent governance framework from NVIDIA GTC 2026. | Versioned blueprints with plan-apply-rollback. Declarative per-hand policies (least privilege). Operator-in-the-loop escalation. Multi-model routing middleware. Config runs (plan → apply → observe). A/B testing infrastructure. All deferred to Phase 2. |
 
-## Five Source-of-Truth Documents
+## Security & Reliability (Defense-in-Depth)
+
+5-layer security model inspired by AtlanClaw's enterprise agent infrastructure, adapted for Waldo's serverless architecture. Reliability patterns built INTO adapter implementations — core logic stays clean.
+
+```mermaid
+graph LR
+    L1["Layer 1<br/>Credentials<br/>(Scoped Keys)"] --> L2["Layer 2<br/>Input<br/>(Template Wrap)"] --> L3["Layer 3<br/>Tools<br/>(Zod + Perms)"] --> L4["Layer 4<br/>Egress<br/>(URL Allowlist)"] --> L5["Layer 5<br/>Audit<br/>(Traces + Cost Cap)"]
+
+    style L1 fill:#dbeafe,stroke:#3b82f6
+    style L2 fill:#dcfce7,stroke:#22c55e
+    style L3 fill:#fef3c7,stroke:#f59e0b
+    style L4 fill:#fce7f3,stroke:#ec4899
+    style L5 fill:#eef2ff,stroke:#6366f1
+```
+
+| Pattern | What | Phase |
+|---------|------|-------|
+| Input sanitization | Template-wrap all external content + sandwich defense | Phase D (P0) |
+| Per-trigger tool permissions | Morning Wag gets 4 tools, not all 8 | Phase D (P0) |
+| 4-level LLM fallback chain | Claude → reduced context → template → silent | Phase D (P1) |
+| Idempotent delivery | Hash-based deduplication prevents duplicate messages | Phase E (P1) |
+| Cost circuit breaker | Daily per-user cap prevents runaway spend | Phase D (P1) |
+| Agent action audit trail | Structured traces with trace_id per invocation | Phase D (P1) |
+
+> **Full details:** [Security & Reliability Architecture](security-reliability.md)
+
+## Agent Self-Evolution (Phase G → Phase 2)
+
+Inspired by [JiuwenClaw](https://github.com/openJiuwen-ai/jiuwenclaw)'s "living skills" pattern. The agent's behavioral parameters (verbosity, timing, topic weights, language style) evolve from accumulated user feedback — but identity (soul files, safety rules, CRS algorithm) stays immutable.
+
+```mermaid
+graph LR
+    FB["User Feedback<br/>👍/👎/dismiss/correct"] -->|"Rule-based detection<br/>(no LLM needed)"| EV["Evolution Entries<br/>(accumulate 3+ signals)"]
+    EV -->|"Safety gates:<br/>min signals, cap,<br/>decay, auto-revert"| PB["Prompt Builder<br/>merges on next call"]
+    PB --> BETTER["Agent behavior<br/>adapts to THIS user"]
+    SOUL["Soul Files<br/>(IMMUTABLE)"] -.-> PB
+
+    style FB fill:#fef3c7,stroke:#f59e0b
+    style EV fill:#eef2ff,stroke:#6366f1
+    style PB fill:#dcfce7,stroke:#22c55e
+    style SOUL fill:#fef2f2,stroke:#ef4444
+```
+
+> **Full details:** [Data Flow & Diagrams](diagrams.md) — self-evolution flow, signal detection, closed loop sequence
+
+## Six Source-of-Truth Documents
 
 | Doc | What It Contains | When to Read |
 |-----|-----------------|-------------|
@@ -166,6 +211,7 @@ Every architecture pattern in Waldo traces back to a production-grade open-sourc
 | **[One-Pager](one-pager.md)** | Pitch, ICP, competitive landscape, business model | Talking to investors/users |
 | **[Research & Algorithms](research-algorithms.md)** | CRS science, stress detection, validation plan | Working on algorithms |
 | **[Agent OS Intelligence](agent-intelligence.md)** | The full Agent OS: prompt builder, hooks, memory, personality, nudge, quality gates, task intelligence, autonomous OS vision | Building Phase D-E and beyond |
+| **[Security & Reliability](security-reliability.md)** | 5-layer defense-in-depth, fallback chains, idempotency, audit trail, AtlanClaw comparison, ecosystem research | Building Phase D security, evaluating tools |
 
 ## Proactive Intelligence Levels
 

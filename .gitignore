@@ -41,6 +41,16 @@ npm-debug.log*
 # Vercel
 .vercel/
 
+# Health data exports (NEVER commit raw health data)
+AppleHealthExport/
+parsed_data/
+health_out/
+*.health-export.*
+exports/
+
+# Parser tool output
+tools/health-parser/output/
+
 # Claude Code local settings (not project rules)
 .claude/settings.local.json
 .claude/todos.json

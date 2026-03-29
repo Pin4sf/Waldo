@@ -142,50 +142,167 @@ Range: 0-100 → Zone: Peak (80+) | Moderate (50-79) | Low (<50)
 
 Each component outputs 0-100 using **personal baselines, not population norms.**
 
-## Adapter Architecture (Plug & Play)
+## Adapter Architecture (Plug & Play) — 10 Adapters
 
-All external boundaries use adapter interfaces — swap any component without rewriting agent logic:
+All external boundaries use adapter interfaces — swap any component without rewriting agent logic. **10 adapter interfaces across 6 dimensions of a person's life.**
 
-| Adapter | MVP Implementation | Future Implementations |
-|---------|-------------------|----------------------|
-| `ChannelAdapter` | Telegram (grammY) | WhatsApp, Discord, Slack, In-App, Push |
-| `LLMProvider` | Claude Haiku (@anthropic-ai/sdk) | DeepSeek, GPT-4o mini, Qwen, Gemini |
-| `HealthDataSource` | HealthKit (Swift), Health Connect (Kotlin) | Samsung Sensor SDK, Garmin, Cloud APIs |
-| `StorageAdapter` | op-sqlite + SQLCipher | Future: cloud sync, cross-device |
+| Adapter | Phase | Implementations |
+|---------|-------|----------------|
+| `HealthDataSource` | MVP | Apple Watch (HealthKit), Health Connect, Oura, Fitbit, WHOOP |
+| `ChannelAdapter` | MVP | Telegram, WhatsApp, Discord, Slack, In-App |
+| `LLMProvider` | MVP | Claude Haiku, multi-model routing |
+| `StorageAdapter` | MVP | op-sqlite + SQLCipher |
+| `WeatherProvider` | MVP | Open-Meteo (weather + AQI) |
+| `CalendarProvider` | Phase 2 | Google Calendar, Outlook (Graph), Apple Calendar |
+| `EmailProvider` | Phase 2 | Gmail, Outlook — metadata only, never body content |
+| `TaskProvider` | Phase 2 | Todoist, Notion, Linear, Google Tasks, Microsoft To Do |
+| `MusicProvider` | Phase 2 | Spotify, YouTube Music, Apple Music |
+| `ScreenTimeProvider` | Phase 2 | RescueTime |
+
+```mermaid
+graph TB
+    subgraph Core["Agent Core (pure TypeScript)"]
+        CRS["CRS Engine"]
+        STRESS["Stress Detector"]
+        STRAIN["Strain Engine"]
+        PATTERNS["Pattern Detector"]
+        SPOTS["Spots Engine"]
+        PROMPT["Prompt Builder<br/>11 sections"]
+    end
+
+    subgraph Body["Body Adapters"]
+        HDS["HealthDataSource"]
+        WP["WeatherProvider"]
+    end
+
+    subgraph Life["Life Context Adapters"]
+        CAL["CalendarProvider"]
+        EMAIL["EmailProvider"]
+        TP["TaskProvider"]
+        MP["MusicProvider"]
+        STP["ScreenTimeProvider"]
+    end
+
+    subgraph Infra["Infrastructure Adapters"]
+        SA["StorageAdapter"]
+        LLM["LLMProvider"]
+        CH["ChannelAdapter"]
+    end
+
+    HDS -->|"HR, HRV, Sleep, Steps"| CRS & STRESS & STRAIN
+    WP -->|"Weather, AQI"| PROMPT
+    CAL -->|"MLS, Focus Time"| PROMPT
+    EMAIL -->|"CSI, Response Pressure"| PROMPT
+    TP -->|"Task Pile-Up, Velocity"| PROMPT
+    MP -->|"Mood Score"| PROMPT
+    STP -->|"Screen Quality"| PROMPT
+
+    CRS & STRESS & STRAIN --> PATTERNS --> SPOTS --> PROMPT
+    PROMPT --> LLM --> CH
+
+    style Core fill:#fce7f3,stroke:#ec4899
+    style Body fill:#dcfce7,stroke:#22c55e
+    style Life fill:#fef3c7,stroke:#f59e0b
+    style Infra fill:#e0f2fe,stroke:#0ea5e9
+```
+
+### 32 Metrics → 23 Capabilities → 375 Cross-Source Correlations
+
+See **[Adapter Ecosystem](/adapter-ecosystem)** for complete formulas, all metrics, and capability details.
+
+```mermaid
+pie title Data Source Correlation Math
+    "2-source pairs: 45" : 45
+    "3-source triples: 120" : 120
+    "4-source combos: 210" : 210
+```
+
+Every new data source multiplies intelligence exponentially, not linearly.
+
+## Defense-in-Depth Security (5 Layers)
+
+Inspired by AtlanClaw's enterprise agent infrastructure, adapted for serverless.
 
 ```mermaid
 graph LR
-    AGENT["Agent Logic<br/>(never references<br/>specific provider)"] --> CA["ChannelAdapter"]
-    AGENT --> LLM["LLMProvider"]
-    AGENT --> HD["HealthDataSource"]
-    AGENT --> SA["StorageAdapter"]
+    subgraph L1["Layer 1<br/>Credentials"]
+        A1["Scoped API Key<br/>+ Spend Alerts"]
+    end
+    subgraph L2["Layer 2<br/>Input"]
+        A2["Template Wrapping<br/>+ Sandwich Defense"]
+    end
+    subgraph L3["Layer 3<br/>Tools"]
+        A3["Per-Trigger Perms<br/>+ Zod Validation"]
+    end
+    subgraph L4["Layer 4<br/>Egress"]
+        A4["URL Allowlist<br/>(safeFetch)"]
+    end
+    subgraph L5["Layer 5<br/>Audit"]
+        A5["Structured Traces<br/>+ Cost Cap"]
+    end
 
-    CA --> TG["Telegram"]
-    CA --> WA["WhatsApp"]
-    CA --> DC["Discord"]
-    CA --> SL["Slack"]
+    L1 --> L2 --> L3 --> L4 --> L5
 
-    LLM --> HAIKU["Claude Haiku"]
-    LLM --> DS["DeepSeek"]
-    LLM --> GPT["GPT-4o mini"]
-
-    HD --> HK["HealthKit"]
-    HD --> HC["Health Connect"]
-    HD --> CLOUD["Cloud APIs"]
-
-    style AGENT fill:#fce7f3,stroke:#ec4899
-    style CA fill:#e0f2fe,stroke:#0ea5e9
-    style LLM fill:#fef3c7,stroke:#f59e0b
-    style HD fill:#dcfce7,stroke:#22c55e
-    style SA fill:#f3e8ff,stroke:#8b5cf6
+    style L1 fill:#dbeafe,stroke:#3b82f6
+    style L2 fill:#dcfce7,stroke:#22c55e
+    style L3 fill:#fef3c7,stroke:#f59e0b
+    style L4 fill:#fce7f3,stroke:#ec4899
+    style L5 fill:#eef2ff,stroke:#6366f1
 ```
 
-## Cost Model
+> See [Security & Reliability](security-reliability.md) for full details, Mermaid diagrams, and AtlanClaw comparison.
+
+## Agent Self-Evolution (Phase G+)
+
+Behavioral parameters evolve from user feedback. Soul files stay immutable.
+
+```mermaid
+graph LR
+    FB["Feedback Signals<br/>(👍/👎/dismiss)"] -->|"Rule-based<br/>(no LLM)"| EV["agent_evolutions<br/>table"]
+    EV -->|"3+ signals<br/>+ safety gates"| PB["Prompt Builder<br/>(merges on each call)"]
+    SOUL["Soul Files<br/>(IMMUTABLE)"] -.-> PB
+
+    style FB fill:#fef3c7,stroke:#f59e0b
+    style EV fill:#eef2ff,stroke:#6366f1
+    style PB fill:#dcfce7,stroke:#22c55e
+    style SOUL fill:#fef2f2,stroke:#ef4444
+```
+
+> See [Diagrams](diagrams.md) for full self-evolution flow + safety controls
+
+## LLMProvider: 4-Level Fallback Chain
+
+Reliability lives inside adapters. Core logic stays clean.
+
+```mermaid
+graph LR
+    L1["Level 1<br/>Claude Haiku<br/>(full context)"] -->|timeout/error| L2["Level 2<br/>Claude Haiku<br/>(L0 only)"]
+    L2 -->|fail/circuit open| L3["Level 3<br/>Template +<br/>Real Data"]
+    L3 -->|channel fail| L4["Level 4<br/>Silent<br/>(retry next cycle)"]
+
+    style L1 fill:#dcfce7,stroke:#22c55e
+    style L2 fill:#fef3c7,stroke:#f59e0b
+    style L3 fill:#fce7f3,stroke:#ec4899
+    style L4 fill:#f1f5f9,stroke:#94a3b8
+```
+
+## Cost Model (Updated with Dynamic Token Budget)
 
 | Tier | Price | AI Cost/User/Mo | Margin |
 |------|-------|----------------|--------|
-| Free | Rs 0 | ~$0.27 | Acquisition |
-| Pro | Rs 399/mo ($4.34) | ~$0.90 | **79%** |
-| Team | Rs 999/mo/seat | ~$0.90 | **92%** |
+| Free | Rs 0 | ~$0.35 | Acquisition |
+| Pro | Rs 399/mo ($4.34) | ~$1.15 | **73%** |
+| Team | Rs 999/mo/seat | ~$1.15 | **89%** |
 
-**Break-even:** ~50 Pro subscribers. Comfortable profit at 200.
+**Break-even:** ~55 Pro subscribers. Comfortable profit at 200.
+
+Token budget is **dynamic per trigger** — the agent gets as much context as it needs:
+
+| Trigger | Budget | Key Reason |
+|---------|--------|------------|
+| Morning Wag | 4,000 | Sleep detail + evolution params + personality |
+| Fetch Alert | 4,500 | Stress context + memory + empathy |
+| User Chat | 7,000 | 8-10 turn history + all 8 tools |
+| Constellation | 10,000 | Weeks of cross-correlated patterns |
+
+Cost control comes from **prompt caching** (cached tokens cost 0.1x) and the **rules pre-filter** (60-80% of checks skip Claude entirely) — not from limiting context.

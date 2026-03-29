@@ -30,10 +30,12 @@ This loop is the MVP. Everything else is Phase 2+.
 
 ## Target User (MVP)
 
-- Android phone (Samsung or Pixel preferred)
-- Samsung Galaxy Watch 5/6/7 **or** Google Pixel Watch 2/3 **or** any watch that writes to Health Connect
+- **iOS-first** — iPhone + Apple Watch (Series 6+) is the primary target
+- Android (Samsung/Pixel + Health Connect watch) follows after iOS is validated
 - Knowledge worker / student experiencing burnout or high stress
 - Willing to use Telegram (or another messaging app) for their AI agent
+
+> **Platform decision (2026-03-28):** Pivoted to iOS-first because team members have Apple Watch hardware for testing. Android support follows once iOS pipeline is validated. Architecture remains cross-platform (React Native + Expo).
 
 ---
 
@@ -59,6 +61,15 @@ This loop is the MVP. Everything else is Phase 2+.
 - [ ] Proactive Fetch Alert (when confidence ≥ 0.60)
 - [ ] Conversational replies (user can message the bot anytime)
 - [ ] 7-day learning messages ("Here's what I'm learning about you…")
+
+### Agent Security (P0 — Built Into Phase D)
+- [ ] Template-wrap all external input before feeding to Claude (prompt injection defense)
+- [ ] Per-trigger tool permissions (Morning Wag gets fewer tools than user chat)
+- [ ] Zod-validate every tool argument before execution
+- [ ] `safeFetch()` wrapper with URL allowlist in Edge Functions
+- [ ] 4-level LLM fallback chain (Claude → reduced context → template → silent)
+- [ ] Idempotent message delivery (prevent duplicate sends on retries)
+- [ ] Agent action audit trail (trace_id, tool calls, tokens, latency, outcome)
 
 ### Backend (Supabase)
 - [ ] Core schema: users, health_snapshots, stress_events, conversation_history, core_memory, feedback_events
@@ -152,7 +163,7 @@ This loop is the MVP. Everything else is Phase 2+.
 ## Key Constraints
 
 - **Solo developer**: do not add any feature that takes >2 days unless it's on the IN SCOPE list
-- **Health Connect only** for wearable data in MVP (no Samsung Sensor SDK on critical path)
+- **HealthKit first, Health Connect second** for wearable data (Apple Watch has richest data; Samsung Sensor SDK deferred to Phase 2)
 - **Claude Haiku only** for all AI calls in MVP (add routing in Phase 2)
 - **Telegram is the first channel adapter for MVP** (architecture supports adding WhatsApp, Discord, Slack later without rewriting agent logic)
-- **Android only** for MVP (iOS Phase 3)
+- **iOS-first, then Android** — HealthKit/Swift first (team has Apple Watch), Health Connect/Kotlin second. Architecture remains cross-platform.

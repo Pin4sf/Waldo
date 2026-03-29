@@ -118,9 +118,59 @@ While competitors lock users into their app and their hardware, Waldo's adapter 
 4. **Nori** can't serve Android users (iOS-only architecture)
 5. **Generic health apps** can't add agent autonomy without rearchitecting
 
+## Agent Framework Ecosystem (March 2026 Research)
+
+Comprehensive research across 20+ agent frameworks validates Waldo's architecture. Key findings:
+
+### Architecture Validations
+
+| Waldo Decision | Industry Validation |
+|---|---|
+| Adapter pattern from Day 1 | Now industry standard — MCP, A2A protocol, Portkey all implement it |
+| 3-tier memory with decay | Independently mirrors Letta/MemGPT — most respected memory system |
+| Rules pre-filter (skip LLM) | Validated cost optimization across production deployments |
+| On-phone CRS (offline-first) | Almost no agent framework works offline. Genuine differentiator. |
+| Messages API (not Agent SDK) | Correct for stateless 50s Edge Functions |
+
+### Frameworks Landscape
+
+```mermaid
+graph TB
+    subgraph Relevant["Relevant to Waldo (TypeScript, serverless, mobile)"]
+        VERCEL["Vercel AI SDK<br/>(tool loops, Edge-compatible)"]
+        MASTRA["Mastra<br/>(TS-first, visual debug)"]
+        LETTA["Letta/MemGPT<br/>(memory architecture)"]
+    end
+
+    subgraph Watch["Watch — Not MVP"]
+        MCP["MCP<br/>(Tool/resource protocol)"]
+        A2A["A2A<br/>(Agent-to-agent, Google)"]
+        TRIGGER["Trigger.dev<br/>(Durable TS background jobs)"]
+    end
+
+    subgraph Avoid["Explicitly Avoid"]
+        LANG["LangGraph<br/>(Python, too heavy)"]
+        CREW["CrewAI/AutoGen<br/>(Multi-agent overkill)"]
+        MEM0["Mem0<br/>(Cloud-hosted memory)"]
+    end
+
+    style Relevant fill:#dcfce7,stroke:#22c55e
+    style Watch fill:#fef3c7,stroke:#f59e0b
+    style Avoid fill:#fef2f2,stroke:#ef4444
+```
+
+### Protocol Landscape
+
+| Protocol | Status (March 2026) | Waldo Relevance |
+|----------|---------------------|-----------------|
+| **MCP** (Model Context Protocol) | 10,000+ servers, 97M monthly SDK downloads. June 2025 spec adds structured outputs + OAuth. | Waldo as "body API" MCP server — Phase 4. Other agents query your CRS. |
+| **A2A** (Agent-to-Agent) | Linux Foundation project. 150+ companies (Amazon, Microsoft, Salesforce). v0.3 adds gRPC. | Pack tier: multiple Waldos sharing Constellations. Phase 4. |
+| **Microsoft Agent Framework** | Merged AutoGen + Semantic Kernel. RC status Q1 2026. Python/.NET only. | Validates our state machine approach. Not directly applicable. |
+
 ## Strategic Implications
 
 1. **Speed matters.** The window for "proactive health agent via messaging, device-agnostic" is open but closing. WHOOP's proactive nudges are landing. Apple's watchOS 26 AI ships this fall.
 2. **Body intelligence is the wedge, not the product.** We start with biology, expand to task delegation. No one else has this trajectory.
 3. **Ecosystem > competition.** Frame WHOOP/Oura/Lindy as partners who could plug into our biology layer, not enemies to defeat.
 4. **The adapter pattern is the moat.** Channel-agnostic + device-agnostic + model-agnostic = the most flexible health agent architecture in the market.
+5. **Architecture validated by ecosystem research.** March 2026 research across 20+ frameworks confirms our core decisions are aligned with where the industry is heading. No pivots needed — invest in operational hardening.

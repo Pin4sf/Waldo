@@ -74,7 +74,9 @@ Synthesized from all 12 repos into Waldo's serverless health agent:
 │    trigger_context + biometric_snapshot + last_interaction     │
 │    + pending_followups + calendar_context                     │
 │                                                               │
-│  Token budget: 2500 max. U-shaped: critical at START + END.  │
+│  Token budget: DYNAMIC per trigger. U-shaped attention.      │
+│    Morning Wag: 4000  |  Fetch Alert: 4500                  │
+│    User Chat: 7000    |  Constellation: 10000 (Phase 2)     │
 │  Canonical context as SEPARATE user message (cache-friendly). │
 └──────────────────┬───────────────────────────────────────────┘
                    │
@@ -212,12 +214,16 @@ Synthesized from all 12 repos into Waldo's serverless health agent:
 
 ### Token Budget Enforcement
 
-| Component | Budget | Compression Trigger |
-|-----------|--------|-------------------|
-| System message (fields 1-5) | 1200 tokens | Summarize memory if exceeding |
-| User message (fields 6-9) | 800 tokens | Truncate history, drop calendar |
-| Tool definitions | 500 tokens | Load only 3-4 most relevant tools |
-| **Total input** | **2500 tokens** | Trigger optimization at 70% (1750) |
+**Dynamic budget per trigger type** — the agent should gather as much relevant context as possible. Cost control comes from prompt caching + rules pre-filter, NOT from starving context.
+
+| Trigger Type | Total Budget | Key Allocation |
+|-------------|-------------|----------------|
+| **Morning Wag** | **4,000** | 750 soul (cached) + 400 profile (cached) + 800 health L0+L1 + 500 tools + 600 history + 600 tool output + 350 reserve |
+| **Fetch Alert** | **4,500** | Same structure + 500 extra for stress context + memory recall |
+| **User Chat** | **7,000** | 2000 conversation history (8-10 turns) + 800 all 8 tools + 1200 tool output headroom |
+| **Constellation** (Phase 2) | **10,000** | Weeks of pattern summaries + cross-correlation context |
+
+Cost impact: +$0.25/month per Pro user (from $0.90 → $1.15). 73%+ margin preserved. Quality improvement is worth 100x the cost delta.
 
 ---
 
@@ -636,7 +642,7 @@ Threshold: > 0.40 to send. The 0.60 stress confidence is still the MINIMUM.
 | Prompt caching (stable system msg → high hit rate) | ~60% on cached tokens | MVP |
 | Dynamic tool loading (3-4 tools, not 8) | ~300 tokens/call | MVP |
 | L0/L1/L2 health summaries (not raw data) | ~83% token reduction on health context | MVP |
-| Token budget enforcement (2500 max) | Prevents bloat | MVP |
+| Dynamic token budget (4K-10K per trigger type) | Right-size context to task | MVP |
 | Haiku-only for MVP | ~$0.90/Pro user/month | MVP |
 | Template fallback on API failure | $0 on failures | MVP |
 | Session compaction (summaries, not raw history) | ~50% on conversation tokens | MVP |
@@ -701,6 +707,97 @@ interface LLMProvider {
 // MVP: Single provider (Anthropic/Claude Haiku)
 // Phase 2: Multi-provider routing via LLMProvider adapter
 ```
+
+### Phase 2 Life Context Adapters (NEW)
+
+Beyond health, channels, and LLM, Waldo gains 5 additional adapter interfaces in Phase 2 to build a complete picture of the user's life:
+
+```typescript
+// Schedule intelligence — meetings, gaps, load
+interface CalendarProvider {
+  getEvents(date: string): Promise<CalendarEvent[]>;
+  getFocusWindows(date: string): Promise<FocusWindow[]>;
+  computeMeetingLoadScore(date: string): Promise<number>; // 0-15
+}
+// Implementations: GoogleCalendarAdapter, OutlookAdapter (Graph API), AppleCalendarAdapter
+
+// Communication load — metadata only, NEVER body content
+interface EmailProvider {
+  getDailyMetrics(date: string): Promise<EmailMetrics>;
+  // EmailMetrics: { volume, responsePressure, afterHoursRatio, threadDepth }
+  // Returns: Communication Stress Index (CSI) 0-100
+}
+// Implementations: GmailAdapter, OutlookEmailAdapter (Graph API)
+
+// Work queue — tasks, deadlines, velocity
+interface TaskProvider {
+  getPendingTasks(): Promise<Task[]>;
+  getCompletionVelocity(days: number): Promise<number>;
+  getUrgencyQueue(): Promise<Task[]>; // due within 24h
+}
+// Implementations: TodoistAdapter, NotionAdapter, LinearAdapter, GoogleTasksAdapter
+
+// Mood inference — from listening patterns
+interface MusicProvider {
+  getRecentListening(hours: number): Promise<ListeningSession[]>;
+  getMoodScore(): Promise<number>; // 0-100 from audio valence + energy
+  getLateNightActivity(): Promise<{ minutes: number; cutoffTime: string }>;
+}
+// Implementations: SpotifyAdapter, YouTubeMusicAdapter
+
+// Digital hygiene — screen time quality
+interface ScreenTimeProvider {
+  getDailySummary(date: string): Promise<ScreenTimeSummary>;
+  // ScreenTimeSummary: { totalHours, productiveHours, distractingHours, focusSessions }
+  getScreenTimeQuality(): Promise<number>; // 0-100
+}
+// Implementations: RescueTimeAdapter
+```
+
+### 10 Adapters → 32 Metrics → 375 Cross-Source Correlations
+
+```mermaid
+mindmap
+  root((Waldo Intelligence))
+    Body — 10 metrics
+      CRS 0-100
+      Day Strain 0-21
+      Sleep Debt hours
+      Stress Confidence 0-1
+      Sleep, HRV, Circadian, Activity Scores
+      Resilience, Recovery-Load Balance
+    Schedule — 5 metrics
+      Meeting Load Score 0-15
+      Focus Time Score
+      Back-to-Back Count
+      Boundary Violations
+      Schedule Density
+    Communication — 5 metrics
+      CSI 0-100
+      Response Pressure
+      After-Hours Ratio
+      Volume Spike
+      Thread Depth
+    Tasks — 5 metrics
+      Task Pile-Up
+      Completion Velocity
+      Procrastination Index
+      Urgency Queue
+      Task-Energy Match
+    Mood and Screen — 4 metrics
+      Mood Score
+      Screen Time Quality
+      Late-Night Digital
+      Focus Sessions
+    Combined — 3 master metrics
+      Daily Cognitive Load
+      Burnout Trajectory 30-day
+      Waldo Intelligence Score
+```
+
+**Cross-source math:** 10 sources → C(10,2)=45 pairs + C(10,3)=120 triples + C(10,4)=210 quads = **375 unique correlations.** Each produces Spots, Patterns, Nudges, or Automations. Every new data source multiplies intelligence exponentially.
+
+> See **[Adapter Ecosystem](/adapter-ecosystem)** for complete formulas, all 32 metrics, and all 23 capabilities.
 
 ---
 
@@ -1046,7 +1143,7 @@ Error Classification:
 - Four-Phase Nudge system for every proactive message
 - 5 quality gates + risk-weighted priority
 - L0/L1/L2 health data summaries (not raw data in context)
-- Token budget enforcement (2500 max)
+- Dynamic token budget (4K Morning Wag, 4.5K Fetch, 7K Chat, 10K Constellation)
 - Loop guard (SHA256, block at 3)
 - Provider failover (Haiku → template)
 - Adapter pattern for wearables and channels
@@ -1154,6 +1251,8 @@ Supersedes: None
 
 **Waldo is not just a health agent.** It's a personal cognitive OS that manages your tasks, schedule, and work alongside your biology.
 
+> **Phase A0 validated (March 2026):** CRS algorithm, stress detection, strain, sleep debt, pattern detection, and 1,498 Spots computed across 856 days of real Apple Watch data. See [Adapter Ecosystem](/adapter-ecosystem) for the full 32-metric spec and [Data Flow & Diagrams](/diagrams) for the validated pipeline.
+
 ### How Body Intelligence Enhances Task Management
 
 | Without Waldo | With Waldo |
@@ -1198,6 +1297,35 @@ TASKS: 3 items need attention. Ranked by CRS-optimal timing:
 [Block it] [Adjust] [Just the brief]
 ```
 
+### Master Metrics (cross-source derived)
+
+These metrics only exist when multiple adapters are connected. They are the "intelligence multiplier."
+
+**Daily Cognitive Load** — 0-100
+```
+DCL = normalize(MLS) × 0.25 + normalize(CSI) × 0.25
+    + normalize(TaskPileUp) × 0.20 + normalize(SleepDebt) × 0.30
+```
+The single "how overloaded is this person" number. No competitor computes this because nobody combines health + schedule + communication + tasks.
+
+**Burnout Trajectory Score** — 30-day rolling
+```
+BTS = HRV_baseline_slope × 0.35 + sleep_debt_trend × 0.25
+    + after_hours_trend × 0.20 + MLS_trend × 0.20
+```
+`> 0.6` = burnout trajectory. This is the early warning system. HRV baseline declining over 4+ weeks combined with increasing workload is a medical-grade burnout predictor.
+
+### Cross-Source Nudges (only possible with health + work data)
+
+| Health signal | Work signal | Waldo says |
+|-------------|-------------|-----------|
+| CRS < 50 | Board review in 1hr | "Nap Score 47. Board review soon. Quick walk. I've prepped talking points." |
+| HRV down 22% | 4th consecutive meeting | "Three meetings straight. Next one's optional. Skip it." |
+| CRS > 75, peak window | New meeting invite in focus block | "Someone booking your peak window. Push to 1pm?" |
+| Sleep debt 1.8h | 8am meeting tomorrow | "Push to 10am. Predicted Nap Score jumps 52 → 68." |
+| HRV declining all week | MLS rose 40% Mon→Fri | "Burnout trajectory. Protect tomorrow morning." |
+| HRV spike after exercise | Hard deadline approaching | "Post-exercise clarity. 90 minutes of peak. The design doc? Now." |
+
 ---
 
 ## Summary: What's Adopted vs Planned
@@ -1211,7 +1339,7 @@ TASKS: 3 items need attention. Ranked by CRS-optimal timing:
 - Four-Phase Nudge system for every proactive message
 - 5 quality gates + risk-weighted priority
 - L0/L1/L2 health data summaries (not raw data in context)
-- Token budget enforcement (2500 max)
+- Dynamic token budget (4K Morning Wag, 4.5K Fetch, 7K Chat, 10K Constellation)
 - Loop guard (SHA256, block at 3)
 - Provider failover (Haiku → template)
 - Adapter pattern for wearables and channels
