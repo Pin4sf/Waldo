@@ -1,0 +1,61 @@
+{
+  "validated_patterns": [
+    {
+      "id": "sleep-crs-correlation",
+      "type": "correlation",
+      "summary": "When you sleep 7+ hours, your CRS averages 76. Under 6.5h, it drops to 64. That's a 13-point swing.",
+      "confidence": "high",
+      "evidence_count": 85,
+      "first_seen": "2025-10-23",
+      "last_validated": "2026-03-28",
+      "validation_count": 85,
+      "decay_tier": "HOT",
+      "actionable": true,
+      "nudge": "Tonight's sleep drives tomorrow's score. Every hour counts."
+    },
+    {
+      "id": "exercise-recovery-dip",
+      "type": "recovery",
+      "summary": "Heavy exercise (60+ min) drops your next-day CRS. Happened 10 of 45 times.",
+      "confidence": "high",
+      "evidence_count": 45,
+      "first_seen": "2025-10-23",
+      "last_validated": "2026-03-28",
+      "validation_count": 45,
+      "decay_tier": "HOT",
+      "actionable": true,
+      "nudge": "Hard workout today means lighter tomorrow. Plan accordingly."
+    }
+  ],
+  "emerging_patterns": [
+    {
+      "id": "friday-peak",
+      "type": "weekly",
+      "summary": "Fridays average CRS 76 — your strongest day of the week.",
+      "confidence": "moderate",
+      "evidence_count": 12,
+      "first_seen": "2025-11-01",
+      "needs_validation": true
+    },
+    {
+      "id": "sunday-dip",
+      "type": "weekly",
+      "summary": "Sundays average CRS 66 — consistently your worst day. Least active, worst sleep the night before.",
+      "confidence": "moderate",
+      "evidence_count": 12,
+      "first_seen": "2025-11-01",
+      "needs_validation": true
+    },
+    {
+      "id": "after-hours-email-sleep",
+      "type": "cross_source",
+      "summary": "Nights with heavy after-hours email (>30%), next-day sleep quality tends to be lower.",
+      "confidence": "moderate",
+      "evidence_count": 30,
+      "first_seen": "2026-03-28",
+      "data_sources": ["gmail", "apple_health"]
+    }
+  ],
+  "rejected_patterns": [],
+  "last_compaction": "2026-03-30"
+}

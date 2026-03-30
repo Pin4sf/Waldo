@@ -1,0 +1,37 @@
+{
+  "communication_style": "direct",
+  "message_length": "short",
+  "data_preference": "show_numbers",
+  "notification_preferences": {
+    "morning_wag": true,
+    "morning_wag_time": "wake_time",
+    "fetch_alerts": true,
+    "fetch_alert_cooldown_hours": 2,
+    "max_proactive_per_day": 3,
+    "evening_review": true,
+    "weekly_digest": true,
+    "quiet_hours": { "start": "22:00", "end": "06:00" }
+  },
+  "channels": {
+    "primary": "console",
+    "planned": ["telegram"]
+  },
+  "goals": [
+    {
+      "goal": "understand body patterns",
+      "status": "in_progress",
+      "created": "2026-03-28"
+    },
+    {
+      "goal": "improve sleep consistency",
+      "status": "identified",
+      "evidence": "Sunday worst sleep, Friday best — 0.3h gap weekday vs weekend"
+    }
+  ],
+  "calibration": {
+    "stress_sensitivity": "normal",
+    "nudge_frequency": "conservative",
+    "celebration_preference": "brief",
+    "last_calibrated": "2026-03-28"
+  }
+}

@@ -74,6 +74,13 @@ export interface DayResponse {
   pm25: number | null;
   sleepDebt: { debtHours: number; direction: string; shortNights: number; avgSleepHours: number; summary: string } | null;
   strain: { score: number; level: string; zoneMinutes: number[]; zoneNames: string[]; totalActiveMinutes: number; peakHR: number; summary: string } | null;
+  calendar: { meetingLoadScore: number; totalMeetingMinutes: number; eventCount: number; backToBackCount: number; focusGaps: Array<{ durationMinutes: number }>; events: Array<{ summary: string; startTime: string; durationMinutes: number; attendeeCount: number }> } | null;
+  tasks: { summary: string; pendingCount: number; overdueCount: number; recentVelocity: number; completionRate: number } | null;
+  email: { totalEmails: number; sentCount: number; receivedCount: number; afterHoursCount: number; afterHoursRatio: number; uniqueThreads: number; volumeSpike: number } | null;
+  cognitiveLoad: { score: number; level: string; components: { meetingLoad: number; communicationLoad: number; taskLoad: number; sleepDebtImpact: number }; summary: string } | null;
+  burnoutTrajectory: { score: number; status: string; components: { hrvSlope: number; sleepDebtTrend: number; afterHoursTrend: number; mlsTrend: number }; summary: string } | null;
+  resilience: { score: number; level: string; components: { crsStability: number; hrvTrend: number; stressRecovery: number }; summary: string } | null;
+  crossSourceInsights: Array<{ type: string; summary: string; confidence: string; evidenceCount: number }>;
   patterns: PatternData[];
   waldoActions: WaldoActionData[];
   dayActivity: DayActivityData | null;

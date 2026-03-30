@@ -124,7 +124,7 @@ export function WaldoMessage({ date, hasStress, onGenerate, response, error, isL
             animation: 'messageIn 0.3s ease both',
           }}>
             {msg.role === 'waldo' && (
-              <img src="/waldo_logo_dark.png" alt="W" style={{ width: 28, height: 28, marginRight: 8, flexShrink: 0, marginTop: 2 }} />
+              <img src="/logo.svg" alt="W" style={{ width: 28, height: 28, marginRight: 8, flexShrink: 0, marginTop: 2 }} />
             )}
             <div style={{
               maxWidth: '80%',
@@ -149,7 +149,7 @@ export function WaldoMessage({ date, hasStress, onGenerate, response, error, isL
 
         {isLoading && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <img src="/waldo_logo_dark.png" alt="W" style={{ width: 28, height: 28 }} />
+            <img src="/thinking-light-mode.svg" alt="W" className="mascot-thinking" style={{ width: 36, height: 36 }} />
             <div style={{ padding: '10px 14px', background: 'var(--bg-surface)', borderRadius: '14px 14px 14px 4px' }}>
               <span className="loading-dot" />
               <span className="loading-dot" />

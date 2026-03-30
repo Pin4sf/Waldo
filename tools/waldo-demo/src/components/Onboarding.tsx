@@ -73,8 +73,8 @@ export function Onboarding({ onComplete }: Props) {
         <img src="/Vector-3.png" alt="" style={{ position: 'absolute', bottom: '18%', left: '15%', width: 50, opacity: 0.04 }} />
         <img src="/Vector-1.png" alt="" style={{ position: 'absolute', bottom: '30%', right: '8%', width: 70, opacity: 0.05 }} />
         <div className="onboarding-hero">
-          <img src="/waldo_logo_dark.png" alt="" style={{ width: 56, height: 56, marginBottom: 16 }} />
-          <img src="/Waldo.png" alt="Waldo" style={{ height: 44 }} />
+          <img src="/on-it-light-mode.svg" alt="Waldo" className="mascot-onit" style={{ width: 120, height: 120, marginBottom: 8 }} />
+          <img src="/horizontal-stack.svg" alt="Waldo" style={{ height: 36 }} />
           <p>Already on it.</p>
         </div>
         <div className="onboarding-intro">
@@ -98,7 +98,7 @@ export function Onboarding({ onComplete }: Props) {
       <div className="onboarding-messages">
         {messages.map((m, i) => (
           <div key={i} className={`onboarding-msg ${m.role}`}>
-            {m.role === 'assistant' && <img src="/waldo_logo_dark.png" alt="W" className="onboarding-avatar" style={{ background: 'transparent' }} />}
+            {m.role === 'assistant' && <img src="/logo.svg" alt="W" className="onboarding-avatar" style={{ background: 'transparent' }} />}
             <div className={`onboarding-bubble ${m.role}`}>
               {m.content}
             </div>
@@ -106,7 +106,7 @@ export function Onboarding({ onComplete }: Props) {
         ))}
         {isLoading && (
           <div className="onboarding-msg assistant">
-            <img src="/waldo_logo_dark.png" alt="W" className="onboarding-avatar" style={{ background: 'transparent' }} />
+            <img src="/thinking-light-mode.svg" alt="W" className="mascot-thinking" style={{ width: 32, height: 32 }} />
             <div className="onboarding-bubble assistant">
               <span className="loading-dot" />
               <span className="loading-dot" />

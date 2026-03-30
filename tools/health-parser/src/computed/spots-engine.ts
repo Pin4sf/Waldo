@@ -10,6 +10,12 @@ import type { DailyHealthData } from '../types/health.js';
 import type { CrsResult } from '../types/crs.js';
 import type { DailyStressSummary } from '../types/stress.js';
 import type { Pattern } from './pattern-detector.js';
+import type { DayMeetingData } from '../extractors/calendar-parser.js';
+import type { DailyEmailMetrics } from '../extractors/gmail-parser.js';
+import type { TaskMetrics } from '../extractors/tasks-parser.js';
+import { computeDailyCognitiveLoad, computeBurnoutTrajectory, computeResilience } from './master-metrics.js';
+import { computeSleepDebt } from './sleep-debt.js';
+import { computeDayStrain } from './strain-engine.js';
 
 export interface Spot {
   id: string;
@@ -43,11 +49,19 @@ export interface DayActivity {
  * Generate Spots and activity for every day in the dataset.
  * This runs at startup — no Claude calls, pure rule-based.
  */
+export interface ProductivityContext {
+  calendarData: Map<string, DayMeetingData> | null;
+  emailMetrics: Map<string, DailyEmailMetrics> | null;
+  taskMetrics: TaskMetrics | null;
+}
+
 export function generateAllDayActivity(
   days: Map<string, DailyHealthData>,
   crsScores: Map<string, CrsResult>,
   stressData: Map<string, DailyStressSummary>,
   _patterns: Pattern[],
+  productivity?: ProductivityContext,
+  userAge?: number,
 ): Map<string, DayActivity> {
   const result = new Map<string, DayActivity>();
   const sortedDates = [...days.keys()].sort();
@@ -259,46 +273,296 @@ export function generateAllDayActivity(
       });
     }
 
+    // ─── Calendar spots ──────────────────────────────
+    const dayCal = productivity?.calendarData?.get(date);
+    if (dayCal) {
+      if (dayCal.meetingLoadScore >= 8) {
+        spots.push({
+          id: `${date}-mls-heavy`, date, time: '09:00',
+          type: 'behavior', severity: 'warning',
+          title: `Heavy meeting day (MLS ${dayCal.meetingLoadScore})`,
+          detail: `${dayCal.events.length} events, ${dayCal.totalMeetingMinutes}min in meetings`,
+          signals: ['calendar'],
+        });
+      } else if (dayCal.meetingLoadScore >= 4) {
+        spots.push({
+          id: `${date}-mls-moderate`, date, time: '09:00',
+          type: 'behavior', severity: 'neutral',
+          title: `${dayCal.events.length} meetings today (MLS ${dayCal.meetingLoadScore})`,
+          detail: `${dayCal.totalMeetingMinutes}min scheduled`,
+          signals: ['calendar'],
+        });
+      }
+      if (dayCal.backToBackCount >= 2) {
+        spots.push({
+          id: `${date}-b2b`, date, time: '10:00',
+          type: 'alert', severity: 'warning',
+          title: `${dayCal.backToBackCount} back-to-back meetings`,
+          detail: 'No recovery gaps between meetings',
+          signals: ['calendar'],
+        });
+      }
+      if (dayCal.boundaryViolations > 0) {
+        spots.push({
+          id: `${date}-boundary`, date, time: '19:00',
+          type: 'insight', severity: 'warning',
+          title: `${dayCal.boundaryViolations} meetings outside work hours`,
+          detail: 'Evening or weekend meetings erode recovery',
+          signals: ['calendar'],
+        });
+      }
+    }
+
+    // ─── Email spots ───────────────────────────────────
+    const dayEmail = productivity?.emailMetrics?.get(date);
+    if (dayEmail) {
+      if (dayEmail.volumeSpike > 2.0) {
+        spots.push({
+          id: `${date}-email-spike`, date, time: '12:00',
+          type: 'alert', severity: 'warning',
+          title: `Email surge: ${dayEmail.totalEmails} (${dayEmail.volumeSpike.toFixed(1)}x normal)`,
+          detail: 'Something is happening — reactive load is high',
+          signals: ['email'],
+        });
+      }
+      if (dayEmail.afterHoursRatio > 0.4) {
+        spots.push({
+          id: `${date}-email-afterhours`, date, time: '21:00',
+          type: 'behavior', severity: 'warning',
+          title: `${Math.round(dayEmail.afterHoursRatio * 100)}% of emails after hours`,
+          detail: `${dayEmail.afterHoursCount} emails outside 8am-7pm`,
+          signals: ['email'],
+        });
+      }
+      if (dayEmail.totalEmails > 0 && dayEmail.totalEmails < 5) {
+        spots.push({
+          id: `${date}-email-quiet`, date, time: '17:00',
+          type: 'environment', severity: 'positive',
+          title: `Quiet email day (${dayEmail.totalEmails})`,
+          detail: 'Low reactive load — good for deep work',
+          signals: ['email'],
+        });
+      }
+    }
+
+    // ─── Cross-source spots (health + work) ────────────
+    if (crs && crs.score >= 0 && dayCal) {
+      // High meeting load on low CRS day
+      if (crs.score < 50 && dayCal.meetingLoadScore >= 5) {
+        spots.push({
+          id: `${date}-overloaded`, date, time: '08:00',
+          type: 'alert', severity: 'critical',
+          title: `Overloaded: CRS ${crs.score} + heavy meetings`,
+          detail: `Body is depleted but schedule is demanding. Waldo would reschedule if it could.`,
+          signals: ['crs', 'calendar'],
+        });
+      }
+      // Peak CRS with light schedule
+      if (crs.score >= 80 && dayCal.meetingLoadScore <= 2) {
+        spots.push({
+          id: `${date}-peak-window`, date, time: '09:00',
+          type: 'insight', severity: 'positive',
+          title: `Peak + light schedule = deep work window`,
+          detail: `CRS ${crs.score} and few meetings. Rare opportunity.`,
+          signals: ['crs', 'calendar'],
+        });
+      }
+    }
+    if (crs && crs.score >= 0 && dayEmail) {
+      // High email + stress
+      if (dayEmail.volumeSpike > 1.5 && stress && stress.events.length > 0) {
+        spots.push({
+          id: `${date}-email-stress`, date, time: '14:00',
+          type: 'insight', severity: 'warning',
+          title: 'Email overload correlating with stress',
+          detail: `${dayEmail.totalEmails} emails + ${stress.events.length} stress events on the same day`,
+          signals: ['email', 'hr'],
+        });
+      }
+    }
+
+    // ─── Compute master metrics for this day ──────────
+    const sleepDebt = computeSleepDebt(date, days);
+    const strain = computeDayStrain(day, userAge ?? 21);
+    const cogLoad = computeDailyCognitiveLoad(
+      dayCal ?? null, dayEmail ?? null,
+      productivity?.taskMetrics?.overdueTasks ?? 0, sleepDebt,
+    );
+    const resilience = computeResilience(date, crsScores, days);
+
+    // ─── Master metric spots ─────────────────────────
+    if (cogLoad.score >= 70) {
+      spots.push({
+        id: `${date}-cogload-high`, date, time: '12:00',
+        type: 'alert', severity: 'warning',
+        title: `Cognitive load ${cogLoad.score}/100 (${cogLoad.level})`,
+        detail: cogLoad.summary,
+        signals: ['crs', 'calendar', 'email', 'tasks'],
+      });
+    }
+    if (sleepDebt.debtHours >= 4) {
+      spots.push({
+        id: `${date}-debt-high`, date, time: '07:00',
+        type: 'health', severity: 'warning',
+        title: `Sleep debt ${sleepDebt.debtHours}h (${sleepDebt.direction})`,
+        detail: sleepDebt.summary,
+        signals: ['sleep'],
+      });
+    }
+    if (strain.score >= 16) {
+      spots.push({
+        id: `${date}-strain-high`, date, time: '18:00',
+        type: 'behavior', severity: 'warning',
+        title: `High strain day (${strain.score}/21)`,
+        detail: `Peak HR ${strain.peakHR}. ${strain.totalActiveMinutes}min active. Recovery needed tomorrow.`,
+        signals: ['hr', 'workout'],
+      });
+    }
+    if (resilience.score < 35 && resilience.score > 0) {
+      spots.push({
+        id: `${date}-resilience-low`, date, time: '20:00',
+        type: 'insight', severity: 'critical',
+        title: `Resilience fragile (${resilience.score}/100)`,
+        detail: resilience.summary,
+        signals: ['crs', 'hrv'],
+      });
+    }
+
     // ─── Build day headline ───────────────────────────
     let headline: string;
+    const calSuffix = dayCal ? ` ${dayCal.events.length} meetings.` : '';
+    const emailSuffix = dayEmail && dayEmail.totalEmails > 30 ? ` ${dayEmail.totalEmails} emails.` : '';
+    const loadSuffix = cogLoad.score >= 50 ? ` Load: ${cogLoad.level}.` : '';
     if (crs && crs.score >= 0) {
-      if (crs.score >= 80) headline = `Peak day. CRS ${crs.score}.`;
-      else if (crs.score >= 60) headline = `Solid ${crs.score}. Steady day.`;
-      else if (crs.score >= 40) headline = `CRS ${crs.score}. Flagging.`;
-      else headline = `Rough day. CRS ${crs.score}.`;
+      if (crs.score >= 80) headline = `Peak day. CRS ${crs.score}.${calSuffix}${loadSuffix}`;
+      else if (crs.score >= 60) headline = `Solid ${crs.score}.${calSuffix}${emailSuffix}${loadSuffix}`;
+      else if (crs.score >= 40) headline = `CRS ${crs.score}. Flagging.${calSuffix}${loadSuffix}`;
+      else headline = `Rough day. CRS ${crs.score}.${calSuffix}`;
+    } else if (dayEmail && dayEmail.totalEmails > 0) {
+      headline = `${dayEmail.totalEmails} emails.${calSuffix} Limited health data.`;
     } else if (day.totalSteps > 0) {
-      headline = `${day.totalSteps.toLocaleString()} steps tracked. Limited data.`;
+      headline = `${day.totalSteps.toLocaleString()} steps.${calSuffix} Limited data.`;
     } else {
-      headline = 'No data this day.';
+      headline = calSuffix ? `${calSuffix.trim()} No health data.` : 'No data this day.';
     }
 
     // ─── Rule-based Morning Wag (no Claude) ───────────
     let morningWag: string | null = null;
-    if (day.sleep && crs && crs.score >= 0) {
-      const hours = day.sleep.totalDurationMinutes / 60;
-      if (crs.score >= 80) {
-        morningWag = `${crs.score} today. ${hours.toFixed(1)}h sleep, recovery looks strong. This is your deep work window.`;
-      } else if (crs.score >= 60) {
-        morningWag = `${crs.score} this morning. ${hours.toFixed(1)}h sleep. Decent, not great — front-load the important stuff.`;
-      } else if (crs.score >= 40) {
-        morningWag = `${crs.score}. ${hours < 6 ? 'Short night.' : 'Rough night.'} One thing: take it slower today.`;
-      } else {
-        morningWag = `${crs.score}. Rest. That's the only priority.`;
+    if (crs && crs.score >= 0) {
+      const parts: string[] = [];
+
+      // Lead with score
+      parts.push(`${crs.score} today.`);
+
+      // Sleep context
+      if (day.sleep) {
+        const hours = day.sleep.totalDurationMinutes / 60;
+        if (hours < 6) parts.push(`Short night — ${hours.toFixed(1)}h.`);
+        else if (hours >= 7.5) parts.push(`Good sleep — ${hours.toFixed(1)}h.`);
+        else parts.push(`${hours.toFixed(1)}h sleep.`);
       }
+
+      // Sleep debt
+      if (sleepDebt.debtHours >= 3) parts.push(`${sleepDebt.debtHours}h sleep debt dragging.`);
+
+      // Strain from yesterday
+      if (strain.score >= 15) parts.push(`Body's still recovering from yesterday's strain.`);
+
+      // Schedule
+      if (dayCal && dayCal.events.length > 0) {
+        const firstEvent = dayCal.events[0];
+        if (firstEvent) {
+          const time = new Date(firstEvent.startDate.getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16);
+          parts.push(`First up: ${firstEvent.summary.substring(0, 40)} at ${time}.`);
+        }
+        if (dayCal.meetingLoadScore >= 6) parts.push(`Heavy meeting load (${dayCal.events.length} events).`);
+        else if (dayCal.events.length > 1) parts.push(`${dayCal.events.length} meetings today.`);
+      }
+
+      // Tasks
+      if (productivity?.taskMetrics && productivity.taskMetrics.overdueTasks > 5) {
+        parts.push(`${productivity.taskMetrics.overdueTasks} overdue tasks piling up.`);
+      }
+
+      // Cognitive load
+      if (cogLoad.score >= 60) {
+        parts.push(`Cognitive load is ${cogLoad.level}. Protect your focus.`);
+      }
+
+      // Action
+      if (crs.score >= 80 && cogLoad.score < 50) {
+        parts.push(`Deep work window — use it.`);
+      } else if (crs.score >= 80 && cogLoad.score >= 50) {
+        parts.push(`Good energy but heavy load. Prioritize ruthlessly.`);
+      } else if (crs.score >= 60) {
+        parts.push(`Front-load the important stuff.`);
+      } else if (crs.score >= 40) {
+        parts.push(`One thing only. Take it slower.`);
+      } else {
+        parts.push(`Rest. That's the only priority.`);
+      }
+
+      morningWag = parts.join(' ');
+    } else if (dayCal && dayCal.events.length > 0) {
+      // No health data but have calendar
+      const firstEvent = dayCal.events[0];
+      const time = firstEvent ? new Date(firstEvent.startDate.getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16) : '';
+      morningWag = `No health data today. ${dayCal.events.length} meetings scheduled.${firstEvent ? ` First: ${firstEvent.summary.substring(0, 30)} at ${time}.` : ''}`;
     }
 
     // ─── Rule-based Evening Review ────────────────────
     let eveningReview: string | null = null;
-    if (crs && crs.score >= 0 && spots.length > 0) {
+    if (spots.length > 0) {
       const positives = spots.filter(s => s.severity === 'positive').length;
       const warnings = spots.filter(s => s.severity === 'warning').length;
-      if (positives > warnings) {
-        eveningReview = `Good day overall. ${positives} positive signals. ${day.totalSteps > 0 ? day.totalSteps.toLocaleString() + ' steps.' : ''}`;
-      } else if (warnings > 0) {
-        eveningReview = `${warnings} thing${warnings > 1 ? 's' : ''} to watch. ${spots.find(s => s.severity === 'warning')?.title ?? ''}. Tomorrow's a reset.`;
+      const criticals = spots.filter(s => s.severity === 'critical').length;
+
+      const parts: string[] = [];
+
+      // Lead with the day's character
+      if (crs && crs.score >= 80 && cogLoad.score < 40) {
+        parts.push('Strong day.');
+      } else if (criticals > 0 || cogLoad.score >= 70) {
+        parts.push('Heavy day.');
+      } else if (warnings > positives) {
+        parts.push('Mixed day.');
       } else {
-        eveningReview = `Quiet day. Waldo is still learning your patterns.`;
+        parts.push('Decent day.');
       }
+
+      // Key metrics summary
+      if (crs && crs.score >= 0) parts.push(`CRS ${crs.score}.`);
+      if (strain.score > 5) parts.push(`Strain ${strain.score}/21.`);
+      if (day.totalSteps > 0) parts.push(`${day.totalSteps.toLocaleString()} steps.`);
+
+      // Work summary
+      if (dayCal) parts.push(`${dayCal.events.length} meetings done.`);
+      if (dayEmail) parts.push(`${dayEmail.totalEmails} emails handled.`);
+
+      // Cognitive load closing
+      if (cogLoad.score >= 60) {
+        parts.push(`Cognitive load was ${cogLoad.level}. Give yourself a real break tonight.`);
+      }
+
+      // Sleep debt reminder
+      if (sleepDebt.debtHours >= 2) {
+        parts.push(`Sleep debt at ${sleepDebt.debtHours}h. Early bedtime tonight.`);
+      }
+
+      // Resilience check
+      if (resilience.score < 40) {
+        parts.push(`Resilience is ${resilience.level}. Tomorrow needs to be lighter.`);
+      }
+
+      // Burnout hint
+      const burnout = computeBurnoutTrajectory(date, days, crsScores, productivity?.calendarData ?? null, productivity?.emailMetrics ?? null);
+      if (burnout.status === 'burnout_trajectory') {
+        parts.push(`Burnout signals building. This can't continue.`);
+      } else if (burnout.status === 'warning') {
+        parts.push(`Watch the trend this week.`);
+      }
+
+      eveningReview = parts.join(' ');
     }
 
     result.set(date, {

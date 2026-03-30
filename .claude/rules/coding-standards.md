@@ -57,6 +57,40 @@ These principles govern every line of code from the first commit. They ensure Wa
 - Always log: tool calls, token usage, response time (fire-and-forget to agent_logs)
 - Shared types imported from `_shared/types.ts` — keep Edge Functions and app types in sync
 
+## Engineering Process — Research Before Code
+
+Every bug fix and feature follows this process. No exceptions. No "quick fixes."
+
+### 1. Research (before ANY code change)
+- **Trace the full code path** end-to-end. Read the actual functions, not just the error.
+- **Read SDK source** in `node_modules` — don't assume behavior from docs alone.
+- **Check git history** (`git log`, `git blame`) — if the same area was patched before, the approach may be wrong.
+- **Search online** — GitHub issues, changelogs, community discussions.
+
+### 2. Design (document before writing)
+For every proposed change, state:
+- What it does, why it works, how it could break, what it doesn't fix
+- **Confidence score (0-100%)** — anything below 70% needs more research
+- **At least 2 alternatives**, ranked by confidence + breakage risk
+
+### 3. Breakage Analysis (before committing)
+- What other code reads/writes the same state?
+- What happens with null, empty, or unexpected input?
+- Does this affect ALL users or only the bug case?
+- Could this cause a WORSE bug than the one it fixes?
+
+### 4. Verify (before PR)
+- `npx tsc --noEmit` passes
+- Tests pass or new tests written
+- If untestable locally: add diagnostic logging FIRST → deploy → observe → THEN fix
+
+### Anti-Patterns
+- "Quick fix" mentality (changing code to see if it works)
+- Iterative patching (fix → break → fix → break)
+- Trusting the error message (symptom ≠ cause)
+- Committing untested changes
+- Scope creep (one bug fix shouldn't change unrelated paths)
+
 ## Git
 - Conventional commits: `feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:`
 - Subject line ~70 chars

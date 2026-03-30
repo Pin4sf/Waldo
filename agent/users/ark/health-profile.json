@@ -1,0 +1,43 @@
+{
+  "baselines": {
+    "resting_hr": 71,
+    "hrv_rmssd": 64,
+    "vo2max": 43.7,
+    "avg_sleep_hours": 6.8,
+    "avg_bedtime": "23:34",
+    "avg_wake_time": "06:21",
+    "avg_daily_steps": 7322,
+    "avg_daily_distance_km": 5.3,
+    "baseline_established": "2025-10-30",
+    "baseline_days": 85
+  },
+  "conditions": [],
+  "medications": [],
+  "allergies": [],
+  "chronotype_details": {
+    "type": "normal",
+    "peak_cognitive": "10:00-13:00",
+    "trough": "14:00-16:00",
+    "evening_recovery": "16:00-19:00",
+    "estimated_from": "14-day sleep midpoint"
+  },
+  "workout_profile": {
+    "avg_per_week": 0.7,
+    "primary_types": ["CrossTraining", "HighIntensityIntervalTraining"],
+    "preferred_times": {
+      "morning": { "count": 46, "avg_time": "07:19" },
+      "evening": { "count": 47, "avg_time": "19:06" }
+    },
+    "avg_duration_min": 62,
+    "weekday_count": 81,
+    "weekend_count": 14
+  },
+  "sleep_profile": {
+    "best_day": "Friday",
+    "worst_day": "Sunday",
+    "weekday_avg": 6.9,
+    "weekend_avg": 6.6,
+    "avg_efficiency": 95,
+    "common_issues": ["low_deep_sleep_on_some_nights", "late_bedtime_variability"]
+  }
+}

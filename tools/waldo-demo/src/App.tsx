@@ -4,6 +4,7 @@ import { CrsCard } from './components/CrsCard.js';
 import { HealthPanels } from './components/HealthPanels.js';
 import { WaldoMessage } from './components/WaldoMessage.js';
 import { DebugPanel } from './components/DebugPanel.js';
+import { MetricsDashboard } from './components/MetricsDashboard.js';
 import { WaldoIntelligence } from './components/WaldoIntelligence.js';
 import { Onboarding } from './components/Onboarding.js';
 import { ConstellationView } from './components/ConstellationView.js';
@@ -168,8 +169,8 @@ export function App() {
       {/* Header */}
       <header className="header">
         <div className="header-brand">
-          <img src="/waldo_logo_dark.png" alt="" style={{ width: 28, height: 28 }} />
-          <img src="/Waldo.png" alt="Waldo" style={{ height: 22 }} />
+          <img src="/logo.svg" alt="" style={{ width: 28, height: 28 }} />
+          <img src="/horizontal-stack.svg" alt="Waldo" style={{ height: 22 }} />
           <span className="tag">console</span>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34D399', display: 'inline-block', marginLeft: 4 }} title="API connected" />
         </div>
@@ -234,6 +235,7 @@ export function App() {
           {dayData && !isLoadingDay && (
             <>
               <CrsCard data={dayData} />
+              <MetricsDashboard data={dayData} />
               <WaldoMessage
                 date={selectedDate!}
                 hasStress={selectedEntry?.hasStress ?? false}

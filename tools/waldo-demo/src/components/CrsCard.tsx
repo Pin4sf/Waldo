@@ -89,6 +89,14 @@ function CrsGauge({ score, zone }: { score: number; zone: string }) {
   );
 }
 
+function getMascotForZone(zone: string, hasSleep: boolean): { src: string; anim: string } {
+  if (hasSleep && zone === 'peak') return { src: '/good-sleep-light-mode.svg', anim: 'mascot-sleeping' };
+  if (zone === 'peak') return { src: '/good-light-mode.svg', anim: 'mascot-happy' };
+  if (zone === 'moderate') return { src: '/watching-light-mode.svg', anim: 'mascot-watching' };
+  if (zone === 'low') return { src: '/rough-light-mode.svg', anim: 'mascot-rough' };
+  return { src: '/thinking-light-mode.svg', anim: 'mascot-thinking' };
+}
+
 export function CrsCard({ data }: Props) {
   const { crs } = data;
 
@@ -99,9 +107,22 @@ export function CrsCard({ data }: Props) {
     { name: 'Activity', weight: '15%', data: crs.activity },
   ];
 
+  const hasSleep = data.sleep !== null;
+  const mascot = getMascotForZone(crs.zone, hasSleep);
+
   return (
     <div className="card crs-card" style={{ padding: '20px 20px 24px' }}>
-      <CrsGauge score={crs.score} zone={crs.zone} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <img
+          src={mascot.src}
+          alt=""
+          className={mascot.anim}
+          style={{ width: 80, height: 80, objectFit: 'contain' }}
+        />
+        <div style={{ flex: 1 }}>
+          <CrsGauge score={crs.score} zone={crs.zone} />
+        </div>
+      </div>
 
       <div className="crs-confidence" style={{ textAlign: 'center', marginTop: -4 }}>
         {crs.score >= 0 ? `±${crs.confidence} confidence` : 'Need 3+ data signals'}

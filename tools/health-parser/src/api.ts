@@ -21,6 +21,18 @@ import { enrichWeather } from './enrichment/weather.js';
 import { enrichAirQuality, aqiToLabel } from './enrichment/air-quality.js';
 import { computeSleepDebt } from './computed/sleep-debt.js';
 import { computeDayStrain } from './computed/strain-engine.js';
+import { parseICS, organizeCalendarByDay } from './extractors/calendar-parser.js';
+import type { DayMeetingData } from './extractors/calendar-parser.js';
+import { parseGoogleTasks, buildTasksSummary } from './extractors/tasks-parser.js';
+import type { TaskMetrics } from './extractors/tasks-parser.js';
+import { parseGmailMbox } from './extractors/gmail-parser.js';
+import type { EmailIntelligence } from './extractors/gmail-parser.js';
+import { parseFitData, buildFitSummary } from './extractors/fit-parser.js';
+import type { FitData } from './extractors/fit-parser.js';
+import { computeDailyCognitiveLoad, computeBurnoutTrajectory, computeResilience, detectCrossSourcePatterns } from './computed/master-metrics.js';
+import { buildLearningTimeline } from './computed/learning-timeline.js';
+import type { LearningTimeline } from './computed/learning-timeline.js';
+import type { CrossSourceInsight } from './computed/master-metrics.js';
 import type { Pattern } from './computed/pattern-detector.js';
 import { buildAgentContext, buildUserMessage } from './simulation/prompt-builder.js';
 import { assembleSoulPrompt } from './simulation/soul-file.js';
@@ -45,6 +57,14 @@ let allStress: Map<string, DailyStressSummary>;
 let allPatterns: Pattern[];
 let allDayActivity: Map<string, DayActivity>;
 let userIntelligence: UserIntelligence;
+
+// Productivity data (from Google Takeout)
+let calendarData: Map<string, DayMeetingData> | null = null;
+let taskMetrics: TaskMetrics | null = null;
+let emailIntelligence: EmailIntelligence | null = null;
+let fitData: FitData | null = null;
+let crossSourceInsights: CrossSourceInsight[] = [];
+let learningTimeline: LearningTimeline | null = null;
 
 // Onboarding state (in-memory for demo)
 let userProfile: UserProfile | null = null;
@@ -76,17 +96,83 @@ async function init(): Promise<void> {
   const aqEnriched = await enrichAirQuality(days);
   console.log(`  ${aqEnriched} days enriched with air quality`);
 
+  // Parse Google Takeout data (if available)
+  const takeoutBase = '../../takeoutexport_ark';
+  const calendarPath = `${takeoutBase}/Takeout 5/Calendar/arkpatil2717@gmail.com.ics`;
+  const tasksPath = `${takeoutBase}/Takeout 5/Tasks/Tasks.json`;
+  const gmailPath = `${takeoutBase}/Takeout 4/Mail/All mail Including Spam and Trash.mbox`;
+
+  try {
+    const fs = await import('node:fs');
+    if (fs.existsSync(calendarPath)) {
+      console.log('  Parsing Google Calendar...');
+      const events = parseICS(calendarPath);
+      calendarData = organizeCalendarByDay(events);
+      console.log(`  ${events.length} calendar events across ${calendarData.size} days`);
+    }
+    if (fs.existsSync(tasksPath)) {
+      console.log('  Parsing Google Tasks...');
+      taskMetrics = parseGoogleTasks(tasksPath);
+      console.log(`  ${taskMetrics.totalTasks} tasks (${taskMetrics.completedTasks} done, ${taskMetrics.pendingTasks} pending)`);
+    }
+    if (fs.existsSync(gmailPath)) {
+      console.log('  Parsing Gmail headers (metadata only)...');
+      emailIntelligence = await parseGmailMbox(gmailPath, (count) => {
+        if (count % 5000 === 0) process.stdout.write(`\r  Gmail: ${count.toLocaleString()} emails parsed...`);
+      });
+      process.stdout.write('\r' + ' '.repeat(60) + '\r');
+      console.log(`  ${emailIntelligence.totalEmails} emails across ${emailIntelligence.dailyMetrics.size} days`);
+    }
+    const fitPath = `${takeoutBase}/Takeout 5/Fit`;
+    if (fs.existsSync(fitPath)) {
+      console.log('  Parsing Google Fit...');
+      fitData = parseFitData(fitPath);
+      console.log(`  ${fitData.dailyMetrics.size} Fit days, ${fitData.sessions.length} sessions (${fitData.dateRange.start} → ${fitData.dateRange.end})`);
+    }
+  } catch (err) {
+    console.log(`  Takeout data not found or parse error: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   // Detect patterns across the full timeline
   allPatterns = detectPatterns(days, allCrs, allStress);
 
+  // Cross-source pattern detection
+  crossSourceInsights = detectCrossSourcePatterns(
+    days, allCrs,
+    calendarData,
+    emailIntelligence?.dailyMetrics ?? null,
+  );
+  if (crossSourceInsights.length > 0) {
+    console.log(`  ${crossSourceInsights.length} cross-source insights discovered`);
+    for (const insight of crossSourceInsights) {
+      console.log(`    [${insight.confidence}] ${insight.summary}`);
+    }
+  }
+
+  // Build learning timeline
+  const connectedSources: string[] = ['Apple Health'];
+  if (calendarData) connectedSources.push('Google Calendar');
+  if (taskMetrics) connectedSources.push('Google Tasks');
+  if (emailIntelligence) connectedSources.push('Gmail');
+  if (fitData) connectedSources.push('Google Fit');
+  connectedSources.push('Open-Meteo Weather');
+
   // Generate Spots + day activity for EVERY day (rule-based, no Claude)
-  allDayActivity = generateAllDayActivity(days, allCrs, allStress, allPatterns);
+  allDayActivity = generateAllDayActivity(days, allCrs, allStress, allPatterns, {
+    calendarData,
+    emailMetrics: emailIntelligence?.dailyMetrics ?? null,
+    taskMetrics,
+  }, extracted.profile.age);
   const spotStats = countSpots(allDayActivity);
   console.log(`  ${spotStats.total} Spots generated across ${allDayActivity.size} days`);
 
   // Build cross-day user intelligence profile
   userIntelligence = buildUserIntelligence(days, allCrs);
   console.log(`  User intelligence profile built (${userIntelligence.summary.length} chars)`);
+
+  // Build learning timeline
+  learningTimeline = buildLearningTimeline(days, allCrs, allPatterns, crossSourceInsights, spotStats.total, connectedSources);
+  console.log(`  Learning timeline: ${learningTimeline.milestones.length} milestones, intelligence score ${learningTimeline.intelligenceScore}/100`);
 
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
@@ -303,6 +389,41 @@ function handleDay(res: http.ServerResponse, date: string): void {
     // New metrics
     sleepDebt: computeSleepDebt(date, days),
     strain: computeDayStrain(day, extracted.profile.age),
+    // Productivity data (from Takeout)
+    calendar: calendarData?.get(date) ? {
+      meetingLoadScore: calendarData.get(date)!.meetingLoadScore,
+      totalMeetingMinutes: calendarData.get(date)!.totalMeetingMinutes,
+      eventCount: calendarData.get(date)!.events.length,
+      backToBackCount: calendarData.get(date)!.backToBackCount,
+      focusGaps: calendarData.get(date)!.focusGaps,
+      events: calendarData.get(date)!.events.map(e => ({
+        summary: e.summary,
+        startTime: e.startDate.toISOString(),
+        endTime: e.endDate.toISOString(),
+        durationMinutes: Math.round(e.durationMinutes),
+        attendeeCount: e.attendeeCount,
+      })),
+    } : null,
+    tasks: taskMetrics ? {
+      summary: buildTasksSummary(taskMetrics),
+      pendingCount: taskMetrics.pendingTasks,
+      overdueCount: taskMetrics.overdueTasks,
+      recentVelocity: taskMetrics.recentVelocity,
+      completionRate: Math.round(taskMetrics.completionRate * 100),
+    } : null,
+    email: emailIntelligence?.dailyMetrics.get(date) ?? null,
+    // Google Fit (pre-Apple Watch)
+    fit: fitData?.dailyMetrics.get(date) ?? null,
+    // Master metrics
+    cognitiveLoad: computeDailyCognitiveLoad(
+      calendarData?.get(date) ?? null,
+      emailIntelligence?.dailyMetrics.get(date) ?? null,
+      taskMetrics?.overdueTasks ?? 0,
+      computeSleepDebt(date, days),
+    ),
+    burnoutTrajectory: computeBurnoutTrajectory(date, days, allCrs, calendarData, emailIntelligence?.dailyMetrics ?? null),
+    resilience: computeResilience(date, allCrs, days),
+    crossSourceInsights,
     // Waldo intelligence layer
     patterns: allPatterns,
     waldoActions: simulateWaldoActions(date, day, crs, stress, allPatterns),
@@ -421,7 +542,7 @@ const server = http.createServer(async (req, res) => {
         }
       }
       const stats = countSpots(allDayActivity);
-      json(res, { spots: allSpots, stats, patterns: allPatterns });
+      json(res, { spots: allSpots, stats, patterns: allPatterns, learning: learningTimeline });
     } else if (path === '/api/summary' && req.method === 'GET') {
       handleSummary(res);
       log('📋', `summary — ${days.size} days, ${extracted.heartRate.length} HR records`);
@@ -449,15 +570,56 @@ const server = http.createServer(async (req, res) => {
         logDetail('HRV', day.hrvReadings.length > 0 ? `${day.hrvReadings.length} readings | avg RMSSD: ${(day.hrvReadings.reduce((s, r) => s + (r.rmssd ?? r.sdnn), 0) / day.hrvReadings.length).toFixed(1)}ms` : 'no data');
         logDetail('HR', `${day.hrReadings.length} readings | resting: ${day.restingHR ?? 'n/a'} bpm`);
         logDetail('Activity', `${day.totalSteps.toLocaleString()} steps | ${Math.round(day.exerciseMinutes)}min exercise | ${day.workouts.length} workouts`);
+        if (day.distanceKm > 0) logDetail('', `  distance: ${day.distanceKm.toFixed(1)}km | speed: ${day.avgWalkingSpeed?.toFixed(1) ?? 'n/a'}km/h | flights: ${day.flightsClimbed}`);
         console.log('  │');
+
+        // Derived metrics
+        const daySleepDebt = computeSleepDebt(date, days);
+        const dayStrain = computeDayStrain(day, extracted.profile.age);
+        const dayCogLoad = computeDailyCognitiveLoad(
+          calendarData?.get(date) ?? null,
+          emailIntelligence?.dailyMetrics.get(date) ?? null,
+          taskMetrics?.overdueTasks ?? 0, daySleepDebt,
+        );
+        const dayResilience = computeResilience(date, allCrs, days);
+        const dayBurnout = computeBurnoutTrajectory(date, days, allCrs, calendarData, emailIntelligence?.dailyMetrics ?? null);
+
+        logDetail('DERIVED METRICS', '');
+        logDetail('  Strain', `${dayStrain.score}/21 (${dayStrain.level}) | peak HR ${dayStrain.peakHR} | ${dayStrain.totalActiveMinutes}min active`);
+        logDetail('  Sleep debt', `${daySleepDebt.debtHours}h (${daySleepDebt.direction}) | ${daySleepDebt.shortNights} short nights`);
+        logDetail('  Cognitive load', `${dayCogLoad.score}/100 (${dayCogLoad.level}) | mtg:${dayCogLoad.components.meetingLoad} email:${dayCogLoad.components.communicationLoad} task:${dayCogLoad.components.taskLoad} debt:${dayCogLoad.components.sleepDebtImpact}`);
+        logDetail('  Resilience', `${dayResilience.score}/100 (${dayResilience.level}) | stability:${dayResilience.components.crsStability} hrv:${dayResilience.components.hrvTrend} recovery:${dayResilience.components.stressRecovery}`);
+        logDetail('  Burnout', `${dayBurnout.score.toFixed(2)} (${dayBurnout.status}) | hrv:${dayBurnout.components.hrvSlope > 0 ? '↓' : '↑'} sleep:${dayBurnout.components.sleepDebtTrend > 0 ? '↓' : '↑'} email:${dayBurnout.components.afterHoursTrend > 0 ? '↑' : '↓'}`);
+        console.log('  │');
+
         // Environment
-        if (day.weather || day.avgNoiseDb !== null || day.daylightMinutes > 0) {
-          const envParts: string[] = [];
-          if (day.weather) envParts.push(`${Math.round((day.weather.temperatureF - 32) * 5 / 9)}°C (${day.weather.source})`);
-          if (day.avgNoiseDb !== null) envParts.push(`${day.avgNoiseDb.toFixed(0)}dB noise`);
-          if (day.daylightMinutes > 0) envParts.push(`${day.daylightMinutes}min daylight`);
-          if (day.wristTemp !== null) envParts.push(`wrist ${day.wristTemp.toFixed(1)}°C`);
-          logDetail('Environment', envParts.join(' | '));
+        const envParts: string[] = [];
+        if (day.weather) envParts.push(`${Math.round((day.weather.temperatureF - 32) * 5 / 9)}°C (${day.weather.source})`);
+        if (day.avgNoiseDb !== null) envParts.push(`${day.avgNoiseDb.toFixed(0)}dB`);
+        if (day.daylightMinutes > 0) envParts.push(`${day.daylightMinutes}min daylight`);
+        if (day.wristTemp !== null) envParts.push(`wrist ${day.wristTemp.toFixed(1)}°C`);
+        if (day.aqi !== null) envParts.push(`AQI ${day.aqi}`);
+        if (envParts.length > 0) logDetail('Environment', envParts.join(' | '));
+
+        // Schedule
+        const dayCal = calendarData?.get(date);
+        if (dayCal) {
+          logDetail('Schedule', `MLS ${dayCal.meetingLoadScore}/15 | ${dayCal.events.length} events | ${dayCal.totalMeetingMinutes}min | b2b:${dayCal.backToBackCount} | focus gaps:${dayCal.focusGaps.length}`);
+          for (const ev of dayCal.events.slice(0, 3)) {
+            const time = new Date(ev.startDate.getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16);
+            logDetail('', `  ${time} ${ev.summary.substring(0, 40)} (${Math.round(ev.durationMinutes)}min${ev.attendeeCount > 1 ? ', ' + ev.attendeeCount + 'p' : ''})`);
+          }
+        }
+
+        // Email
+        const dayEmail = emailIntelligence?.dailyMetrics.get(date);
+        if (dayEmail) {
+          logDetail('Email', `${dayEmail.totalEmails} emails | sent:${dayEmail.sentCount} recv:${dayEmail.receivedCount} | after-hrs:${Math.round(dayEmail.afterHoursRatio * 100)}% | threads:${dayEmail.uniqueThreads} | vol:${dayEmail.volumeSpike.toFixed(1)}x`);
+        }
+
+        // Tasks
+        if (taskMetrics) {
+          logDetail('Tasks', `${taskMetrics.pendingTasks} pending | ${taskMetrics.overdueTasks} overdue | velocity:${taskMetrics.recentVelocity.toFixed(1)}/day | done:${Math.round(taskMetrics.completionRate * 100)}%`);
         }
         console.log('  │');
 
@@ -466,10 +628,20 @@ const server = http.createServer(async (req, res) => {
         if (stress && stress.events.length > 0) {
           for (const ev of stress.events) {
             const evTime = ev.startTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-            logDetail(`  ${evTime} (${ev.severity})`, `${(ev.confidence * 100).toFixed(0)}% confidence | ${Math.round(ev.durationMinutes)}min`);
-            logDetail('', `  hrv_drop=${ev.components.hrvDropScore.toFixed(2)} hr_elev=${ev.components.hrElevationScore.toFixed(2)} duration=${ev.components.durationScore.toFixed(2)} sedentary=${ev.components.activityInvertedScore.toFixed(2)}`);
+            logDetail(`  ${evTime} (${ev.severity})`, `${(ev.confidence * 100).toFixed(0)}% | ${Math.round(ev.durationMinutes)}min | hrv:${ev.components.hrvDropScore.toFixed(2)} hr:${ev.components.hrElevationScore.toFixed(2)} dur:${ev.components.durationScore.toFixed(2)} sed:${ev.components.activityInvertedScore.toFixed(2)}`);
           }
-          logDetail('Fetch alert?', stress.fetchAlertTriggered ? 'YES (confidence >= 60%)' : 'no (all below 60% threshold)');
+          logDetail('Fetch alert?', stress.fetchAlertTriggered ? 'YES' : 'no');
+        }
+        console.log('  │');
+
+        // Spots summary
+        const dayActivity = allDayActivity.get(date);
+        if (dayActivity) {
+          logDetail('Spots', `${dayActivity.spots.length} observations`);
+          const bySeverity: Record<string, number> = {};
+          for (const s of dayActivity.spots) { bySeverity[s.severity] = (bySeverity[s.severity] ?? 0) + 1; }
+          logDetail('', `  ${Object.entries(bySeverity).map(([k, v]) => `${k}:${v}`).join(' | ')}`);
+          if (dayActivity.morningWag) logDetail('Morning Wag', `"${dayActivity.morningWag.substring(0, 80)}..."`);
         }
         console.log('  │');
 
@@ -478,13 +650,15 @@ const server = http.createServer(async (req, res) => {
         logDetail('AGENT REASONING', '');
         logDetail('  1. Zone select', `CRS ${crs.score} → ${zone} voice`);
         logDetail('  2. Pre-filter', crs.score > 60 && (stress?.peakStress?.confidence ?? 0) < 0.3
-          ? 'SKIP Claude (CRS > 60, stress < 30%) → use template'
-          : 'CALL Claude (needs reasoning)');
-        logDetail('  3. Morning Wag', day.sleep ? `Would fire at ${day.sleep.wakeTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : 'Would skip (no sleep data)');
+          ? 'SKIP Claude (CRS > 60, stress < 30%) → template'
+          : 'CALL Claude');
+        logDetail('  3. Morning Wag', day.sleep ? `fire at ${day.sleep.wakeTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : 'skip (no sleep)');
         logDetail('  4. Fetch Alert', stress?.fetchAlertTriggered
-          ? `Would fire at ${stress.fetchAlertTime?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) ?? '?'}`
-          : 'Would not fire (no event >= 60%)');
-        logDetail('  5. Patterns', `${allPatterns.length} known patterns`);
+          ? `fire at ${stress.fetchAlertTime?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) ?? '?'}`
+          : 'no (below threshold)');
+        logDetail('  5. Cog Load', `${dayCogLoad.level} → ${dayCogLoad.score >= 60 ? 'suggest protecting focus' : 'normal load'}`);
+        logDetail('  6. Burnout', `${dayBurnout.status}${dayBurnout.status === 'warning' || dayBurnout.status === 'burnout_trajectory' ? ' → ALERT' : ''}`);
+        logDetail('  7. Patterns', `${allPatterns.length} health + ${crossSourceInsights.length} cross-source`);
         logEnd();
       }
     } else if (path === '/api/waldo' && req.method === 'POST') {
@@ -517,12 +691,70 @@ const server = http.createServer(async (req, res) => {
       const strain = computeDayStrain(day, extracted.profile.age);
       const aqi = day.aqi;
 
-      // Enrich the intelligence summary with today's derived metrics
+      // Enrich the intelligence summary with today's derived metrics + productivity
       let enrichedIntelligence = userIntelligence.summary;
       enrichedIntelligence += `\n\nToday's derived metrics:`;
       enrichedIntelligence += `\n- Sleep debt: ${sleepDebt.summary}`;
       enrichedIntelligence += `\n- Day strain: ${strain.summary}`;
       if (aqi) enrichedIntelligence += `\n- Air quality: AQI ${aqi} (${aqiToLabel(aqi)})${aqi > 150 ? ' — impacts HRV and recovery' : ''}`;
+
+      // Master metrics
+      const cogLoad = computeDailyCognitiveLoad(
+        calendarData?.get(body.date) ?? null,
+        emailIntelligence?.dailyMetrics.get(body.date) ?? null,
+        taskMetrics?.overdueTasks ?? 0,
+        sleepDebt,
+      );
+      enrichedIntelligence += `\n- Cognitive Load: ${cogLoad.summary}`;
+
+      const burnout = computeBurnoutTrajectory(body.date, days, allCrs, calendarData, emailIntelligence?.dailyMetrics ?? null);
+      enrichedIntelligence += `\n- ${burnout.summary}`;
+
+      const resilience = computeResilience(body.date, allCrs, days);
+      enrichedIntelligence += `\n- ${resilience.summary}`;
+
+      // Cross-source insights
+      if (crossSourceInsights.length > 0) {
+        enrichedIntelligence += '\n\nCross-source patterns Waldo discovered:';
+        for (const insight of crossSourceInsights) {
+          enrichedIntelligence += `\n- ${insight.summary}`;
+        }
+      }
+
+      // Google Fit history (if available)
+      if (fitData) {
+        enrichedIntelligence += `\n\nPre-Apple Watch history: ${buildFitSummary(fitData)}`;
+      }
+
+      // Calendar context
+      const dayCalendar = calendarData?.get(body.date);
+      if (dayCalendar) {
+        enrichedIntelligence += `\n\nSchedule today: ${dayCalendar.events.length} events, Meeting Load ${dayCalendar.meetingLoadScore}/15, ${dayCalendar.totalMeetingMinutes}min in meetings.`;
+        if (dayCalendar.backToBackCount > 0) enrichedIntelligence += ` ${dayCalendar.backToBackCount} back-to-back.`;
+        if (dayCalendar.focusGaps.length > 0) {
+          const bestGap = dayCalendar.focusGaps.sort((a, b) => b.durationMinutes - a.durationMinutes)[0];
+          if (bestGap) enrichedIntelligence += ` Best focus window: ${bestGap.durationMinutes}min.`;
+        }
+        // List events
+        const eventList = dayCalendar.events.slice(0, 5).map(e => {
+          const time = new Date(e.startDate.getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(11, 16);
+          return `${time} ${e.summary} (${Math.round(e.durationMinutes)}min${e.attendeeCount > 1 ? ', ' + e.attendeeCount + ' people' : ''})`;
+        });
+        enrichedIntelligence += `\nEvents: ${eventList.join('; ')}`;
+      }
+
+      // Tasks context
+      if (taskMetrics) {
+        enrichedIntelligence += `\n\nTasks: ${buildTasksSummary(taskMetrics)}`;
+      }
+
+      // Email context for this day
+      const dayEmail = emailIntelligence?.dailyMetrics.get(body.date);
+      if (dayEmail) {
+        enrichedIntelligence += `\n\nEmail today: ${dayEmail.totalEmails} emails (${dayEmail.sentCount} sent, ${dayEmail.receivedCount} received). ${dayEmail.uniqueThreads} threads.`;
+        if (dayEmail.afterHoursRatio > 0.2) enrichedIntelligence += ` After-hours: ${Math.round(dayEmail.afterHoursRatio * 100)}%.`;
+        if (dayEmail.volumeSpike > 1.5) enrichedIntelligence += ` Volume ${dayEmail.volumeSpike.toFixed(1)}x above normal.`;
+      }
 
       const ctx = buildAgentContext({
         day, crs, stress,
