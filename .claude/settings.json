@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git branch *)",
+      "Bash(git stash *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)",
+      "Bash(gh run *)",
+      "Bash(deno *)",
+      "Bash(supabase *)",
+      "WebSearch"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)",
+      "Bash(curl * | bash)",
+      "Read(**/.env*)",
+      "Write(**/.env*)"
+    ]
+  },
+  "hooks": {
+    "Notification": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "osascript -e 'display notification \"Claude Code needs attention\" with title \"Waldo\"' 2>/dev/null || true"
+      }]
+    }],
+    "PreToolUse": [{
+      "matcher": "Bash",
+      "hooks": [{
+        "type": "command",
+        "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/block-no-verify.sh\""
+      }]
+    }],
+    "PostToolUse": [{
+      "matcher": "Write|Edit",
+      "hooks": [{
+        "type": "command",
+        "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/auto-format.sh\"",
+        "timeout": 15000
+      }]
+    }, {
+      "matcher": "Edit",
+      "hooks": [{
+        "type": "command",
+        "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/post-edit-typecheck.sh\"",
+        "timeout": 30000
+      }]
+    }],
+    "Stop": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/check-console-log.sh\""
+      }]
+    }]
+  }
+}
