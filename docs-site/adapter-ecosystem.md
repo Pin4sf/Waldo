@@ -247,25 +247,50 @@ Every new data source multiplies intelligence exponentially, not linearly.
 | 10 | Evening review | All sources |
 | 11 | Weekend recovery forecast | Health + Calendar |
 
-### Automation (6)
+### Task intelligence (8) — adapts HOW, never blocks WHAT
+> Waldo never says "don't do this task." Deadlines are real. Waldo helps get it done.
+
 | # | Capability | What Waldo does |
 |---|-----------|----------------|
-| 12 | Task scheduling | Reranks by CRS-optimal timing |
-| 13 | Meeting rescheduling | Suggests better times based on energy |
-| 14 | Auto-DND | Sets Slack status during focus/low-CRS |
-| 15 | Recovery day enforcement | Marks light-calendar + low-CRS days |
-| 16 | Communication batching | Suggests email blocks, not continuous |
-| 17 | Sleep optimization | Screen time nudge based on data |
+| 12 | Deadline-aware prioritization | Ranks by urgency×0.4 + importance×0.3 + energy_fit×0.3. Due-today always surfaces. |
+| 13 | Smart sequencing | Hardest first during peak, admin during trough, momentum starter when depleted |
+| 14 | Break-it-down | Low CRS + deadline → "25-min chunks with 5-min breaks. Start with the section you know." |
+| 15 | Overdue triage | >10 overdue → "Pick 3 that matter. Defer, delegate, or delete the rest." |
+| 16 | Recurring surfacing | Day-of-week match → "It's Monday. Workout: Legs. CRS 71. Good to go?" |
+| 17 | Deferral intelligence | Due tomorrow + low today + predicted recovery → "Push through now or hit it fresh?" |
+| 18 | Implicit capture | Detects follow-ups from calendar events, stale email threads, patterns |
+| 19 | Completion tracking | Learns which energy states are productive for this user over time |
+
+### Automation (5)
+| # | Capability | What Waldo does |
+|---|-----------|----------------|
+| 20 | Meeting rescheduling | "Push 8am to 10am — predicted CRS jumps 52 → 68" |
+| 21 | Auto-DND | Sets Slack status during focus/low-CRS |
+| 22 | Recovery day enforcement | Marks light-calendar + low-CRS days |
+| 23 | Communication batching | Suggests email blocks, not continuous |
+| 24 | Sleep optimization | Screen time nudge based on data |
+
+### Task nudge examples
+
+| Situation | CRS | What Waldo says |
+|-----------|-----|----------------|
+| Deadline today, good energy | 82 | "82 and the deadline is today. Knock it out before noon." |
+| Deadline today, low energy | 45 | "45 but this is due today. Three 25-min chunks. Start with what you know. Good enough beats perfect." |
+| Deadline tomorrow, depleted | 38 | "Due tomorrow. You're at 38 today, predicted 68 tomorrow morning. Push through or hit it fresh?" |
+| 13 tasks overdue | 65 | "13 overdue. That number is the problem. Pick 3 that matter. Defer the rest." |
+| No momentum, low energy | 35 | "Start with one thing. Reply to one message. Then see how you feel." |
+| Peak + task completed | 82 | "You cleared that during your peak window. That's the pattern — hard stuff before noon." |
+| Recurring task detected | 71 | "It's Monday. Your list says 'Workout: Legs'. CRS 71. Good to go?" |
 
 ### Learning (6)
 | # | Pattern | Cross-source insight |
 |---|---------|---------------------|
-| 18 | Meeting → stress | "Monday 2pm sync drops your HRV 25%" |
-| 19 | Music → mood → CRS | "Low-energy playlists after 3pm → CRS <60 next day" |
-| 20 | Coding time vs state | "You commit at 10pm but CRS says that's decline" |
-| 21 | Email → sleep | "Emails after 10pm → sleep efficiency drops 8%" |
-| 22 | Screen → recovery | "<2h recreational screen → CRS 9 points higher" |
-| 23 | Task timing | "72% of completions during CRS 70+" |
+| 25 | Meeting → stress | "Monday 2pm sync drops your HRV 25%" |
+| 26 | Music → mood → CRS | "Low-energy playlists after 3pm → CRS <60 next day" |
+| 27 | Coding time vs state | "You commit at 10pm but CRS says that's decline" |
+| 28 | Email → sleep | "Emails after 10pm → sleep efficiency drops 8%" |
+| 29 | Screen → recovery | "<2h recreational screen → CRS 9 points higher" |
+| 30 | Task timing | "72% of completions during CRS 70+" |
 
 ## Competitive position
 
