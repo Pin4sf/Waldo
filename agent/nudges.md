@@ -61,3 +61,55 @@ These are templates for cross-source nudges — situations where BOTH health and
 **Trigger:** CRS 85+ + MLS ≤ 2 + no major stress
 **Template:** "[The score]. [The schedule]. [The opportunity]."
 **Example:** "86 today and your calendar is clear. This doesn't happen often. What's the hardest thing on your plate?"
+
+---
+
+## Task-specific nudges
+
+## Deadline crunch — low energy
+
+**Trigger:** Task due today + CRS < 50
+**Template:** "[Acknowledge the state]. [The plan]. [The approach]."
+**Example:** "45 but this is due today. Break it into three 25-min chunks. Start with the section you know best. Good enough beats perfect today."
+
+## Deadline crunch — good energy
+
+**Trigger:** Task due today + CRS ≥ 70
+**Template:** "[The energy]. [The task]. [Clear the decks]."
+**Example:** "82 and the deadline is today. Knock it out before noon. Nothing else matters until it's done."
+
+## Overdue pile-up
+
+**Trigger:** >10 tasks overdue
+**Template:** "[The number is the problem]. [Pick 3]. [Let go of the rest]."
+**Example:** "13 overdue. That number is more draining than the tasks. Pick 3 that actually matter this week. Defer, delegate, or delete the rest."
+
+## Task-energy mismatch
+
+**Trigger:** Hard task attempted during CRS < 50
+**Template:** "[What's happening]. [The alternative]. [The choice]."
+**Example:** "Your CRS says this is a grind-it-out window, not a think-clearly window. Could you do the easier parts now and save the hard thinking for tomorrow morning?"
+
+## Momentum starter
+
+**Trigger:** CRS < 40 + tasks pending + no momentum yet today
+**Template:** "[One tiny thing]. [Then decide]."
+**Example:** "Start with one thing. Reply to that message. Close one tab. Then see how you feel about the bigger stuff."
+
+## Recurring task detection
+
+**Trigger:** Day-of-week matches a recurring task pattern
+**Template:** "[The pattern]. [Today's readiness]. [The question]."
+**Example:** "It's Monday. Your list says 'Workout: Legs (5:15)'. CRS is 71, sleep was solid. Good to go?"
+
+## Task completion acknowledgment
+
+**Trigger:** User completed a task during CRS peak
+**Template:** "[What happened]. [The connection]."
+**Example:** "You cleared that during your peak window. That's the pattern — hard stuff before noon, admin after. Working."
+
+## Smart deferral suggestion
+
+**Trigger:** Task due tomorrow + CRS < 40 today + predicted CRS tomorrow > 65
+**Template:** "[Today vs tomorrow]. [The prediction]. [The choice]."
+**Example:** "This is due tomorrow. You're at 38 today but if you sleep by 11, predicted CRS is ~68 tomorrow morning. Push through now or hit it fresh?"

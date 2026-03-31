@@ -16,16 +16,28 @@
 | 10 | Evening review | End of day | All sources | Day summary + tomorrow prep |
 | 11 | Weekend forecast | Friday evening | Health + calendar | Recovery prediction |
 
+## Task intelligence (Waldo plans your work)
+
+| # | Capability | Trigger | What Waldo does |
+|---|-----------|---------|----------------|
+| 12 | Deadline-aware prioritization | Tasks with due dates | Ranks by urgency×0.4 + importance×0.3 + energy_fit×0.3. Never blocks a deadline task. |
+| 13 | Smart sequencing | Multiple tasks + CRS data | Hardest first during peak, admin during trough, momentum starter when depleted. |
+| 14 | Break-it-down | Hard task + low CRS | "25-min chunks with 5-min breaks. Start with the section you know." |
+| 15 | Overdue triage | >10 overdue tasks | "Pick 3 that matter. Defer, delegate, or delete the rest." |
+| 16 | Recurring task surfacing | Day-of-week pattern match | "It's Monday. Workout: Legs (5:15). CRS 71. Good to go?" |
+| 17 | Deferral intelligence | Due tomorrow + low CRS today + predicted recovery | "Push through now or hit it fresh tomorrow? Predicted CRS jumps to 68." |
+| 18 | Completion tracking | Task done during peak/trough | Learns which energy states are productive for this user. |
+| 19 | Implicit task capture | Calendar follow-ups, stale email threads | Surfaces tasks the user didn't explicitly create. |
+
 ## Automation (Waldo acts)
 
 | # | Capability | What it does | Phase |
 |---|-----------|-------------|-------|
-| 12 | Task scheduling | Reranks by CRS-optimal timing | Phase 2 |
-| 13 | Meeting suggestions | "Push 8am to 10am" | Phase 2 |
-| 14 | Auto-DND | Slack status during focus/low-CRS | Phase 2 |
-| 15 | Recovery enforcement | Marks light days as recovery | Phase 2 |
-| 16 | Communication batching | "Email in 2 blocks, not continuous" | Phase 2 |
-| 17 | Sleep coaching | Screen time nudge | Phase 2 |
+| 20 | Meeting suggestions | "Push 8am to 10am — CRS jumps 16 points" | Phase 2 |
+| 21 | Auto-DND | Slack status during focus/low-CRS | Phase 2 |
+| 22 | Recovery enforcement | Marks light-calendar + low-CRS days | Phase 2 |
+| 23 | Communication batching | "Email in 2 blocks, not continuous" | Phase 2 |
+| 24 | Sleep coaching | Screen time nudge based on data | Phase 2 |
 
 ## Learning (Waldo gets smarter)
 
