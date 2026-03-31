@@ -52,10 +52,10 @@ export function DebugPanel({ day, waldoResponse }: Props) {
           ['Score', crs.score >= 0 ? `${crs.score} (${crs.zone})` : 'Insufficient data'],
           ['Components with data', `${crs.componentsWithData}/4`],
           ['Confidence', `±${crs.confidence}`],
-          ['Sleep score', `${Math.round(crs.sleep.score)} (${crs.sleep.dataAvailable ? 'real' : 'no data'})`],
-          ['HRV score', `${Math.round(crs.hrv.score)} (${crs.hrv.dataAvailable ? 'real' : 'neutral'})`],
-          ['Circadian score', `${Math.round(crs.circadian.score)} (${crs.circadian.dataAvailable ? 'real' : 'neutral'})`],
-          ['Activity score', `${Math.round(crs.activity.score)} (${crs.activity.dataAvailable ? 'real' : 'no data'})`],
+          ['Sleep score', `${Math.round(crs.sleep?.score ?? 0)} (${crs.sleep?.dataAvailable ? 'real' : 'no data'})`],
+          ['HRV score', `${Math.round(crs.hrv?.score ?? 0)} (${crs.hrv?.dataAvailable ? 'real' : 'neutral'})`],
+          ['Circadian score', `${Math.round(crs.circadian?.score ?? 0)} (${crs.circadian?.dataAvailable ? 'real' : 'neutral'})`],
+          ['Activity score', `${Math.round(crs.activity?.score ?? 0)} (${crs.activity?.dataAvailable ? 'real' : 'no data'})`],
         ]} />
       </Section>
 
@@ -87,19 +87,19 @@ export function DebugPanel({ day, waldoResponse }: Props) {
       {waldoResponse && (
         <Section title="Claude response" defaultOpen>
           <Metrics items={[
-            ['Model', waldoResponse.debug.model],
+            ['Model', waldoResponse.debug?.model ?? 'claude-haiku-4-5'],
             ['Zone', waldoResponse.zone],
-            ['Mode', waldoResponse.mode.replace('_', ' ')],
-            ['Input tokens', waldoResponse.tokensIn],
-            ['Output tokens', waldoResponse.tokensOut],
-            ['Response time', `${waldoResponse.responseTimeMs}ms`],
-            ['Est. cost', `$${((waldoResponse.tokensIn * 0.8 + waldoResponse.tokensOut * 4) / 1_000_000).toFixed(5)}`],
+            ['Mode', waldoResponse.mode?.replace('_', ' ') ?? ''],
+            ['Input tokens', waldoResponse.tokensIn ?? 0],
+            ['Output tokens', waldoResponse.tokensOut ?? 0],
+            ['Response time', `${waldoResponse.responseTimeMs ?? 0}ms`],
+            ['Est. cost', `$${(((waldoResponse.tokensIn ?? 0) * 0.8 + (waldoResponse.tokensOut ?? 0) * 4) / 1_000_000).toFixed(5)}`],
           ]} />
         </Section>
       )}
 
       {/* System prompt */}
-      {waldoResponse && (
+      {waldoResponse?.debug?.systemPrompt && (
         <Section title="System prompt">
           <div className="debug-content">
             {waldoResponse.debug.systemPrompt}
@@ -108,7 +108,7 @@ export function DebugPanel({ day, waldoResponse }: Props) {
       )}
 
       {/* User message (biometric context) */}
-      {waldoResponse && (
+      {waldoResponse?.debug?.userMessage && (
         <Section title="User message (biometric context)">
           <div className="debug-content">
             {waldoResponse.debug.userMessage}
@@ -120,17 +120,17 @@ export function DebugPanel({ day, waldoResponse }: Props) {
       <Section title="All scoring factors">
         <div className="debug-content">
           {[
-            `--- Sleep (${Math.round(crs.sleep.score)}) ---`,
-            ...crs.sleep.factors,
+            `--- Sleep (${Math.round(crs.sleep?.score ?? 0)}) ---`,
+            ...(crs.sleep?.factors ?? []),
             '',
-            `--- HRV (${Math.round(crs.hrv.score)}) ---`,
-            ...crs.hrv.factors,
+            `--- HRV (${Math.round(crs.hrv?.score ?? 0)}) ---`,
+            ...(crs.hrv?.factors ?? []),
             '',
-            `--- Circadian (${Math.round(crs.circadian.score)}) ---`,
-            ...crs.circadian.factors,
+            `--- Circadian (${Math.round(crs.circadian?.score ?? 0)}) ---`,
+            ...(crs.circadian?.factors ?? []),
             '',
-            `--- Activity (${Math.round(crs.activity.score)}) ---`,
-            ...crs.activity.factors,
+            `--- Activity (${Math.round(crs.activity?.score ?? 0)}) ---`,
+            ...(crs.activity?.factors ?? []),
           ].join('\n')}
         </div>
       </Section>

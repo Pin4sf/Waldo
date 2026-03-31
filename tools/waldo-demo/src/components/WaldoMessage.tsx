@@ -62,7 +62,7 @@ export function WaldoMessage({ date, hasStress, onGenerate, response, error, isL
           role: 'waldo',
           content: response.message,
           mode: response.mode as MessageMode,
-          meta: { tokensIn: response.tokensIn, tokensOut: response.tokensOut, responseTimeMs: response.responseTimeMs },
+          meta: { tokensIn: response.tokensIn ?? 0, tokensOut: response.tokensOut ?? 0, responseTimeMs: response.responseTimeMs ?? 0 },
         }];
       });
     }

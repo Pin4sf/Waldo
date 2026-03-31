@@ -135,17 +135,17 @@ export function CrsCard({ data }: Props) {
             <div className="crs-comp-header">
               <span className="crs-comp-name">{c.name} ({c.weight})</span>
               <span className="crs-comp-score">
-                {c.data.dataAvailable ? Math.round(c.data.score) : '—'}
+                {c.data?.dataAvailable ? Math.round(c.data.score) : '—'}
               </span>
             </div>
             <div className="crs-comp-bar">
               <div
-                className={`crs-comp-fill ${getBarZone(c.data.score)}`}
-                style={{ width: c.data.dataAvailable ? `${c.data.score}%` : '0%' }}
+                className={`crs-comp-fill ${getBarZone(c.data?.score ?? 0)}`}
+                style={{ width: c.data?.dataAvailable ? `${c.data.score}%` : '0%' }}
               />
             </div>
             <div className="crs-comp-factors">
-              {c.data.factors.slice(0, 2).join(' · ')}
+              {(c.data?.factors ?? []).slice(0, 2).join(' · ')}
             </div>
           </div>
         ))}

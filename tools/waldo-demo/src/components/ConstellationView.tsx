@@ -18,7 +18,7 @@ interface LearningMilestone {
 interface LearningData {
   milestones: LearningMilestone[];
   totalDaysObserved: number; totalSpotsGenerated: number;
-  dataSources: string[]; intelligenceScore: number; summary: string;
+  dataSources: string[]; connectedSources?: string[]; intelligenceScore: number; summary: string;
 }
 
 interface SpotsApiResponse {
@@ -96,7 +96,40 @@ export function ConstellationView({ onClose }: Props) {
   const W = 1100, H = 580;
 
   useEffect(() => {
-    fetch('/api/spots').then(r => r.json()).then(d => setData(d as SpotsApiResponse)).catch(() => {});
+    const USE_CLOUD = (import.meta as any).env?.VITE_USE_CLOUD !== 'false';
+    if (USE_CLOUD) {
+      import('../supabase-api.js').then(async (api) => {
+        const [spots, summary] = await Promise.all([api.fetchSpots(), api.fetchSummary()]);
+        // Group spots by date
+        const byDate = new Map<string, typeof spots>();
+        const byType: Record<string, number> = {};
+        for (const s of spots) {
+          if (!byDate.has(s.date)) byDate.set(s.date, []);
+          byDate.get(s.date)!.push(s);
+          byType[s.type] = (byType[s.type] ?? 0) + 1;
+        }
+        const grouped = [...byDate.entries()].map(([date, daySpots]) => ({ date, spots: daySpots }));
+        // Build the full SpotsApiResponse shape expected by the component
+        const bySeverity: Record<string, number> = {};
+        for (const s of spots) { bySeverity[s.severity] = (bySeverity[s.severity] ?? 0) + 1; }
+        setData({
+          spots: grouped,
+          patterns: [],
+          stats: { total: spots.length, byType, bySeverity },
+          learning: {
+            intelligenceScore: summary.intelligenceScore ?? 54,
+            totalDaysObserved: summary.totalDays ?? byDate.size,
+            totalSpotsGenerated: spots.length,
+            dataSources: summary.connectedSources ?? ['Apple Health', 'Google Calendar', 'Gmail', 'Google Tasks', 'Google Fit', 'Weather'],
+            connectedSources: summary.connectedSources ?? [],
+            milestones: [],
+            summary: '',
+          },
+        } as unknown as SpotsApiResponse);
+      }).catch((err) => { console.error('[Waldo] Constellation load error:', err); });
+    } else {
+      fetch('/api/spots').then(r => r.json()).then(d => setData(d as SpotsApiResponse)).catch(() => {});
+    }
   }, []);
 
   // Build graph — memoized by filter
@@ -301,7 +334,12 @@ export function ConstellationView({ onClose }: Props) {
     if (hoveredNode !== null && nodesRef.current[hoveredNode]) {
       setSelectedNode(hoveredNode);
       const node = nodesRef.current[hoveredNode]!;
-      fetch(`/api/day/${node.date}`).then(r => r.json()).then(d => setSelectedDayData(d as Record<string, unknown>)).catch(() => {});
+      const USE_CLOUD = (import.meta as any).env?.VITE_USE_CLOUD !== 'false';
+      if (USE_CLOUD) {
+        import('../supabase-api.js').then(api => api.fetchDay(node.date)).then(d => setSelectedDayData(d as unknown as Record<string, unknown>)).catch(() => {});
+      } else {
+        fetch(`/api/day/${node.date}`).then(r => r.json()).then(d => setSelectedDayData(d as Record<string, unknown>)).catch(() => {});
+      }
     }
   }, [hoveredNode]);
 
@@ -362,8 +400,8 @@ export function ConstellationView({ onClose }: Props) {
                 <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>intelligence score</div>
               </div>
               <div style={{ flex: 1, fontSize: 13, lineHeight: 1.6, color: 'var(--text-muted)' }}>
-                <div>{data.learning.totalDaysObserved.toLocaleString()} days observed · {data.learning.totalSpotsGenerated.toLocaleString()} observations</div>
-                <div>Sources: {data.learning.dataSources.join(', ')}</div>
+                <div>{(data.learning.totalDaysObserved ?? 0).toLocaleString()} days observed · {(data.learning.totalSpotsGenerated ?? 0).toLocaleString()} observations</div>
+                <div>Sources: {(data.learning.dataSources ?? data.learning.connectedSources ?? []).join(', ')}</div>
                 <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-dim)' }}>
                   Every new data source multiplies Waldo's intelligence. More sources = exponentially more cross-correlations.
                 </div>
@@ -378,7 +416,7 @@ export function ConstellationView({ onClose }: Props) {
               {/* Vertical line */}
               <div style={{ position: 'absolute', left: 7, top: 4, bottom: 4, width: 2, background: 'var(--border)', borderRadius: 1 }} />
 
-              {data.learning.milestones.map((m, i) => {
+              {(data.learning.milestones ?? []).map((m, i) => {
                 const typeColors: Record<string, string> = {
                   data_source: '#93C5FD', baseline: '#6EE7B7', pattern: '#FCD34D',
                   insight: '#C4B5FD', adaptation: '#F97316', cross_source: '#FCA5A5',
@@ -527,23 +565,23 @@ export function ConstellationView({ onClose }: Props) {
                 <div style={{ background: 'var(--bg-surface)', borderRadius: 10, padding: 14, fontSize: 13 }}>
                   {crs && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Nap Score</span>
-                    <span style={{ fontWeight: 600 }}>{crs['score'] as number} ({crs['zone'] as string})</span>
+                    <span style={{ fontWeight: 600 }}>{String(crs['score'] ?? '—')} ({String(crs['zone'] ?? '—')})</span>
                   </div>}
                   {sleep && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Sleep</span>
-                    <span>{sleep['durationHours'] as number}h · {sleep['efficiency'] as number}%</span>
+                    <span>{String(sleep['durationHours'] ?? '—')}h · {String(sleep['efficiency'] ?? '—')}%</span>
                   </div>}
-                  {strain && (strain['score'] as number) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  {strain && ((strain['score'] as number | undefined) ?? 0) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Strain</span>
-                    <span>{strain['score'] as number}/21</span>
+                    <span>{String(strain['score'] ?? 0)}/21</span>
                   </div>}
                   {cogLoad && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Cognitive Load</span>
-                    <span>{cogLoad['score'] as number}/100 ({cogLoad['level'] as string})</span>
+                    <span>{String(cogLoad['score'] ?? '—')}/100 ({String(cogLoad['level'] ?? '—')})</span>
                   </div>}
                   {activity && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Steps</span>
-                    <span>{(activity['steps'] as number).toLocaleString()}</span>
+                    <span>{((activity['steps'] as number | undefined) ?? 0).toLocaleString()}</span>
                   </div>}
                   {dayAct && (dayAct['morningWag'] as string | null) && (
                     <div style={{ marginTop: 10, padding: 10, background: 'var(--bg)', borderRadius: 6, fontSize: 12, lineHeight: 1.5, borderLeft: '3px solid var(--accent)' }}>

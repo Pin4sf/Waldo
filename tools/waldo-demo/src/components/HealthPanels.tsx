@@ -4,8 +4,10 @@ interface Props {
   data: DayResponse;
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+function formatTime(iso: string | null | undefined): string {
+  if (!iso) return '--:--';
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '--:--' : d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
 const STRAIN_COLORS: Record<string, string> = {
@@ -95,13 +97,15 @@ export function HealthPanels({ data }: Props) {
           </div>
           <div style={{ display: 'flex', gap: 4, marginTop: 12 }}>
             {(['core', 'deep', 'rem', 'awake'] as const).map(stage => {
-              const total = data.sleep!.stages.core + data.sleep!.stages.deep + data.sleep!.stages.rem + data.sleep!.stages.awake;
-              const pct = total > 0 ? (data.sleep!.stages[stage] / total) * 100 : 0;
+              const stages = data.sleep!.stages;
+              const total = (stages?.core ?? 0) + (stages?.deep ?? 0) + (stages?.rem ?? 0) + (stages?.awake ?? 0);
+              const stageVal = stages?.[stage] ?? 0;
+              const pct = total > 0 ? (stageVal / total) * 100 : 0;
               const colors: Record<string, string> = { core: '#93C5FD', deep: '#6366F1', rem: '#A78BFA', awake: '#FCA5A5' };
               return (
                 <div
                   key={stage}
-                  title={`${stage}: ${data.sleep!.stages[stage]}min`}
+                  title={`${stage}: ${stageVal}min`}
                   style={{
                     height: 6,
                     borderRadius: 3,
@@ -114,10 +118,10 @@ export function HealthPanels({ data }: Props) {
             })}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-dim)' }}>
-            <span>Core {data.sleep.stages.core}m</span>
-            <span>Deep {data.sleep.stages.deep}m</span>
-            <span>REM {data.sleep.stages.rem}m</span>
-            <span>Awake {data.sleep.stages.awake}m</span>
+            <span>Core {data.sleep.stages?.core ?? 0}m</span>
+            <span>Deep {data.sleep.stages?.deep ?? 0}m</span>
+            <span>REM {data.sleep.stages?.rem ?? 0}m</span>
+            <span>Awake {data.sleep.stages?.awake ?? 0}m</span>
           </div>
         </div>
       )}
@@ -178,7 +182,7 @@ export function HealthPanels({ data }: Props) {
       </div>
 
       {/* Environment */}
-      {(data.weather || data.avgNoiseDb || data.daylightMinutes > 0 || data.wristTemp) && (
+      {(data.weather || data.avgNoiseDb || (data.daylightMinutes != null && data.daylightMinutes > 0) || data.wristTemp) && (
         <div className="card stagger-5">
           <div className="card-label">Environment</div>
           {data.weather && (
@@ -199,7 +203,7 @@ export function HealthPanels({ data }: Props) {
               <span className="value">{data.avgNoiseDb.toFixed(0)} dB</span>
             </div>
           )}
-          {data.daylightMinutes > 0 && (
+          {data.daylightMinutes != null && data.daylightMinutes > 0 && (
             <div className="metric-row">
               <span className="label">Daylight</span>
               <span className="value">{data.daylightMinutes} min</span>

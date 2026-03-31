@@ -116,10 +116,10 @@ export function MetricsDashboard({ data }: Props) {
           <div style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
             Cognitive load breakdown
           </div>
-          <BarMeter value={data.cognitiveLoad.components.sleepDebtImpact} max={100} color="#F87171" label="Sleep debt" />
-          <BarMeter value={data.cognitiveLoad.components.meetingLoad} max={100} color="#FBBF24" label="Meetings" />
-          <BarMeter value={data.cognitiveLoad.components.communicationLoad} max={100} color="#93C5FD" label="Email" />
-          <BarMeter value={data.cognitiveLoad.components.taskLoad} max={100} color="#C4B5FD" label="Tasks" />
+          <BarMeter value={data.cognitiveLoad.components?.sleepDebtImpact ?? 0} max={100} color="#F87171" label="Sleep debt" />
+          <BarMeter value={data.cognitiveLoad.components?.meetingLoad ?? 0} max={100} color="#FBBF24" label="Meetings" />
+          <BarMeter value={data.cognitiveLoad.components?.communicationLoad ?? 0} max={100} color="#93C5FD" label="Email" />
+          <BarMeter value={data.cognitiveLoad.components?.taskLoad ?? 0} max={100} color="#C4B5FD" label="Tasks" />
         </div>
       )}
 
@@ -168,7 +168,7 @@ export function MetricsDashboard({ data }: Props) {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Volume</span>
-                <span>{data.email.volumeSpike.toFixed(1)}x normal</span>
+                <span>{(data.email.volumeSpike ?? 1).toFixed(1)}x normal</span>
               </div>
             </div>
           </div>
@@ -182,8 +182,8 @@ export function MetricsDashboard({ data }: Props) {
           <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
             <div><span style={{ fontWeight: 700, fontSize: 18 }}>{data.tasks.pendingCount}</span> <span style={{ color: 'var(--text-muted)' }}>pending</span></div>
             <div><span style={{ fontWeight: 700, fontSize: 18, color: data.tasks.overdueCount > 5 ? '#991B1B' : 'var(--text)' }}>{data.tasks.overdueCount}</span> <span style={{ color: 'var(--text-muted)' }}>overdue</span></div>
-            <div><span style={{ fontWeight: 700, fontSize: 18 }}>{data.tasks.recentVelocity.toFixed(1)}</span> <span style={{ color: 'var(--text-muted)' }}>tasks/day</span></div>
-            <div><span style={{ fontWeight: 700, fontSize: 18 }}>{data.tasks.completionRate}%</span> <span style={{ color: 'var(--text-muted)' }}>done</span></div>
+            <div><span style={{ fontWeight: 700, fontSize: 18 }}>{(data.tasks.recentVelocity ?? 0).toFixed(1)}</span> <span style={{ color: 'var(--text-muted)' }}>tasks/day</span></div>
+            <div><span style={{ fontWeight: 700, fontSize: 18 }}>{Math.round((data.tasks.completionRate ?? 0) * 100)}%</span> <span style={{ color: 'var(--text-muted)' }}>done</span></div>
           </div>
         </div>
       )}

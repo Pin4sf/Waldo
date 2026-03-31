@@ -8,7 +8,11 @@ import { MetricsDashboard } from './components/MetricsDashboard.js';
 import { WaldoIntelligence } from './components/WaldoIntelligence.js';
 import { Onboarding } from './components/Onboarding.js';
 import { ConstellationView } from './components/ConstellationView.js';
+import * as cloud from './supabase-api.js';
 import type { DateEntry, DayResponse, WaldoResponse, WaldoError, MessageMode, SummaryResponse } from './types.js';
+
+// Use Supabase cloud API by default, fallback to local API server
+const USE_CLOUD = (import.meta as any).env?.VITE_USE_CLOUD !== 'false';
 
 export function App() {
   const [dates, setDates] = useState<DateEntry[]>([]);
@@ -26,42 +30,63 @@ export function App() {
 
   // Load dates + summary on mount
   useEffect(() => {
-    let retries = 0;
-    const maxRetries = 8; // API takes ~8s to start (XML parse + weather)
-
-    function tryConnect() {
+    if (USE_CLOUD) {
+      // Supabase cloud mode — no local server needed
       Promise.all([
-        fetch('/api/dates').then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); }),
-        fetch('/api/summary').then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); }),
-        fetch('/api/profile').then(r => r.json()).catch(() => ({ onboardingComplete: false })),
-      ]).then(([datesData, summaryData, profileData]) => {
-        setDates(datesData as DateEntry[]);
-        setSummary(summaryData as SummaryResponse);
+        cloud.fetchDates(),
+        cloud.fetchSummary(),
+      ]).then(([datesData, summaryData]) => {
+        setDates(datesData);
+        setSummary(summaryData as unknown as SummaryResponse);
         setIsInitializing(false);
         setApiError(null);
 
-        // Check if onboarding is needed
-        const profile = profileData as { onboardingComplete: boolean };
-        if (!profile.onboardingComplete) {
-          setShowOnboarding(true);
-        }
-
-        const rich = (datesData as DateEntry[]).filter(d => d.hasSleep && d.hasHrv);
+        const rich = datesData.filter(d => d.hasSleep && d.hasHrv);
         if (rich.length > 0) {
           setSelectedDate(rich[rich.length - 1]!.date);
         }
-      }).catch(() => {
-        retries++;
-        if (retries < maxRetries) {
-          setTimeout(tryConnect, 2000);
-        } else {
-          setIsInitializing(false);
-          setApiError('Could not connect to the Waldo API server on port 3737. Make sure to start it first.');
-        }
+      }).catch((err) => {
+        setIsInitializing(false);
+        setApiError(`Cloud connection failed: ${err instanceof Error ? err.message : String(err)}`);
       });
-    }
+    } else {
+      // Local API server mode (original behavior)
+      let retries = 0;
+      const maxRetries = 8;
 
-    tryConnect();
+      function tryConnect() {
+        Promise.all([
+          fetch('/api/dates').then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); }),
+          fetch('/api/summary').then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); }),
+          fetch('/api/profile').then(r => r.json()).catch(() => ({ onboardingComplete: false })),
+        ]).then(([datesData, summaryData, profileData]) => {
+          setDates(datesData as DateEntry[]);
+          setSummary(summaryData as SummaryResponse);
+          setIsInitializing(false);
+          setApiError(null);
+
+          const profile = profileData as { onboardingComplete: boolean };
+          if (!profile.onboardingComplete) {
+            setShowOnboarding(true);
+          }
+
+          const rich = (datesData as DateEntry[]).filter(d => d.hasSleep && d.hasHrv);
+          if (rich.length > 0) {
+            setSelectedDate(rich[rich.length - 1]!.date);
+          }
+        }).catch(() => {
+          retries++;
+          if (retries < maxRetries) {
+            setTimeout(tryConnect, 2000);
+          } else {
+            setIsInitializing(false);
+            setApiError('Could not connect to the Waldo API server on port 3737. Make sure to start it first.');
+          }
+        });
+      }
+
+      tryConnect();
+    }
   }, []);
 
   // Load day data when date changes
@@ -71,13 +96,23 @@ export function App() {
     setWaldoResponse(null);
     setWaldoError(null);
 
-    fetch(`/api/day/${selectedDate}`)
-      .then(r => r.json())
-      .then(data => {
-        setDayData(data as DayResponse);
-        setIsLoadingDay(false);
-      })
-      .catch(() => setIsLoadingDay(false));
+    if (USE_CLOUD) {
+      cloud.fetchDay(selectedDate)
+        .then(data => {
+          console.log('[Waldo] Day data loaded:', selectedDate, data?.crs?.score);
+          setDayData(data);
+          setIsLoadingDay(false);
+        })
+        .catch((err) => {
+          console.error('[Waldo] fetchDay error:', err);
+          setIsLoadingDay(false);
+        });
+    } else {
+      fetch(`/api/day/${selectedDate}`)
+        .then(r => r.json())
+        .then(data => { setDayData(data as DayResponse); setIsLoadingDay(false); })
+        .catch(() => setIsLoadingDay(false));
+    }
   }, [selectedDate]);
 
   // Generate Waldo response
@@ -87,29 +122,30 @@ export function App() {
     setWaldoError(null);
 
     try {
-      const res = await fetch('/api/waldo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate, mode, question }),
-      });
-      const data = await res.json() as WaldoResponse | WaldoError;
+      let data: WaldoResponse | WaldoError;
+
+      if (USE_CLOUD) {
+        data = await cloud.callWaldo(selectedDate, mode, question);
+      } else {
+        const res = await fetch('/api/waldo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: selectedDate, mode, question }),
+        });
+        data = await res.json() as WaldoResponse | WaldoError;
+      }
 
       if ('error' in data) {
-        const msg = data.error.includes('authentication')
-          ? 'Set ANTHROPIC_API_KEY on the API server to enable Claude responses.'
-          : data.error;
-        setWaldoError(msg);
-        // Still save debug info if available
-        if (data.debug) {
-          setWaldoResponse({ message: '', zone: '', mode, tokensIn: 0, tokensOut: 0, responseTimeMs: 0, debug: { ...data.debug, model: 'claude-haiku-4-5' } });
-        }
+        setWaldoError(data.error);
       } else {
         setWaldoResponse(data);
         setWaldoError(null);
       }
       return data;
     } catch (err) {
-      const msg = 'Failed to connect to API. Is the API server running on port 3737?';
+      const msg = USE_CLOUD
+        ? `Cloud agent error: ${err instanceof Error ? err.message : String(err)}`
+        : 'Failed to connect to local API server on port 3737.';
       setWaldoError(msg);
       return { error: msg };
     } finally {
@@ -125,9 +161,9 @@ export function App() {
             <span className="loading-dot" />
             <span className="loading-dot" />
             <span className="loading-dot" />
-            <span>Connecting to Waldo API...</span>
+            <span>{USE_CLOUD ? 'Connecting to Waldo Cloud...' : 'Connecting to Waldo API...'}</span>
           </div>
-          <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Parsing Ark's health export (~2s)</span>
+          <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{USE_CLOUD ? 'Loading from Supabase' : 'Parsing Ark\'s health export (~2s)'}</span>
         </div>
       </div>
     );

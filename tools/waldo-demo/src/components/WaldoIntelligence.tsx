@@ -51,7 +51,7 @@ export function WaldoIntelligence({ actions, patterns, dayActivity }: Props) {
                   lineHeight: '20px',
                   fontWeight: 700,
                 }}>
-                  {SPOT_ICONS[spot.type]}
+                  {SPOT_ICONS[spot.type] ?? '?'}
                 </span>
                 <div style={{ flex: 1, lineHeight: 1.5 }}>
                   <span style={{ fontWeight: 500, color: 'var(--text)' }}>{spot.title}</span>
