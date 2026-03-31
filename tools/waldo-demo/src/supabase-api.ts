@@ -158,7 +158,23 @@ export async function fetchDay(date: string): Promise<DayResponse> {
       recentVelocity: taskMetrics.velocity,
       completionRate: taskMetrics.completion_rate,
     } : null,
-    cognitiveLoad: masterMetrics?.cognitive_load ?? null,
+    cognitiveLoad: masterMetrics?.cognitive_load ? (() => {
+      const cl = masterMetrics.cognitive_load;
+      // Fix NaN/null score — recompute from available components
+      const components = cl.components ?? {};
+      const vals = [components.sleepDebtImpact, components.meetingLoad, components.communicationLoad, components.taskLoad].filter((v: any) => v !== null && v !== undefined && !isNaN(v));
+      const computedScore = vals.length > 0 ? Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length) : null;
+      return {
+        ...cl,
+        score: (cl.score !== null && cl.score !== undefined && !isNaN(cl.score)) ? cl.score : computedScore,
+        components: {
+          sleepDebtImpact: components.sleepDebtImpact ?? 0,
+          meetingLoad: components.meetingLoad ?? 0,
+          communicationLoad: components.communicationLoad ?? 0,
+          taskLoad: components.taskLoad ?? 0,
+        },
+      };
+    })() : null,
     burnoutTrajectory: null,
     resilience: null,
     crossSourceInsights: masterMetrics?.cross_source_insights ?? [],
@@ -229,6 +245,32 @@ export async function fetchSpots(): Promise<SpotData[]> {
     title: s.title,
     detail: s.detail,
     signals: s.signals ?? [],
+  }));
+}
+
+/** Fetch learning timeline (milestones, intelligence score) */
+export async function fetchLearningTimeline() {
+  const { data } = await supabase.from('learning_timeline').select('*').eq('user_id', DEMO_USER_ID).maybeSingle();
+  return {
+    intelligenceScore: data?.intelligence_score ?? 0,
+    totalDaysObserved: data?.total_days ?? 0,
+    totalSpotsGenerated: data?.total_observations ?? 0,
+    dataSources: data?.connected_sources ?? [],
+    connectedSources: data?.connected_sources ?? [],
+    milestones: data?.milestones ?? [],
+    summary: '',
+  };
+}
+
+/** Fetch patterns for constellation */
+export async function fetchPatterns() {
+  const { data } = await supabase.from('patterns').select('*').eq('user_id', DEMO_USER_ID);
+  return (data ?? []).map((p: any) => ({
+    id: p.id,
+    type: p.type,
+    confidence: p.confidence,
+    summary: p.summary,
+    evidenceCount: p.evidence_count,
   }));
 }
 

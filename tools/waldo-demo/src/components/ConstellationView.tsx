@@ -99,31 +99,30 @@ export function ConstellationView({ onClose }: Props) {
     const USE_CLOUD = (import.meta as any).env?.VITE_USE_CLOUD !== 'false';
     if (USE_CLOUD) {
       import('../supabase-api.js').then(async (api) => {
-        const [spots, summary] = await Promise.all([api.fetchSpots(), api.fetchSummary()]);
+        const [spots, learning, patterns] = await Promise.all([
+          api.fetchSpots(),
+          api.fetchLearningTimeline(),
+          api.fetchPatterns(),
+        ]);
         // Group spots by date
         const byDate = new Map<string, typeof spots>();
         const byType: Record<string, number> = {};
+        const bySeverity: Record<string, number> = {};
         for (const s of spots) {
           if (!byDate.has(s.date)) byDate.set(s.date, []);
           byDate.get(s.date)!.push(s);
           byType[s.type] = (byType[s.type] ?? 0) + 1;
+          bySeverity[s.severity] = (bySeverity[s.severity] ?? 0) + 1;
         }
         const grouped = [...byDate.entries()].map(([date, daySpots]) => ({ date, spots: daySpots }));
-        // Build the full SpotsApiResponse shape expected by the component
-        const bySeverity: Record<string, number> = {};
-        for (const s of spots) { bySeverity[s.severity] = (bySeverity[s.severity] ?? 0) + 1; }
         setData({
           spots: grouped,
-          patterns: [],
+          patterns,
           stats: { total: spots.length, byType, bySeverity },
           learning: {
-            intelligenceScore: summary.intelligenceScore ?? 54,
-            totalDaysObserved: summary.totalDays ?? byDate.size,
+            ...learning,
             totalSpotsGenerated: spots.length,
-            dataSources: summary.connectedSources ?? ['Apple Health', 'Google Calendar', 'Gmail', 'Google Tasks', 'Google Fit', 'Weather'],
-            connectedSources: summary.connectedSources ?? [],
-            milestones: [],
-            summary: '',
+            totalDaysObserved: learning.totalDaysObserved || byDate.size,
           },
         } as unknown as SpotsApiResponse);
       }).catch((err) => { console.error('[Waldo] Constellation load error:', err); });
