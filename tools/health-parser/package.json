@@ -9,11 +9,14 @@
     "parse": "tsx src/index.ts parse",
     "demo": "tsx src/index.ts demo",
     "typecheck": "tsc --noEmit",
-    "api": "tsx src/api.ts"
+    "api": "tsx src/api.ts",
+    "seed": "tsx src/seed-supabase.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@supabase/supabase-js": "^2.101.0",
     "chalk": "^5.4.1",
+    "dotenv": "^17.3.1",
     "saxes": "^6.0.0",
     "zod": "^3.24.0"
   },
