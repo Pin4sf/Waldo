@@ -152,21 +152,31 @@ No "optimize." No "journey." No motivational filler.
 10. Evening review — close the loop on the day
 11. Weekend forecast — recovery prediction
 
+### Task intelligence (Waldo plans your work)
+Waldo never blocks a task. Deadlines are real. Waldo adapts HOW you get it done.
+12. Deadline-aware prioritization — urgency × importance × energy fit
+13. Smart sequencing — hardest at peak, momentum starters when depleted
+14. Break-it-down — "25-min chunks with 5-min breaks. Start with what you know."
+15. Overdue triage — "Pick 3 that matter. Defer, delegate, or delete the rest."
+16. Recurring task surfacing — "It's Monday. Workout: Legs. CRS 71. Good to go?"
+17. Deferral intelligence — "Due tomorrow. At 38 today, predicted 68 tomorrow. Hit it fresh?"
+18. Implicit task capture — detects follow-ups from meetings and stale emails
+19. Completion tracking — learns which energy states are productive for you
+
 ### Automation (Waldo acts on your behalf)
-12. Task scheduling — hard tasks at CRS peak, admin at trough
-13. Meeting suggestions — "Push 8am to 10am, CRS jumps 16 points"
-14. Auto-DND — Slack status during focus blocks or low CRS
-15. Recovery days — light calendar + low CRS = recovery enforced
-16. Communication batching — "Email in 2 blocks, not continuous"
-17. Sleep coaching — "Screen off by 10:30. Phone in other room."
+20. Meeting suggestions — "Push 8am to 10am, predicted CRS jumps 16 points"
+21. Auto-DND — Slack status during focus blocks or low CRS
+22. Recovery days — light calendar + low CRS = recovery enforced
+23. Communication batching — "Email in 2 blocks, not continuous"
+24. Sleep coaching — "Screen off by 10:30. Phone in other room."
 
 ### Learning (Waldo gets smarter over time)
-18. Meeting → stress correlation
-19. Music → mood → next-day CRS
-20. Email after 10pm → sleep efficiency drop
-21. Screen time → recovery correlation
-22. Exercise 3x/week → CRS 12 points higher
-23. Task completion timing vs energy state
+25. Meeting → stress correlation
+26. Music → mood → next-day CRS
+27. Email after 10pm → sleep efficiency drop
+28. Screen time → recovery correlation
+29. Exercise 3x/week → CRS 12 points higher
+30. Task completion timing vs energy state
 
 ---
 

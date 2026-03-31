@@ -1263,18 +1263,46 @@ Supersedes: None
 | You forget to take a break for 4 hours | Agent messages: "You've been in back-to-back meetings since 1pm. 5 min break?" |
 | You say yes to a 7pm meeting | Agent knows this disrupts your sleep pattern — suggests an alternative time |
 
+### Task Intelligence — Adapt the HOW, Never Block the WHAT
+
+> **Core principle:** Waldo never says "don't do this task." Deadlines are real. Waldo helps the user get it done in the smartest way possible given their biological state.
+
+**Deadline-aware priority formula:**
+```
+Priority = (urgency × 0.4) + (importance × 0.3) + (energy_fit × 0.3)
+```
+A task due today has urgency 1.0 — it ALWAYS surfaces, even if energy_fit is 0.2. Waldo adapts the approach, not the deadline.
+
+**Smart sequencing by CRS zone:**
+
+| CRS | Waldo's approach |
+|-----|-----------------|
+| 80+ | Hardest task first. "Knock it out before noon." |
+| 60-79 | Front-load important work. Admin after lunch. |
+| 40-59 | Break into 25-min chunks with 5-min micro-resets. Start with the easiest section. |
+| <40 | One tiny activation task first ("reply to one message"). Then decide on the bigger stuff. |
+
+**Key behaviors:**
+- **Break-it-down:** Hard task + low CRS → "25-min chunks, start with what you know, good enough beats perfect"
+- **Overdue triage:** >10 overdue → "Pick 3 that matter. Defer, delegate, or delete the rest."
+- **Smart deferral:** Only when flexibility exists AND predicted tomorrow CRS is significantly better
+- **Recurring detection:** "It's Monday. Your list says 'Workout: Legs (5:15)'. CRS 71. Good to go?"
+- **Completion tracking:** Learns which energy states are productive for this specific user
+- **Implicit capture:** Detects follow-ups from calendar events, stale email threads, recurring patterns
+
 ### Task Agent Tools (Phase 2+)
 
 | Tool | What It Does | Body-Aware Enhancement |
 |------|-------------|----------------------|
 | `get_calendar` | Read today/tomorrow's schedule | Overlay CRS predictions on each time slot |
 | `block_time` | Block focus/recovery time | Auto-block when CRS is predicted to dip |
-| `prioritize_tasks` | Rerank task list | CRS-aware: hard tasks during peak, admin during dip |
+| `prioritize_tasks` | Rerank task list | Deadline-aware: urgency × importance × energy_fit |
+| `sequence_day` | Plan task order for the day | Hardest at peak, admin at trough, momentum starter when depleted |
 | `get_emails` | Surface urgent emails | Include in Morning Wag: "3 emails need response before 11am" |
 | `set_slack_status` | Auto-DND / custom status | "In deep work — back at 2pm" when CRS is in peak zone |
-| `reschedule` | Move meetings | "Your CRS will be 38 at 4pm — move the strategy session to tomorrow morning?" |
-| `create_task` | Add to task manager | Break goals into CRS-aware daily tasks |
-| `delegate_task` | Reassign work | "You're depleted today. Can this be delegated?" |
+| `reschedule` | Move meetings | "Push 8am to 10am — predicted CRS jumps 52 → 68" |
+| `break_down_task` | Split large task into chunks | "3 chunks of 25 min. Section 1: the part you know. Section 3: the hard part." |
+| `defer_with_prediction` | Suggest deferral with CRS forecast | "Due tomorrow. At 38 today, predicted 68 tomorrow. Hit it fresh?" |
 
 ### The Unified Morning Wag (Health + Tasks)
 

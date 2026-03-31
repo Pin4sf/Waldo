@@ -215,19 +215,29 @@ C(10,2)=45 pairs, C(10,3)=120 triples. Total: 375 unique correlations.
 10. Evening review (all dimensions)
 11. Weekend recovery forecast
 
-### Automation (Waldo acts) — 6
-12. Task scheduling by CRS-optimal timing
-13. Meeting rescheduling suggestions
-14. Auto-DND on Slack during focus/low-CRS
-15. Recovery day enforcement
-16. Communication batching
-17. Sleep optimization (screen time nudge)
+### Task intelligence (Waldo plans your work) — 8
+Waldo never blocks tasks. Adapts HOW, not WHETHER. Deadlines are real.
+12. Deadline-aware prioritization (urgency × importance × energy_fit)
+13. Smart sequencing (hardest at peak, momentum starters when depleted)
+14. Break-it-down (25-min chunks with micro-resets for low-CRS + deadline)
+15. Overdue triage ("pick 3, defer the rest")
+16. Recurring task surfacing from day-of-week patterns
+17. Deferral intelligence with predicted tomorrow CRS
+18. Implicit task capture (calendar follow-ups, stale email threads)
+19. Completion tracking (learns productive energy states per user)
+
+### Automation (Waldo acts) — 5
+20. Meeting rescheduling suggestions
+21. Auto-DND on Slack during focus/low-CRS
+22. Recovery day enforcement
+23. Communication batching
+24. Sleep optimization (screen time nudge)
 
 ### Learning (Waldo gets smarter) — 6
-18. Meeting → stress correlation
-19. Music → mood → CRS link
-20. Coding time vs cognitive state
-21. Email → sleep causation
+25. Meeting → stress correlation
+26. Music → mood → CRS link
+27. Coding time vs cognitive state
+28. Email → sleep causation
 22. Screen time → recovery correlation
 23. Task completion timing patterns
 
