@@ -175,8 +175,8 @@ export async function fetchDay(date: string): Promise<DayResponse> {
         },
       };
     })() : null,
-    burnoutTrajectory: null,
-    resilience: null,
+    burnoutTrajectory: masterMetrics?.burnout_trajectory ?? null,
+    resilience: masterMetrics?.resilience ?? null,
     crossSourceInsights: masterMetrics?.cross_source_insights ?? [],
     patterns: (patterns ?? []).map((p: any) => ({
       id: p.id,

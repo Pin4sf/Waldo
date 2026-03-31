@@ -362,11 +362,30 @@ async function main() {
       debt,
     );
 
+    // Fix cognitive load NaN score
+    if (cogLoad && (cogLoad.score === null || isNaN(cogLoad.score as number))) {
+      const comps = cogLoad.components as Record<string, number | null>;
+      const vals = Object.values(comps).filter((v): v is number => v !== null && !isNaN(v));
+      (cogLoad as any).score = vals.length > 0 ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+    }
+
+    // Compute burnout trajectory (needs 14+ days of data)
+    const burnout = computeBurnoutTrajectory(
+      date, days, allCrs,
+      calendarData,
+      emailIntelligence?.dailyMetrics ?? null,
+    );
+
+    // Compute resilience (needs 14+ days of CRS data)
+    const resilience = computeResilience(date, allCrs, days);
+
     masterRows.push({
       user_id: userId, date,
       cognitive_load: cogLoad,
       strain: strain,
       sleep_debt: debt,
+      burnout_trajectory: burnout,
+      resilience: resilience,
     });
   }
   n = await upsertBatch('master_metrics', masterRows, 'user_id,date');
