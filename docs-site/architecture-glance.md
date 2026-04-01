@@ -17,19 +17,22 @@ graph TB
         CRS -->|Score 0-100| SYNC["Supabase Sync"]
     end
 
-    subgraph Cloud["Supabase Backend"]
+    subgraph Cloud["Supabase (Health Data)"]
         SYNC -->|health_snapshots| PG["Postgres + RLS"]
-        CRON["pg_cron<br/>(every 15 min)"] -->|check-triggers| EF["Edge Function"]
-        EF -->|Rules Pre-Filter| DECIDE{CRS > 60 AND<br/>confidence < 0.3?}
+    end
+
+    subgraph DO["Cloudflare Durable Object (Phase D+)"]
+        PG -->|REST API| DOSQL["DO SQLite<br/>(5-tier memory)"]
+        ALARM["DO Alarms<br/>(per-user schedule)"] -->|wake| DECIDE{CRS > 60 AND<br/>confidence < 0.3?}
         DECIDE -->|Yes: SKIP| LOG["Log Only<br/>($0)"]
         DECIDE -->|No: INVOKE| AGENT["Agent Loop"]
     end
 
     subgraph AgentCore["Agent Core"]
         AGENT -->|Prompt Builder<br/>25 fields| HAIKU["Claude Haiku 4.5<br/>(Messages API + tool_use)"]
-        HAIKU -->|Tool calls| TOOLS["8 MVP Tools"]
-        TOOLS -->|Results| HAIKU
-        HAIKU -->|Max 3 iterations<br/>50s timeout| RESPONSE["Generated Message"]
+        HAIKU -->|Tool calls<br/>reads parallel, writes serial| TOOLS["8 MVP Tools"]
+        TOOLS -->|Results<br/>compressed >500 tok| HAIKU
+        HAIKU -->|Max 3 iterations| RESPONSE["Generated Message"]
     end
 
     subgraph Delivery["Delivery + Feedback"]
@@ -47,7 +50,7 @@ graph TB
     style Delivery fill:#e0f2fe,stroke:#0ea5e9
 ```
 
-## 10 Locked Architecture Decisions
+## 11 Locked Architecture Decisions
 
 | # | Decision | Why |
 |---|---------|-----|
@@ -61,6 +64,7 @@ graph TB
 | 8 | On-phone CRS computation | Offline-capable, no server round-trip |
 | 9 | Rules-based pre-filter before Claude | Saves 60-80% of API calls |
 | 10 | op-sqlite + SQLCipher | AES-256 encrypted local health data |
+| 11 | **Cloudflare Durable Objects for Phase D+** | Per-user persistent agent brain with SQLite, scheduling, WebSocket. Health data stays in Supabase. |
 
 ## The 8 MVP Tools
 
@@ -92,6 +96,37 @@ graph LR
 | Morning brief | get_crs, get_sleep, read_memory, send_message | ~$0.003 |
 | User reply | All 8 tools available | ~$0.004 |
 | AI onboarding interview | get_user_profile, update_memory, send_message | ~$0.01 (one-time) |
+
+## 10-Hook Pipeline (Enhanced with Session 4 Additions)
+
+```mermaid
+graph TD
+    subgraph Pre["Pre-Reasoning (before Claude call)"]
+        H1["1. Emergency Bypass<br/>(chest pain, suicidal → instant escape)"]
+        H1B["1.5 Frustration Regex<br/>(detect wtf/ffs/horrible → shift zone)"]
+        H2["2. Quality Gates<br/>(data sufficiency, timing, fatigue)"]
+        H3["3. Context Injection<br/>(fresh CRS, calendar, session_state)"]
+        H4["4. Micro-Compaction<br/>(prune dupes, truncate >500 tok)"]
+        H5["5. Rate Limit Check"]
+    end
+
+    subgraph Post["Post-Reasoning (before delivery)"]
+        H6["6. Health Language Safety<br/>(no diagnosis, no 'you are stressed')"]
+        H7["7. Confidence Check<br/>(Fetch: ≥0.60, patterns: ≥3 data points)"]
+        H8["8. Loop Guard<br/>(SHA256 duplicate detection)"]
+        H9["9. Memory Update + Verify<br/>(persist facts, verify before assert)"]
+        H10["10. Clean State Exit<br/>(trace logged, session_state updated,<br/>no orphaned state)"]
+    end
+
+    H1 --> H1B --> H2 --> H3 --> H4 --> H5
+    H5 -->|Claude call| H6
+    H6 --> H7 --> H8 --> H9 --> H10
+
+    style Pre fill:#fef3c7,stroke:#f59e0b
+    style Post fill:#dcfce7,stroke:#22c55e
+```
+
+**New in Session 4:** Hook 1.5 (frustration regex), Hook 3 loads `session_state` from DO, Hook 9 verifies memory against fresh data, Hook 10 ensures clean state exit.
 
 ## AI Onboarding Interview
 
@@ -306,3 +341,136 @@ Token budget is **dynamic per trigger** — the agent gets as much context as it
 | Constellation | 10,000 | Weeks of cross-correlated patterns |
 
 Cost control comes from **prompt caching** (cached tokens cost 0.1x) and the **rules pre-filter** (60-80% of checks skip Claude entirely) — not from limiting context.
+
+**Updated cost with all Session 4 optimizations:**
+
+| Cost Component | Per User/Month | Notes |
+|---|---|---|
+| Cloudflare DO infrastructure | ~$0.01 | Hibernation keeps this negligible |
+| LLM (Claude Haiku) | $0.30-0.90 | 5-20 calls/day with pre-filter + caching |
+| **Total** | **$0.31-0.91** | Revenue at Rs 399/mo ($4.34) = **73%+ margin** |
+
+## 5-Tier Memory Architecture (Session 4 — Finalized)
+
+Mapped to cognitive science. Tiers 1-3 live in Cloudflare DO's SQLite (per-user, <1ms access). Tier 4 in Supabase pgvector.
+
+```mermaid
+graph TB
+    subgraph T0["Tier 0: Working Memory<br/>(Context Window — Volatile)"]
+        W0["Current conversation + tool results<br/>Rebuilt each invocation. 4K-10K tokens."]
+    end
+
+    subgraph T1["Tier 1: Semantic Memory<br/>(DO SQLite — Always Loaded)"]
+        S1["Identity, health profile, preferences<br/>Active goals, recent Spots<br/>~200 tokens, structured blocks"]
+    end
+
+    subgraph T2["Tier 2: Episodic Memory<br/>(DO SQLite — On-Demand)"]
+        E1["Conversation logs, daily observations<br/>Feedback signals, pending followups<br/>7d full → 30d summary → 90d archive"]
+    end
+
+    subgraph T3["Tier 3: Procedural Memory<br/>(DO SQLite — Phase G)"]
+        P1["Evolution entries, intervention effectiveness<br/>Learned skills (Phase 3)"]
+    end
+
+    subgraph T4["Tier 4: Archival / Constellation<br/>(Supabase pgvector — Phase 2)"]
+        A1["Embeddings + bi-temporal knowledge graph<br/>Months of Spots connected"]
+    end
+
+    T0 -.->|reads| T1 & T2
+    T2 -->|consolidation| T1
+    T2 -->|signals| T3
+    T2 -->|archive >90d| T4
+
+    style T0 fill:#f1f5f9,stroke:#94a3b8
+    style T1 fill:#dcfce7,stroke:#22c55e
+    style T2 fill:#fef3c7,stroke:#f59e0b
+    style T3 fill:#eef2ff,stroke:#6366f1
+    style T4 fill:#fce7f3,stroke:#ec4899
+```
+
+> Raw health values NEVER enter DO SQLite. Only derived insights.
+
+## Three-Stage Context Compaction (From Claude Code)
+
+```mermaid
+graph LR
+    S1["Stage 1: Micro<br/>(FREE — every turn)<br/>Prune duplicates,<br/>truncate >500 tok"] --> S2["Stage 2: Session<br/>(CHEAP — during chat)<br/>Agent calls update_memory<br/>to persist key facts"]
+    S2 --> S3["Stage 3: Full LLM<br/>(EXPENSIVE — Patrol only)<br/>9-section structured<br/>summary overnight"]
+
+    style S1 fill:#dcfce7,stroke:#22c55e
+    style S2 fill:#fef3c7,stroke:#f59e0b
+    style S3 fill:#fce7f3,stroke:#ec4899
+```
+
+## Concurrent Tool Execution (From Claude Code)
+
+Read-only tools run in **parallel**. Write tools run **serially**. Cuts tool execution from ~900ms to ~300ms.
+
+```mermaid
+graph TB
+    CLAUDE["Claude returns<br/>3 tool calls"] --> PARTITION{"Partition by<br/>read/write"}
+
+    PARTITION -->|"Read-only"| PARALLEL["Run in parallel"]
+    PARALLEL --> R1["get_crs<br/>~100ms"]
+    PARALLEL --> R2["get_sleep<br/>~100ms"]
+    PARALLEL --> R3["get_activity<br/>~100ms"]
+
+    PARTITION -->|"Write"| SERIAL["Run serially"]
+    SERIAL --> W1["update_memory"]
+    SERIAL --> W2["send_message"]
+
+    R1 & R2 & R3 --> RESULTS["All results<br/>~300ms total"]
+    W1 --> W2
+    W2 --> RESULTS
+
+    style PARALLEL fill:#dcfce7,stroke:#22c55e
+    style SERIAL fill:#fef3c7,stroke:#f59e0b
+```
+
+## Patrol Agent — Sleep-Time Compute (Phase G)
+
+Nightly background consolidation via DO alarm. Pre-stages Morning Wag. Result: **<3 second delivery** when user wakes.
+
+```mermaid
+graph LR
+    ALARM["DO Alarm<br/>(2 AM)"] --> GATE{"≥24h AND<br/>≥3 sessions?"}
+    GATE -->|No| SLEEP["Hibernate"]
+    GATE -->|Yes| P1["Orient:<br/>Read memory"]
+    P1 --> P2["Gather:<br/>Scan for patterns,<br/>corrections, feedback"]
+    P2 --> P3["Consolidate:<br/>Promote patterns,<br/>decay old, compress"]
+    P3 --> P4["Pre-stage:<br/>Compute CRS,<br/>fetch weather,<br/>cache Morning Wag"]
+    P4 --> SLEEP
+
+    style ALARM fill:#eef2ff,stroke:#6366f1
+    style P4 fill:#dcfce7,stroke:#22c55e
+```
+
+## Buddy System — Waldo Moods (Phase F-G)
+
+Waldo is not an assistant. Waldo is a **buddy**. The dalmatian's visual state reflects your health.
+
+| CRS Zone | Waldo's Mood | Visual |
+|----------|-------------|--------|
+| 80+ (Energized) | Excited | Tail wagging, running |
+| 60-79 (Steady) | Happy | Calm, sitting |
+| 40-59 (Flagging) | Concerned | Ears back, watching |
+| <40 (Depleted) | Gentle | Curled up, sleeping |
+| No data | Curious | Tilted head |
+
+**Gamification:** 7-day streak → hat. 30-day → golden collar. 100 Spots → Constellation Waldo. 1% daily shiny chance.
+**Buddy stats = YOUR stats:** SLEEP, RECOVERY, CONSISTENCY, STRESS_MGMT, SELF_AWARENESS.
+**Deterministic quirks** from `hash(user_id)` — your Waldo feels uniquely yours.
+
+## Waldo as MCP Server — Ecosystem Strategy (Phase 2)
+
+```mermaid
+graph LR
+    CURSOR["Cursor"] & LINDY["Lindy"] & CC["Claude Code"] & SLACK["Slack Bot"] -->|MCP query| API["Waldo MCP Server"]
+    API -->|getCRS| R1["CRS: 82"]
+    API -->|getCognitiveWindow| R2["Peak: 9-11am"]
+    API -->|shouldScheduleNow| R3["Yes — sharp"]
+
+    style API fill:#fef3c7,stroke:#f59e0b
+```
+
+> **97M MCP installs.** Waldo becomes the biological intelligence layer under every other agent.

@@ -82,9 +82,19 @@ Every agent built today — Lindy, Manus, OpenClaw, Perplexity — is a brain wi
 
 Oura locks HRV inside its app. WHOOP locks recovery behind a $30/mo paywall. Garmin locks Body Battery in its ecosystem. Health Connect was supposed to free this data, but OEMs deliberately withhold their best metrics. Waldo is the intelligence layer that sits on top of whatever data is available — from raw IBI streaming on Samsung Sensor SDK to basic HR from a budget Xiaomi band — and makes it actually useful. Device-agnostic by design. The score adapts its confidence to what it has.
 
-**5. The window is real but closing.**
+**5. The window is real and narrowing fast.**
 
-WHOOP Coach has proactive nudges (GPT-4 powered) — but they're **confirmed in-app only** (no Telegram, WhatsApp, or SMS delivery). WHOOP remains device-locked at $199-359/year. Nori (YC F25, strong founders with 2x exits) is the closest competitor in positioning — but they're **iOS only** with no Android version, and users report data syncing issues. Oura launched a proprietary AI model for women's health. Apple Health+ was scaled back (Bloomberg, February 2026), giving us more runway than expected. The quadrant of high biological awareness + high agent autonomy + device agnosticism + external messaging is still open. But every quarter, someone takes another step toward it.
+Since our last update: **Nori** (YC, serial founders with 2x exits) is **live on the App Store** with daily plans from 6+ wearables. **Prana** (YC W26) is building "always-on AI doctor" with clinical drift detection. **ChatGPT Health** launched January 2026 with Apple Health integration — **230 million users ask about health weekly**. **Microsoft Copilot Health** launched March 2026 with 50+ wearables and 50K hospital records. ONVY has 320+ wearable integrations. The big players are entering.
+
+But: every single one is **reactive** (you ask, they answer). None push proactive Morning Wags to Telegram at 7am. None compute CRS grounded in SAFTE-FAST. None have agent memory that evolves with safety controls. The quadrant of proactive + channel-delivered + scientifically-grounded + device-agnostic + evolving is still empty. But every month, someone takes another step toward it.
+
+**6. Waldo is not an assistant. Waldo is a buddy.**
+
+Assistants wait to be asked. Buddies notice, remember, and act. The dalmatian mascot isn't decoration — it's the product. Waldo's personality adapts to your CRS zone (excited when you're energized, gentle when you're depleted). Waldo remembers your patterns over months. Waldo follows up on suggestions. Waldo is the buddy who happens to know your biology. That's the relationship model no clinical health app can replicate.
+
+**7. Waldo powers the agent ecosystem from underneath.**
+
+The fourth layer beyond body, task, and autonomy is **ecosystem**. Waldo exposes biological intelligence via Model Context Protocol (MCP) — becoming the "body API" that every other AI agent can query. When Cursor asks if you're cognitively ready for a complex refactor, when Lindy checks if 4pm is a good time for your investor call — they ask Waldo. Not competing with the agent ecosystem. Powering it from underneath.
 
 ---
 

@@ -21,6 +21,7 @@ Waldo is the biological intelligence layer for the agentic economy — a persona
 | Free tier | **Pup** | Morning Wag + basic Spots |
 | Pro tier | **Pro** | Full Patrol, Fetches, interventions |
 | Team/Family tier | **Pack** | Multiple Waldos, shared Constellations |
+| Buddy mood system | **Waldo Moods** | Dalmatian visual state tied to CRS zone (tail wagging → curled up) |
 
 **Banned words:** wellness, mindfulness, optimize, hustle, AI-powered, health tracker, health app, unlock your potential, empower
 
@@ -32,17 +33,20 @@ Read these BEFORE doing anything:
 2. **`Docs/WALDO_NORTHSTAR.md`** — Vision and "why."
 3. **`Docs/WALDO_ONEPAGER.md`** — Pitch, ICP, competitive landscape, business model.
 4. **`Docs/WALDO_RESEARCH_AND_ALGORITHMS.md`** — CRS algorithm science, validation plan.
-5. **`Docs/WALDO_AGENT_INTELLIGENCE.md`** — **The Agent OS.** 25-field prompt builder, 10-hook pipeline, 5-zone personality spectrum, 3-tier memory with decay, multi-phase Hand playbooks, 4-phase nudge system, 5 quality gates, adapter pattern, skills system, goal ancestry, loop guard, provider failover. **Use alongside Master Reference when building Phase D-E.**
+5. **`Docs/WALDO_AGENT_INTELLIGENCE.md`** — **The Agent OS.** 25-field prompt builder, 10-hook pipeline, 5-zone personality spectrum, 5-tier memory with decay, buddy system (Waldo Moods), multi-phase Hand playbooks, 4-phase nudge system, 5 quality gates, adapter pattern, skills system, goal ancestry, loop guard, provider failover. **Use alongside Master Reference when building Phase D-E.**
 6. **`Docs/MVP_SCOPE.md`** — Definitive MVP scope. IN/OUT of scope, success criteria, constraints.
 7. **`Docs/MVP_ENGINEERING_PRD.md`** — Engineering PRD with detailed technical specs.
 8. **`Docs/WALDO_ADAPTER_ECOSYSTEM.md`** — **All 10 adapters, 32 metrics, 23 capabilities, cross-source correlation math.** The full integration spec.
 9. **`Docs/WALDO_DESIGNER_BRIEF.md`** — Designer-friendly overview of backend capabilities, screens, brand, competitive position. **Share this with your designer.**
 
-**These seven override everything in `Docs/archive/`.**
+10. **`Docs/WALDO_SCALING_INFRASTRUCTURE.md`** — Cloudflare Durable Objects architecture, Dynamic Workers, Code Mode, multi-user cost model, migration path.
+11. **`Docs/WALDO_AGENT_UPGRADE_REPORT.md`** — Session 4: 18 upgrades from Claude Code reverse engineering + 2026 landscape, 5-tier memory architecture, competitive implications.
+
+**These override everything in `Docs/archive/`.**
 
 ## Tech Stack
 
-React Native + Expo SDK 53+ | Kotlin (Android) | Swift (iOS) | op-sqlite + SQLCipher | NativeWind v4 | Supabase (Postgres + Edge Functions + Auth + RLS) | Claude Haiku 4.5 via @anthropic-ai/sdk | grammY (first channel adapter, Deno) | pg_cron + pgmq
+React Native + Expo SDK 53+ | Kotlin (Android) | Swift (iOS) | op-sqlite + SQLCipher | NativeWind v4 | Supabase (Postgres + Edge Functions + Auth + RLS) | Cloudflare Workers + Durable Objects (Phase D+ agent runtime) | Claude Haiku 4.5 via @anthropic-ai/sdk | grammY (first channel adapter, Deno) | pg_cron (Phase B-C) → DO alarms (Phase D+)
 
 ## Commands
 
@@ -92,9 +96,11 @@ Detailed rules, review agents, and orchestration live in `.claude/` — loaded a
 
 Data connectors FIRST, agent SECOND. iOS FIRST, Android SECOND. See Master Reference Section 2.3.
 
-A0 (Data Parser + CRS Validation on real Apple Health exports) → A (pre-code + WoO) → B1 (HealthKit/iOS) → B2 (Health Connect/Android) → C (Dashboard) → D (Agent + Messaging) → E (Proactive Delivery) → F (Onboarding) → G (Self-test) → H (Beta)
+A0 (Data Parser + CRS Validation) ✅ → B1 (HealthKit/iOS) → B2 (Health Connect/Android) → C (Dashboard) → D (Agent Core + Cloudflare DO migration) → E (Proactive Delivery + Code Mode) → F (Onboarding + WebSocket + Waldo Moods) → G (Self-test + Evolution in DO) → H (Beta)
 
-**Current phase: A0** — Building `tools/health-parser/` to parse Ark's Apple Health export, validate CRS algorithm on real data, and simulate agent behavior.
+**Phase D is the critical gate.** Agent runtime migrates from Supabase Edge Functions to Cloudflare Durable Objects. Each user gets a persistent DO with SQLite (memory, patterns, preferences). Health data stays in Supabase. See `Docs/WALDO_SCALING_INFRASTRUCTURE.md`.
+
+**Current phase: A0 complete.** 7,818 lines built. CRS validated on 856 days of real data. Ready for Phase B.
 
 ## Development Philosophy
 
@@ -115,7 +121,7 @@ A0 (Data Parser + CRS Validation on real Apple Health exports) → A (pre-code +
 
 ## Important Notes
 
-- Edge Functions: 150s idle timeout, 50s hard timeout, max 3 agent iterations
+- Edge Functions (Phase B-C): 150s idle timeout, 50s hard computation limit, max 3 agent iterations. Phase D+: Cloudflare DO (30s per request, chainable, hibernates when idle)
 - Health data: SQLCipher locally, RLS on Supabase, never log health values
 - Never diagnose medical conditions. Always "not a medical device" disclaimers.
 - Supabase free tier pauses after 7 days — set up keep-alive
@@ -142,19 +148,42 @@ Defense-in-depth, adapted for serverless. Details in `.claude/rules/architecture
 - Cost circuit breaker (daily per-user cap)
 - Memory write validation (reject injection patterns in update_memory)
 
-**P2 (Phase G → Phase 2, self-evolution):**
+**P2 (Phase G: core evolution | Phase 2: ecosystem expansion):**
 - Agent self-evolution: `agent_evolutions` table with feedback-driven behavioral parameter tuning (from JiuwenClaw)
 - Rule-based signal detection on feedback (👍/👎/dismissal/correction) — no LLM needed
 - Evolution safety: min 3 signals, max 2 changes/week, 30-day decay, auto-revert
 - Tool output compression: cap at ~500 tokens, leave retrieval markers for lazy loading
 - Identity stays immutable (soul files, safety rules, CRS algorithm NEVER auto-modified)
+- **Waldo as MCP server** — expose biological intelligence (getCRS, getStressLevel, getCognitiveWindow) to external agents via Model Context Protocol
+- **A2A protocol** support for cross-agent orchestration (Pack tier, agent-to-agent delegation)
+- **Code Mode + Dynamic Workers** — 81% token reduction for predictable workflows (Morning Wag, Fetch Alert)
 
-**P3 (Phase 2+, evaluate when needed):**
-- Langfuse for LLM observability (or stick with agent_logs if sufficient)
-- Trigger.dev for durable background jobs (or stick with pg_cron if reliable)
+**P3 (Phase 3: Autonomous OS — evaluate when needed):**
+- Langfuse for LLM observability (self-hosted, open-source — or stick with agent_logs)
 - Portkey AI Gateway for multi-provider failover
-- A/B testing infrastructure for soul file variants
-- GitOps deployment (GitHub Actions + Supabase CLI)
+- A/B testing infrastructure for soul file variants (feature flags in Phase G)
+- **Waldo Moods** — buddy system with dalmatian visual states tied to CRS, health streaks, achievements
+- **Voice interface** — ambient health queries ("Hey Waldo, how'd I sleep?")
+- **Specialist sub-agents** via coordinator pattern (sleep agent, productivity agent, research agent)
+- **ULTRAPLAN-style background analysis** — offload expensive Constellation reasoning to Anthropic Batch API overnight
+
+## Session 4 Research (March 31, 2026)
+
+Deep research session: reverse-engineered Claude Code's 1,905-file TypeScript codebase + comprehensive 2026 agent landscape + startup competitive analysis. Key outputs:
+
+- **`Docs/WALDO_AGENT_UPGRADE_REPORT.md`** — 18 upgrades from Claude Code patterns + landscape. 5-tier memory architecture on DOs. Implementation roadmap.
+- **`Docs/WALDO_STARTUP_COMPETITIVE_LANDSCAPE.md`** — Nori (YC, closest threat, shipped), Prana (YC W26), Galen AI, ChatGPT Health (230M users), Open Wearables (OSS MCP server).
+- **`Docs/research/AGENT_MEMORY_AND_STATE_RESEARCH_2026.md`** — Letta/MemGPT, Zep temporal graphs, sleep-time compute, Meta PAHF paper. 90+ sources.
+- **`Docs/COMPETITIVE_RESEARCH_AGENT_SECURITY_RELIABILITY_COST.md`** — OWASP Top 10 for agents, LlamaFirewall, circuit breakers, Promptfoo, Langfuse.
+- **`Docs/handoffs/COMPETITIVE_RESEARCH_2026.md`** — Full 2026 landscape, 14 frameworks, MCP (97M installs), A2A, protocols.
+
+**Key decisions from research:**
+- Cloudflare Durable Objects locked as Phase D+ agent runtime (health data stays in Supabase)
+- 5-tier memory: Working (context) → Semantic (DO SQLite) → Episodic (DO SQLite) → Procedural (Phase G) → Archival (Supabase pgvector, Phase 2)
+- Waldo as MCP server = strategic moat (biological intelligence as a service, Phase 2)
+- Cost: $0.01-0.03/user/day with all optimizations (semantic caching, Code Mode, pre-filter, prompt caching)
+
+**Competitive urgency:** Nori (YC, 2 exits) is live on App Store. Prana (YC W26) is building. ChatGPT Health has 230M weekly health users. **Ship Phase D.**
 
 ## Learnings
 - Always update your learning, and whenever we try to solve or resolve anything, be a proactive learner. Keep a log of this in the memories, and keep a hard won lessons file also.

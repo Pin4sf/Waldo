@@ -1,6 +1,6 @@
 # Waldo Overview
 
-> **Status:** Pre-code. Planning finalized. Ready to build. (March 2026)
+> **Status:** Phase A0 complete (7,818 lines, CRS validated on 856 days of real data). Architecture finalized. Phase B next. (March 2026)
 
 ## What is Waldo?
 
@@ -12,29 +12,33 @@ Waldo is a **personal cognitive operating system** — an AI agent that reads yo
 |--------|-------|-------------|
 | **Body Intelligence** | MVP | Reads HRV, HR, sleep, activity from any wearable. Computes CRS. Detects stress. Proactively messages you — via your preferred channel — before you crash. |
 | **Task Intelligence** | Phase 2 | Connects to calendar, email, Slack, task manager. Prioritizes work based on your cognitive state. Reschedules, blocks time, manages your day. |
-| **Autonomous Personal OS** | Phase 3+ | Learns new skills from you. Delegates to specialist sub-agents. Executes arbitrary tasks via code capsules. Connects to any service via MCP. Powers other agents (Cursor, Lindy, Claude Code) with your biological state. |
+| **Autonomous Personal OS** | Phase 3+ | Learns new skills from you. Delegates to specialist sub-agents. Connects to any service via MCP. Powers other agents (Cursor, Lindy, Claude Code) with your biological state via MCP server. Buddy system (Waldo Moods) with health-tied gamification. Voice interface. |
 
 ```mermaid
 graph LR
     W["Wearable<br/>(Apple Watch / Android)"] -->|HR, HRV, Sleep, Steps| P["Phone App<br/>(React Native)"]
     P -->|Encrypted local DB| CRS["CRS Engine<br/>(On-Phone, Offline)"]
     CRS -->|Score + Trigger| S["Supabase<br/>(Edge Functions)"]
-    S -->|Rules Pre-Filter| AI["Claude Haiku 4.5<br/>(tool_use)"]
+    S -->|Phase D: Cloudflare DO| DO["Durable Object<br/>(per-user brain)"]
+    DO -->|Rules Pre-Filter| AI["Claude Haiku 4.5<br/>(tool_use)"]
     AI -->|Personalized Message| T["Channel Adapter<br/>(Telegram, WhatsApp,<br/>Discord, Slack)"]
     T -->|Feedback| AI
 
     style W fill:#e0e7ff,stroke:#6366f1
     style CRS fill:#dcfce7,stroke:#22c55e
     style AI fill:#fef3c7,stroke:#f59e0b
+    style DO fill:#fef3c7,stroke:#f59e0b
     style T fill:#e0f2fe,stroke:#0ea5e9
 ```
+
+> **Waldo is not an assistant. Waldo is your buddy.** The dalmatian mascot isn't decoration — it's the product. A buddy that knows your biology, remembers your patterns, and acts before you ask. "Already on it."
 
 ## The Full Vision
 
 ```mermaid
 graph LR
     MVP["Phase 1: MVP<br/>Health Agent"]:::g --> P2["Phase 2<br/>Cognitive Co-Pilot"]:::b --> P3["Phase 3+<br/>Autonomous Personal OS"]:::p
-    MVP --- D1["8 tools, Channel Adapter<br/>CRS + stress alerts<br/>Morning briefs<br/>Reactive intelligence"]
+    MVP --- D1["8 tools, Channel Adapter<br/>CRS + Fetch Alerts<br/>Morning Wags<br/>Reactive intelligence"]
     P2 --- D2["20+ tools<br/>Calendar + Email + Slack<br/>Task prioritization<br/>Predictive CRS"]
     P3 --- D3["50+ tools, any MCP server<br/>Skill learning from user<br/>Code execution capsules<br/>Cross-agent orchestration<br/>Powers Cursor/Lindy/Claude Code"]
     classDef g fill:#dcfce7,stroke:#22c55e,stroke-width:2px
@@ -71,10 +75,10 @@ graph TB
         KT["Kotlin<br/>Health Connect"] --> RN
     end
 
-    subgraph Backend["Backend (Supabase)"]
-        PG["Postgres + RLS"] --> EF["Edge Functions (Deno)"]
-        CR["pg_cron"] --> EF
-        EF --> CL["Claude Haiku 4.5<br/>@anthropic-ai/sdk"]
+    subgraph Backend["Backend (Supabase + Cloudflare)"]
+        PG["Postgres + RLS<br/>(health data)"] --> EF["Edge Functions (Phase B-C)"]
+        PG --> CF["Cloudflare DO<br/>(Phase D+ agent brain)"]
+        CF --> CL["Claude Haiku 4.5<br/>@anthropic-ai/sdk"]
     end
 
     subgraph Messaging["Channel Adapter (Plug & Play)"]
@@ -98,7 +102,7 @@ gantt
     axisFormat %s
 
     section Data Layer
-    Phase A - Pre-Code + WoO          :a, 0, 1
+    Phase A0 - CRS Validation ✅       :done, a0, 0, 1
     Phase B1 - HealthKit (iOS)         :b1, 1, 2
     Phase B2 - Health Connect (Android) :b2, 2, 3
 
@@ -106,17 +110,17 @@ gantt
     Phase C - Dashboard                :c, 3, 4
 
     section Agent Layer
-    Phase D - Agent Core + Messaging    :d, 4, 5
-    Phase E - Proactive Delivery       :e, 5, 6
+    Phase D - Agent Core + DO Migration :crit, d, 4, 5
+    Phase E - Proactive + Code Mode    :e, 5, 6
 
     section Polish + Validate
-    Phase F - Onboarding               :f, 6, 7
-    Phase G - Self-Test (14 days)      :g, 7, 8
-    Phase H - Beta (5-7 users)         :h, 8, 9
+    Phase F - Onboarding + Waldo Moods :f, 6, 7
+    Phase G - Self-Test + Evolution    :g, 7, 8
+    Phase H - Beta                     :h, 8, 9
 
     section Beyond MVP
-    Phase 2 - Workspace + Tasks        :p2, 9, 10
-    Phase 3 - Autonomous OS            :p3, 10, 11
+    Phase 2 - MCP Server + Tasks       :p2, 9, 10
+    Phase 3 - Autonomous OS + Voice    :p3, 10, 11
 ```
 
 **Build order:** Data quality is the foundation. Get the health pipeline right (B1/B2) before intelligence (D/E), before workspace (Phase 2), before autonomy (Phase 3+).
@@ -202,16 +206,18 @@ graph LR
 
 > **Full details:** [Data Flow & Diagrams](diagrams.md) — self-evolution flow, signal detection, closed loop sequence
 
-## Six Source-of-Truth Documents
+## Source-of-Truth Documents
 
 | Doc | What It Contains | When to Read |
 |-----|-----------------|-------------|
 | **[Master Build Reference](master-reference.md)** | Complete schema, tools, algorithms, phases A-H, cost model | Building anything |
-| **[North Star](north-star.md)** | Vision, positioning, the "why" — from health agent to autonomous OS | Need motivation or framing |
+| **[North Star](north-star.md)** | Vision, positioning, the "why" — buddy framing, MCP ecosystem | Need motivation or framing |
 | **[One-Pager](one-pager.md)** | Pitch, ICP, competitive landscape, business model | Talking to investors/users |
 | **[Research & Algorithms](research-algorithms.md)** | CRS science, stress detection, validation plan | Working on algorithms |
-| **[Agent OS Intelligence](agent-intelligence.md)** | The full Agent OS: prompt builder, hooks, memory, personality, nudge, quality gates, task intelligence, autonomous OS vision | Building Phase D-E and beyond |
-| **[Security & Reliability](security-reliability.md)** | 5-layer defense-in-depth, fallback chains, idempotency, audit trail, AtlanClaw comparison, ecosystem research | Building Phase D security, evaluating tools |
+| **[Agent OS Intelligence](agent-intelligence.md)** | Agent OS: 5-tier memory, buddy system, prompt builder, hooks, personality, Phase 3+ vision | Building Phase D-E and beyond |
+| **[Scaling Infrastructure](scaling-infrastructure.md)** | Cloudflare DOs, Dynamic Workers, Code Mode, multi-user architecture | Building Phase D agent runtime |
+| **[Security & Reliability](security-reliability.md)** | 5-layer defense-in-depth, fallback chains, OWASP for agents | Building Phase D security |
+| **[18 Upgrades (Session 4)](upgrade-report.md)** | Claude Code patterns, competitive analysis, 5-tier memory, implementation roadmap | Planning Phase D-E optimizations |
 
 ## Proactive Intelligence Levels
 

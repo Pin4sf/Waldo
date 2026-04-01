@@ -13,13 +13,22 @@ These decisions are locked. Do NOT change without explicit discussion.
 8. **On-phone CRS** — TypeScript, offline-capable, no server round-trip for CRS
 9. **Rules-based pre-filter** — skip Claude when CRS > 60 and stress confidence < 0.3
 10. **op-sqlite + SQLCipher** for local DB — not WatermelonDB, not Realm
+11. **Cloudflare Durable Objects for Phase D+ agent runtime** — Each user gets a dedicated DO with SQLite (memory, patterns, preferences, conversation history). Health data stays in Supabase (phone syncs there, DO reads via REST). Agent brain moves from stateless Edge Functions to persistent DOs. See `Docs/WALDO_SCALING_INFRASTRUCTURE.md`.
 
 ## Data Flow (Do Not Deviate)
 ```
+Phase B-C (Supabase MVP):
 Wearable → HealthKit/Health Connect → Native Module → op-sqlite (encrypted)
   → CRS computation (on-phone, TypeScript) → Supabase sync (health_snapshots)
   → pg_cron trigger check → rules pre-filter → LLM Provider [Claude Haiku] (if needed)
   → Channel Adapter → user feedback → agent learns
+
+Phase D+ (Cloudflare DO):
+Wearable → HealthKit/Health Connect → Native Module → op-sqlite (encrypted)
+  → CRS computation (on-phone) → Supabase sync (health_snapshots)
+  → DO alarm/webhook → DO loads context from SQLite + fetches health from Supabase
+  → rules pre-filter → LLM Provider [Claude Haiku] (if needed)
+  → Channel Adapter → DO writes memory to SQLite → user feedback → agent evolves
 ```
 
 ## Build Order
@@ -156,7 +165,7 @@ Every agent invocation produces a trace:
 ```
 Store in `agent_logs` table. Query with Supabase SQL for dashboards. Evaluate Langfuse for Phase G.
 
-## Agent Self-Evolution (Phase G → Phase 2)
+## Agent Self-Evolution (Phase G: core feedback loop | Phase 2: advanced patterns + Constellation)
 
 Inspired by JiuwenClaw's "living skills" pattern. The agent's behavioral parameters evolve based on accumulated feedback signals — but the identity (soul files) stays immutable.
 
@@ -220,6 +229,20 @@ When tool results are large (detailed sleep breakdown, multi-day activity data):
 - Leave retrieval markers: `[DETAIL_AVAILABLE: call get_sleep(detail=true) for full breakdown]`
 - Agent can request full detail in next iteration if needed — lazy loading for context
 
+## 5-Tier Memory Architecture (Phase D-G Progression)
+
+| Tier | Type | Storage | Loaded | Phase |
+|------|------|---------|--------|-------|
+| 0 | Working Memory | LLM context window | Every invocation (volatile) | D |
+| 1 | Semantic Memory | DO SQLite `memory_blocks` | Always (<200 tokens) | D |
+| 2 | Episodic Memory | DO SQLite `episodes` | On-demand via tool calls | D |
+| 3 | Procedural Memory | DO SQLite `procedures` | Selectively (unapplied evolutions) | G |
+| 4 | Archival Memory | Supabase pgvector | Semantic search for Constellations | Phase 2 |
+
+**Key rule:** Raw health values (HRV, HR, sleep hours) NEVER enter DO SQLite. Health data lives in encrypted Supabase with RLS. DO stores only derived insights ("HRV declining" — not "HRV was 42ms").
+
+Full 5-tier schema with DO SQLite DDL: `Docs/WALDO_AGENT_UPGRADE_REPORT.md` Section 5B.
+
 ## Tools to Evaluate (Not Locked — Keep Flexible)
 
 These are NOT locked decisions. Evaluate when the time comes — swap in if they add value, skip if they don't.
@@ -231,6 +254,10 @@ These are NOT locked decisions. Evaluate when the time comes — swap in if they
 | Portkey | AI Gateway with provider failover | Phase 2 (multi-model) | Manual failover in LLMProvider |
 | Vercel AI SDK | TypeScript AI SDK with tool loops | Phase D spike | Raw @anthropic-ai/sdk |
 | Helicone | LLM proxy with caching | Phase D | Anthropic prompt caching |
+| Inngest | Event-driven durable execution | Phase D (inside DO) | Manual agent loop |
+| Mastra | TypeScript-first agent framework | Phase D (if raw SDK feels limiting) | Raw @anthropic-ai/sdk |
+| Open Wearables SDK | React Native wearable data API (MIT) | Phase B (could save weeks) | Custom native modules |
+| Promptfoo | Agent evaluation + red-teaming (MIT) | Phase D (security tests) | Manual testing |
 
 ## Source of Truth
 When in doubt, read these docs (in priority order):

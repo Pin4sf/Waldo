@@ -127,7 +127,7 @@ Comprehensive research across 20+ agent frameworks validates Waldo's architectur
 | Waldo Decision | Industry Validation |
 |---|---|
 | Adapter pattern from Day 1 | Now industry standard — MCP, A2A protocol, Portkey all implement it |
-| 3-tier memory with decay | Independently mirrors Letta/MemGPT — most respected memory system |
+| 5-tier memory with decay (Session 4) | Maps to cognitive science + Letta/MemGPT + Claude Code AutoDream |
 | Rules pre-filter (skip LLM) | Validated cost optimization across production deployments |
 | On-phone CRS (offline-first) | Almost no agent framework works offline. Genuine differentiator. |
 | Messages API (not Agent SDK) | Correct for stateless 50s Edge Functions |

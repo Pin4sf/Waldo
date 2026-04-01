@@ -49,13 +49,25 @@ These principles govern every line of code from the first commit. They ensure Wa
 - Background sync: iOS BGTaskScheduler, Android WorkManager — both via Expo Modules API
 - Health data permissions requested incrementally (one category at a time, not all at once)
 
-## Edge Functions (Supabase / Deno)
+## Edge Functions (Supabase / Deno) — Phase B-C
 - Stateless — no in-memory state between invocations
 - Validate JWT on every request
 - Agent loop: max 3 iterations, 50s hard timeout
 - Use `@anthropic-ai/sdk` directly — no middleware, no Agent SDK
 - Always log: tool calls, token usage, response time (fire-and-forget to agent_logs)
 - Shared types imported from `_shared/types.ts` — keep Edge Functions and app types in sync
+
+## Cloudflare Workers + Durable Objects (Phase D+)
+- Durable Object = per-user agent brain with built-in SQLite
+- DO SQLite stores agent memory (`memory_blocks`, `episodes`, `procedures` tables) — NOT health data
+- Health data stays in Supabase — DO reads via REST, never stores raw health values
+- DO alarms for per-user scheduling (Morning Wag at user's wake time, Patrol at 2 AM)
+- WebSocket for real-time dashboard + chat (Phase F)
+- Use `this.ctx.storage.sql` for DO SQLite queries (tagged template literals)
+- Use Service Bindings for DO-to-Worker communication
+- Dynamic Workers (Phase E): `globalOutbound: null` (no internet — only RPC stubs you pass)
+- Secrets via Cloudflare Secrets store, not environment variables
+- Shared types imported from same `src/types/` — keep app, Edge Functions, and Workers in sync
 
 ## Engineering Process — Research Before Code
 
@@ -171,6 +183,15 @@ tools/
       enrichment/       # Weather, AQ, daylight APIs
       simulation/       # Morning Wag + Fetch Alert simulation
       output/           # CSV/JSON writers
+
+cloudflare/             # Phase D+ agent runtime
+  waldo-worker/         # Router Worker (routes to correct DO)
+  waldo-agent/          # Durable Object class (WaldoAgent)
+    memory.ts           # DO SQLite memory operations (5-tier)
+    scheduler.ts        # Alarm management (Morning Wag, Patrol, cooldowns)
+    reasoning.ts        # Agent loop (Claude + tools)
+    tools/              # Tool implementations (read from DO SQLite + Supabase)
+  _shared/              # Types shared with app and Edge Functions
 ```
 
 ## Naming Conventions

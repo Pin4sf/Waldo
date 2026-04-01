@@ -1564,4 +1564,15 @@ All previous documents are now reference material. Here's what each contains if 
 
 ---
 
-*This is the master reference. Build from Part 2. Reference Part 1 for context. Reference Part 3 for what comes next. Archive everything else.*
+### Session 4 Research References (March 31, 2026)
+
+The following documents supplement the Master Reference with deep research from Session 4:
+- **`Docs/WALDO_AGENT_UPGRADE_REPORT.md`** — 18 upgrades from Claude Code reverse engineering + 2026 landscape. 5-tier memory architecture. Implementation roadmap.
+- **`Docs/WALDO_SCALING_INFRASTRUCTURE.md`** — Cloudflare Durable Objects architecture, Dynamic Workers, Code Mode, multi-user cost model ($0.008-0.025/user/month infra), migration path from Supabase.
+- **`Docs/WALDO_STARTUP_COMPETITIVE_LANDSCAPE.md`** — Startup threats: Nori (YC, shipped), Prana (YC W26), Galen AI, ChatGPT Health (230M users), Open Wearables (OSS MCP server).
+
+These documents inform Phase D+ decisions but do not change the MVP scope or Phase A0-C specifications.
+
+---
+
+*This is the master reference. Build from Part 2. Reference Part 1 for context. Reference Part 3 for what comes next. Session 4 research supplements Phase D+ decisions. Archive everything else.*

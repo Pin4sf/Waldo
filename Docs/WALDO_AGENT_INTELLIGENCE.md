@@ -100,19 +100,21 @@ Synthesized from all 12 repos into Waldo's serverless health agent:
                    │
                    ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  AGENT LOOP (ReAct — max 3 iterations, 50s timeout)           │
+│  AGENT LOOP (ReAct — max 3 iterations, 50s/30s timeout)       │
 │                                                               │
 │  LLM Provider [Claude Haiku 4.5] via Messages API + tool_use  │
 │  Model Router: Rules-skip → Haiku (MVP) → Sonnet (Phase 2)   │
 │  Provider Failover: Primary → Fallback → Template (PicoClaw)  │
 │  Loop Guard: SHA256 hash of (tool+params+result) — block at 3 │
-│  Parallel tool execution for independent calls                │
-│  Tool result compression for outputs >1000 tokens             │
+│  Concurrent tool execution: reads parallel, writes serial     │
+│  Three-stage compaction: micro(free) → session → weekly(LLM)  │
+│  Tool result compression for outputs >500 tokens              │
+│  Code Mode + Dynamic Workers (Phase E): 81% token reduction   │
 └──────────────────┬───────────────────────────────────────────┘
                    │
                    ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  MEMORY SYSTEM (Three-Tier — from OpenFang + Paperclip)       │
+│  MEMORY SYSTEM (Five-Tier — from OpenFang + Letta + Claude Code) │
 │                                                               │
 │  Tier 1 — Structured (Postgres KV, always loaded):            │
 │    core_memory: identity, health_profile, preferences,        │
@@ -388,11 +390,30 @@ Hook 10: ANALYTICS
 
 ---
 
-## 5. Memory Architecture — Three-Tier with Decay
+## 5. Memory Architecture — Five-Tier with Decay
 
-**Source:** OpenFang (triple-layer) + Paperclip (PARA + decay) + OpenViking (L0/L1/L2 summaries) + CoPaw (proactive recording)
+**Source:** OpenFang (triple-layer) + Paperclip (PARA + decay) + OpenViking (L0/L1/L2 summaries) + CoPaw (proactive recording) + Letta/MemGPT (OS-like tiered memory) + Claude Code (AutoDream consolidation) + Cognitive science (working/episodic/semantic/procedural mapping)
 
-### Tier 1: Structured Memory (Always Loaded)
+### Overview: 5 Tiers Mapped to Cognitive Science
+
+| Tier | Cognitive Type | What It Stores | Storage | Loaded | Phase |
+|------|---------------|----------------|---------|--------|-------|
+| 0 | Working Memory | Current conversation, tool results, trigger state | LLM context window | Every invocation (volatile) | D |
+| 1 | Semantic Memory | Identity, preferences, baselines, Spots, goals | DO SQLite `memory_blocks` | Always (<200 tokens) | D |
+| 2 | Episodic Memory | Conversation logs, daily observations, feedback signals | DO SQLite `episodes` | On-demand via tools | D |
+| 3 | Procedural Memory | Evolution entries, intervention effectiveness, learned skills | DO SQLite `procedures` | Selectively merged | G |
+| 4 | Archival Memory | Constellation graph, embeddings, bi-temporal knowledge | Supabase pgvector | Semantic search | Phase 2 |
+
+**Key rules:**
+- Raw health values NEVER enter DO SQLite. Only derived insights ("HRV declining" — not "HRV was 42ms").
+- Health data stays in encrypted Supabase with RLS. DO reads via REST API.
+- Full 5-tier schema with DO SQLite DDL: `Docs/WALDO_AGENT_UPGRADE_REPORT.md` Section 5B.
+
+### Tier 0: Working Memory (Context Window — Volatile)
+
+The LLM context window itself. Assembled fresh each invocation by the prompt builder (Section 2) from Tiers 1-3 + fresh health data from Supabase. Size: 4K-10K tokens depending on trigger type. Not persisted — rebuilt every time. This is what Claude "sees" when reasoning.
+
+### Tier 1: Semantic Memory (Always Loaded — DO SQLite)
 
 PostgreSQL `core_memory` table. ~200 tokens when serialized.
 
@@ -432,7 +453,7 @@ PostgreSQL `core_memory` table. ~200 tokens when serialized.
 
 **Proactive Recording** (from CoPaw): When user mentions health info ("started magnesium", "didn't sleep well", "stressed about deadline"), the agent calls `update_memory` BEFORE crafting its response. Context is never lost even if the session drops.
 
-### Tier 2: Summaries + Pattern Log (On-Demand)
+### Tier 2: Episodic Memory — Summaries + Pattern Log (On-Demand — DO SQLite)
 
 **Session Summaries** — When conversation exceeds 10 messages:
 ```markdown
@@ -469,10 +490,23 @@ Never delete. Mark as `archived` when superseded. Enables monthly retrospectives
   "attempts": 1, "outcomes": [] }
 ```
 
-### Tier 3: Semantic Search (Phase 2)
+### Tier 3: Procedural Memory — Learned Behaviors (Phase G — DO SQLite)
+
+What the agent has learned about HOW to help this specific user. Distinct from Tier 1 (what it knows) and Tier 2 (what happened).
+
+- **Evolution entries**: verbosity_level → "shorter" (3 signals, confidence 0.85). timing_preference → "morning_wag_at_0715". topic_weight → "sleep_insights_2x"
+- **Intervention effectiveness**: breathing_exercise → 72% engagement (12 suggestions). walk_suggestion → 45% (8 suggestions). hydration_reminder → 90% (20 suggestions)
+- **Learned skills** (Phase 3): user-taught workflows ("when I say 'prep for standup', pull my tickets + check CRS + draft talking points")
+
+Loaded selectively: only unapplied evolutions merged into prompt. Grows slowly (max 2 changes/week, min 3 signals). 30-day confidence decay on pending entries. Auto-revert if negative feedback spikes.
+
+See `agent_evolutions` table design in `.claude/rules/architecture.md` for full schema.
+
+### Tier 4: Archival Memory — Constellation Graph (Phase 2 — Supabase pgvector)
 
 - pgvector embeddings over conversation summaries + pattern log
 - Intent-driven retrieval: 0-5 typed queries per turn (from OpenViking), not one monolithic search
+- Bi-temporal knowledge graph (inspired by Zep/Graphiti): facts have validity windows (`valid_from`, `valid_until`). Enables: "How has recovery changed since starting running 3x/week?"
 - Health knowledge graph: entity-relationship model
   - `late_coffee` --worsens--> `sleep_latency` (confidence: 0.8)
   - `afternoon_walk` --improves--> `hrv_recovery` (confidence: 0.9)
@@ -489,6 +523,80 @@ Don't stuff raw HRV/sleep/activity data into context. Generate compressed summar
 | L2 (Detail) | Full minute-by-minute HRV readings, sleep stage transitions, all data points | On-demand — user asks "show me the data" | ~1500 |
 
 **Baseline Updater Hand** generates fresh L0/L1 summaries daily at 4 AM (no LLM — pure computation). These summaries are what the agent loads, not raw sensor data.
+
+### 5.1 Three-Stage Context Compaction (from Claude Code)
+
+**Source:** Claude Code's three-stage compaction pipeline, adapted for health agent constraints.
+
+**Stage 1 — Micro-compaction (FREE, runs every invocation):**
+- Prune duplicate tool results (if `get_sleep` called twice, keep latest)
+- Truncate tool outputs >500 tokens → compress + `[DETAIL_AVAILABLE: call get_sleep(detail=true)]` retrieval marker
+- Remove stale conversation turns beyond token budget
+- Rule-based, zero LLM cost, runs in pre-reasoning hook
+
+**Stage 2 — Session memory extraction (cheap, during conversation):**
+- Agent calls `update_memory` to persist important facts (proactive recording from CoPaw)
+- Session summary auto-generated for conversations >5 messages
+- Part of normal agent loop (no extra LLM call)
+
+**Stage 3 — Full LLM compaction (expensive, Patrol Agent only):**
+- Separate LLM call to summarize and consolidate
+- 9-section structured summary (from Claude Code): health facts, user preferences, action items, pending followups, patterns discovered, corrections received
+- NOT for real-time (50s/30s timeout). Reserved for Patrol Agent (overnight, no time pressure)
+
+### 5.2 Sleep-Time Compute / Patrol Agent (from Letta + Claude Code AutoDream)
+
+**Source:** Letta's sleep-time compute pattern + Claude Code's AutoDream memory consolidation.
+
+The Patrol Agent runs during off-hours via Durable Object alarm (2 AM user timezone). It consolidates memory, discovers patterns, and pre-stages the Morning Wag.
+
+**Dual-gate trigger:** Both conditions must be true:
+- ≥24h since last consolidation
+- ≥3 sessions since last consolidation
+
+**4-Phase Consolidation:**
+
+1. **Orient** — Read all Tier 1 memory blocks. Count Tier 2 episodes since last run. Read Tier 3 pending signals.
+
+2. **Gather Signal** — Scan Tier 2 episodes for: user corrections ("too clinical"), explicit preferences ("I like X"), engagement patterns (👍 vs ignored), recurring health patterns across days.
+
+3. **Consolidate** — Promote validated patterns (3+ confirmations) → Tier 1. Update preferences from corrections. Compute evolution entries → Tier 3. Decay unaccessed Tier 1 blocks (30d+). Compress old Tier 2 episodes (>30d) to summaries. Archive >90d episodes → Tier 4.
+
+4. **Pre-stage Morning Wag** — Compute CRS from overnight data. Fetch weather + AQ. Bundle into pre-computed context → DO in-memory cache. Set alarm for user's predicted wake time - 5 min. Result: Morning Wag delivered in **<3 seconds** when user wakes.
+
+### 5.3 Buddy System — Waldo Moods
+
+**Source:** Claude Code's hidden BUDDY system (Tamagotchi with 18 species, 5 rarities, per-user deterministic identity) — adapted for health.
+
+Waldo is not an assistant. Waldo is a **buddy** — a dalmatian character that lives with you, learns your patterns, and cares about your well-being. The buddy system makes this tangible through visual states, gamification, and personality.
+
+**Dalmatian Visual States (tied to CRS zone):**
+
+| CRS Zone | Waldo's Mood | Visual |
+|----------|-------------|--------|
+| ENERGIZED (80+) | Excited, tail wagging, running | Full energy dalmatian, bright spots |
+| STEADY (60-79) | Happy, alert, sitting | Calm dalmatian, relaxed posture |
+| FLAGGING (40-59) | Concerned, watching | Ears back, attentive eyes |
+| DEPLETED (<40) | Gentle, curled up | Sleeping dalmatian, soft expression |
+| CRISIS/NO DATA | Transparent, patient | Tilted head, question mark spots |
+
+**Health Streak Gamification (achievements, not randomness):**
+- 7-day sleep streak → Waldo gets a little hat
+- 30-day consistency → Golden collar
+- 100 Spots discovered → Constellation Waldo (star-spotted coat variant)
+- 30-day perfect sleep → Dreamer Waldo (sleeping cap variant)
+- 1% daily "shiny" chance → Special message variant with unique animation
+
+**Buddy Stats (YOUR stats, displayed as Waldo's "training"):**
+- SLEEP — quality and consistency
+- RECOVERY — how well you bounce back
+- CONSISTENCY — regularity of health behaviors
+- STRESS_MANAGEMENT — how you handle pressure
+- SELF_AWARENESS — engagement with insights (do you read and act on them?)
+
+**Deterministic Personality Quirks:** Seeded from `hash(user_id)` using Mulberry32 PRNG (same as Claude Code). Your Waldo's greeting style, humor preference, emoji usage, and time-of-day energy are unique to you. Your buddy feels like YOUR buddy.
+
+**Phase:** Visual states in Phase F (onboarding + dashboard). Full gamification (streaks, achievements, variants) in Phase G. The personality spectrum (Section 3) and soul files already encode the "buddy voice" — this section adds the visual and gamification layer.
 
 ---
 
@@ -1291,22 +1399,39 @@ The agent becomes a full personal operating system that can handle virtually any
 - MCP integration layer — each new MCP server unlocks a new domain (Notion, GitHub, Figma, Spotify, banking, travel)
 - Tool composition — chain existing tools into automated workflows triggered by health state + time + context
 
-**Agent Ecosystem:**
-- Multi-agent specialists (sleep, stress, activity, nutrition, productivity, research, creative)
-- Cross-agent orchestration — Waldo provides biological context to Cursor, Lindy, Claude Code, any agent
-- Sub-agent delegation — brain spawns specialist sub-agents for different tasks, coordinates results
+**Agent Ecosystem (MCP + A2A):**
+- **Waldo as MCP Server (Phase 2):** Expose biological intelligence via Model Context Protocol (97M installs, AAIF standard). Tools: `getCRS()`, `getStressLevel()`, `getCognitiveWindow()`, `shouldScheduleNow(taskDifficulty)`. Any agent (Cursor, Lindy, Claude Code, Slack bots) can query your cognitive state before making decisions.
+- **A2A Protocol (Phase 3):** Bidirectional agent-to-agent communication for Pack tier. Team's Waldos coordinate: "Engineering team aggregate CRS is low — suggest manager reschedule afternoon review."
+- Multi-agent specialists (sleep, stress, activity, nutrition, productivity, research, creative) via coordinator pattern (from Claude Code)
+- Sub-agent delegation — brain spawns specialist sub-agents, coordinates results, shared prompt cache prefix
 - User-defined automations — "Every Monday at 7am, if CRS > 70, auto-accept the standup; if < 50, send apologies"
 
 **Scaling Across Domains and Personas:**
 - Population learning (federated across users — privacy-preserving)
 - Adaptive CRS weights per user (ML on personal feedback data)
 - Cross-domain personas — same Agent OS, different soul files + tools: students, athletes, executives, remote workers, clinical patients
-- Voice interface, watch notifications, smart home integration
+- **Voice interface** — ambient health queries ("Hey Waldo, how'd I sleep?"). Push-to-talk + wake word detection (pattern from Claude Code's hidden voice mode)
+- Watch notifications, smart home integration
 - Full life management — music, notes, habits, social, finance, travel
 
+**Inspired by Claude Code (features adapted for health agent):**
+
+| Claude Code Feature | Waldo Adaptation | Phase |
+|---|---|---|
+| **KAIROS** (always-on daemon) | Patrol Agent — already our version. DO alarm, background consolidation, proactive pre-staging | D-E |
+| **ULTRAPLAN** (expensive thinking offloaded) | Anthropic Batch API for Constellation analysis. Overnight, 50% discount, deep pattern reasoning | G-Phase 2 |
+| **Voice mode** (push-to-talk, wake words) | "Hey Waldo, how'd I sleep?" Ambient voice interface for health queries | Phase 3 |
+| **Speculation pipelining** (recursive pre-execution) | Patrol → pre-CRS → pre-Morning Wag → pre-generate message. Chained pre-computation | E |
+| **Topic detection** (classify every message) | Detect conversation shifts, swap memory context. Sleep question → load sleep data, not activity | D |
+| **Code Mode** (81% token reduction) | Dynamic Workers execute generated TypeScript. Morning Wag: 4 LLM calls → 1 call + 1 worker | E |
+| **Fault injection** (chaos testing) | "Chaos mode" for Phase G: simulate API down, stale data, empty sleep, Samsung HRV gap | G |
+| **Buddy system** (Tamagotchi with stats) | Waldo Moods — dalmatian visual states, health streaks, achievement variants, buddy stats | F-G |
+| **Concurrent tool execution** | Read-only tools (get_crs, get_sleep, get_activity) run in parallel. Writes serial | D |
+| **AutoDream** (memory consolidation) | Patrol Agent 4-phase consolidation (orient → gather → consolidate → pre-stage) | G |
+
 **The Endgame:**
-Waldo as the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with Lindy, Manus, or Claude Code — **powering them** with the one signal they don't have: your cognitive state. The agent that makes every other agent smarter.
+Waldo as the **biological intelligence substrate** that every other AI agent consults before acting. Not competing with Lindy, Manus, or Claude Code — **powering them** with the one signal they don't have: your cognitive state. Via MCP: any agent queries Waldo. Via A2A: agents coordinate through Waldo. The agent that makes every other agent smarter. The buddy that knows your body.
 
 ---
 
-**None of these patterns change the locked MVP architecture decisions.** They all work within: Messages API + tool_use, Claude Haiku 4.5, 8 tools, 3-step onboarding, rules-based pre-filter, on-phone CRS, Telegram delivery, op-sqlite + SQLCipher, Supabase + RLS. Everything in Phase 2 and 3+ builds ON TOP of the MVP foundation — same architecture, expanded capabilities.
+**None of these patterns change the locked MVP architecture decisions.** They all work within: Messages API + tool_use, Claude Haiku 4.5, 8 tools, 3-step onboarding, rules-based pre-filter, on-phone CRS, Telegram delivery, op-sqlite + SQLCipher, Supabase for health data, Cloudflare DOs for agent brain. Everything in Phase 2 and 3+ builds ON TOP of the MVP foundation — same architecture, expanded capabilities.

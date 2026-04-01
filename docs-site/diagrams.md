@@ -113,45 +113,73 @@ sequenceDiagram
     AI->>U: "How's Waldo working for you so far?"
 ```
 
-## Memory Architecture
+## Memory Architecture (5-Tier, Cognitive Science Mapping)
 
 ```mermaid
 graph TB
-    subgraph T1["Tier 1: Structured (Always Loaded ~200 tokens)"]
+    subgraph T0["Tier 0: Working Memory (Context Window — Volatile)"]
+        CTX["Current conversation + tool results + trigger state<br/>Rebuilt each invocation from Tiers 1-3 + health data<br/>4K-10K tokens depending on trigger type"]
+    end
+
+    subgraph T1["Tier 1: Semantic Memory (DO SQLite — Always Loaded ~200 tokens)"]
         ID["Identity<br/>name, age, tz, chronotype"]
         HP["Health Profile<br/>conditions, meds, baselines"]
         PR["Preferences<br/>style, timing, interventions"]
         GO["Active Goals<br/>with parent hierarchy"]
-        IN["Recent Insights<br/>with temporal validity"]
+        IN["Recent Insights (Spots)<br/>with temporal validity + decay"]
     end
 
-    subgraph T2["Tier 2: Summaries (On-Demand)"]
+    subgraph T2["Tier 2: Episodic Memory (DO SQLite — On-Demand)"]
         SS["Session Summaries<br/>(per conversation)"]
-        WC["Weekly Compaction<br/>(session → insights)"]
-        PL["Pattern Log<br/>(append-only, never delete)"]
-        PF["Pending Followups<br/>(track suggestion outcomes)"]
+        DL["Daily Observations<br/>(agent's notes)"]
+        FB["Feedback Signals<br/>(👍/👎/dismiss/correct)"]
+        PF["Pending Followups<br/>(track outcomes)"]
     end
 
-    subgraph T3["Tier 3: Semantic Search (Phase 2)"]
-        VEC["pgvector Embeddings"]
-        KG["Knowledge Graph<br/>(caffeine → sleep_latency)"]
+    subgraph T3["Tier 3: Procedural Memory (DO SQLite — Phase G)"]
+        EV["Evolution Entries<br/>(verbosity, timing, topic weights)"]
+        IE["Intervention Effectiveness<br/>(which suggestions work)"]
+        LS["Learned Skills<br/>(user-taught workflows, Phase 3)"]
+    end
+
+    subgraph T4["Tier 4: Archival / Constellation (Supabase pgvector — Phase 2)"]
+        VEC["Embeddings over summaries + Spots"]
+        KG["Bi-temporal Knowledge Graph<br/>(caffeine --worsens→ sleep_latency)<br/>(valid_from / valid_until on every edge)"]
     end
 
     subgraph Decay["Memory Decay"]
-        HOT["HOT (7d)<br/>Full detail, prominent"]
+        HOT["HOT (7d)<br/>Full detail"]
         WARM["WARM (8-30d)<br/>Summary only"]
-        COLD["COLD (30d+)<br/>Omitted, but recallable"]
+        COLD["COLD (30d+)<br/>Archived to Tier 4"]
     end
 
-    T1 --> T2
-    T2 --> T3
+    T0 -.->|"reads from"| T1
+    T0 -.->|"reads from"| T2
+    T1 -->|"consolidation"| T2
+    T2 -->|"evolution signals"| T3
+    T2 -->|"archive >90d"| T4
     IN --> Decay
 
+    style T0 fill:#f1f5f9,stroke:#94a3b8
     style T1 fill:#dcfce7,stroke:#22c55e
     style T2 fill:#fef3c7,stroke:#f59e0b
-    style T3 fill:#e0e7ff,stroke:#6366f1
+    style T3 fill:#eef2ff,stroke:#6366f1
+    style T4 fill:#fce7f3,stroke:#ec4899
     style Decay fill:#f1f5f9,stroke:#94a3b8
 ```
+
+**Where each tier lives:**
+
+| Tier | Storage | Why There |
+|------|---------|-----------|
+| 0 (Working) | LLM context window | Volatile, rebuilt each invocation |
+| 1 (Semantic) | **DO SQLite** | Agent's persistent brain, <1ms access |
+| 2 (Episodic) | **DO SQLite** | Per-user history, searchable locally |
+| 3 (Procedural) | **DO SQLite** | Learned behaviors, per-user |
+| 4 (Archival) | **Supabase pgvector** | Cross-device, graph queries, Constellation |
+| Health data | **Supabase Postgres** | Phone syncs here. Never in DO SQLite (privacy). |
+
+> **Key rule:** Raw health values (HRV, HR, sleep hours) NEVER enter DO SQLite. Only derived insights.
 
 ## Agent Loop Detail
 
@@ -720,3 +748,142 @@ flowchart LR
     style Master fill:#fef3c7,stroke:#f59e0b
     style WaldoAgent fill:#e0f2fe,stroke:#0ea5e9
 ```
+
+## Phase D+ — Cloudflare Durable Object Architecture
+
+Each user gets a persistent Durable Object with its own SQLite database, scheduling, and WebSocket. Health data stays in Supabase. The agent brain lives in the DO.
+
+```mermaid
+graph TB
+    subgraph Phone["User's Phone"]
+        APP["Waldo App<br/>(React Native)"] -->|Sync health data| SUP["Supabase<br/>(Postgres + RLS)"]
+        APP <-->|WebSocket| DO
+    end
+
+    subgraph CF["Cloudflare Edge Network"]
+        ROUTER["Waldo Worker<br/>(Router)"] -->|Route to user's DO| DO
+
+        subgraph DO["Durable Object: Waldo-U1"]
+            SQLITE["SQLite<br/>5-tier memory"]
+            SCHED["Scheduler<br/>Morning Wag alarm<br/>Patrol every night<br/>Custom reminders"]
+            SM["State Machine<br/>CRS zone, cooldowns<br/>nudge phase"]
+        end
+    end
+
+    subgraph External["External Services"]
+        DO -->|Fetch health data| SUP
+        DO -->|Reasoning| CLAUDE["Claude Haiku 4.5"]
+        DO -->|Delivery| TG["Channel Adapter<br/>(Telegram / WhatsApp)"]
+    end
+
+    TG -->|User feedback| DO
+
+    style Phone fill:#f0fdf4,stroke:#22c55e
+    style CF fill:#fef3c7,stroke:#f59e0b
+    style DO fill:#eef2ff,stroke:#6366f1
+    style External fill:#e0f2fe,stroke:#0ea5e9
+```
+
+**Cost at 10K users:** ~$85-250/month total (~$0.008-0.025/user/month infrastructure). LLM costs dominate at $50-200/month.
+
+## Patrol Agent — Sleep-Time Compute (Phase G)
+
+```mermaid
+sequenceDiagram
+    participant ALARM as DO Alarm (2 AM)
+    participant DO as Durable Object
+    participant SUP as Supabase
+    participant MEM as DO SQLite
+
+    Note over ALARM,MEM: Dual-gate: ≥24h since last AND ≥3 sessions
+
+    ALARM->>DO: Wake
+    DO->>MEM: Phase 1: Orient — read memory blocks, count episodes
+    DO->>MEM: Phase 2: Gather — scan for corrections, patterns, feedback
+    DO->>MEM: Phase 3: Consolidate
+    Note over DO,MEM: Promote patterns → Tier 1<br/>Decay unaccessed blocks<br/>Compress old episodes<br/>Create evolution entries
+
+    DO->>SUP: Phase 4: Pre-stage Morning Wag
+    SUP-->>DO: Latest health data
+    DO->>DO: Compute CRS, fetch weather
+    DO->>MEM: Cache pre-computed Morning Wag bundle
+    DO->>DO: Set alarm: user wake time - 5 min
+    DO->>DO: Hibernate (~5-15s total active time)
+
+    Note over ALARM,MEM: Result: Morning Wag delivered in <3 seconds when user wakes
+```
+
+## Buddy System — Waldo Moods (Phase F-G)
+
+```mermaid
+graph TB
+    subgraph CRS["CRS Zone"]
+        E["ENERGIZED (80+)"]
+        S["STEADY (60-79)"]
+        F["FLAGGING (40-59)"]
+        D["DEPLETED (<40)"]
+    end
+
+    subgraph Moods["Waldo's Mood"]
+        E --> ME["Excited, tail wagging 🐕"]
+        S --> MS["Happy, sitting 🐾"]
+        F --> MF["Concerned, ears back"]
+        D --> MD["Curled up sleeping 💤"]
+    end
+
+    subgraph Gamification["Health Streaks"]
+        STREAK7["7-day sleep streak<br/>→ Little hat"]
+        STREAK30["30-day consistency<br/>→ Golden collar"]
+        SPOTS100["100 Spots discovered<br/>→ Constellation Waldo ⭐"]
+        SHINY["1% daily shiny chance<br/>→ Special message variant"]
+    end
+
+    subgraph Stats["Buddy Stats (YOUR stats)"]
+        BS1["SLEEP"]
+        BS2["RECOVERY"]
+        BS3["CONSISTENCY"]
+        BS4["STRESS_MGMT"]
+        BS5["SELF_AWARENESS"]
+    end
+
+    style CRS fill:#dcfce7,stroke:#22c55e
+    style Moods fill:#fef3c7,stroke:#f59e0b
+    style Gamification fill:#eef2ff,stroke:#6366f1
+    style Stats fill:#fce7f3,stroke:#ec4899
+```
+
+> Deterministic personality quirks seeded from `hash(user_id)`. Your Waldo feels uniquely yours.
+
+## Waldo as Ecosystem Infrastructure (Phase 2+)
+
+```mermaid
+graph TB
+    subgraph Agents["Other AI Agents"]
+        CURSOR["Cursor<br/>'Am I sharp enough<br/>for this refactor?'"]
+        LINDY["Lindy<br/>'Is 4pm good for<br/>the investor call?'"]
+        CC["Claude Code<br/>'Schedule heavy work<br/>for peak window'"]
+        SLACK["Slack Bot<br/>'Set DND when<br/>CRS drops'"]
+    end
+
+    subgraph MCP["Model Context Protocol (97M installs)"]
+        API["Waldo MCP Server"]
+        API -->|getCRS| RES1["CRS: 82, zone: ENERGIZED"]
+        API -->|getCognitiveWindow| RES2["Peak: 9-11am, dip: 2pm"]
+        API -->|shouldScheduleNow| RES3["Yes — sharp enough"]
+    end
+
+    subgraph Waldo["Waldo (Biological Intelligence Layer)"]
+        WEAR["Any Wearable"] --> CRS2["CRS Engine"]
+        CRS2 --> MEM2["5-Tier Memory"]
+        MEM2 --> SOUL2["Soul Files + Personality"]
+    end
+
+    CURSOR & LINDY & CC & SLACK -->|MCP query| API
+    API -->|reads from| Waldo
+
+    style Agents fill:#eef2ff,stroke:#6366f1
+    style MCP fill:#fef3c7,stroke:#f59e0b
+    style Waldo fill:#dcfce7,stroke:#22c55e
+```
+
+> **Waldo isn't competing with agent frameworks. Waldo IS the biological intelligence layer that every other agent should be running on.**
