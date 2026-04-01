@@ -54,3 +54,8 @@ tools/health-parser/output/
 # Claude Code local settings (not project rules)
 .claude/settings.local.json
 .claude/todos.json
+
+# Reference material — study only, not Waldo code
+"claude code source/"
+claude code source/
+takeoutexport_ark/
