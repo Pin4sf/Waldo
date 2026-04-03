@@ -28,10 +28,14 @@ import { z } from 'npm:zod@3';
 
 // Scopes — carefully minimal
 const SCOPE_DEFINITIONS: Record<string, string> = {
-  calendar: 'https://www.googleapis.com/auth/calendar.readonly',
-  gmail:    'https://www.googleapis.com/auth/gmail.metadata',  // metadata only — never body
-  tasks:    'https://www.googleapis.com/auth/tasks.readonly',
-  youtube:  'https://www.googleapis.com/auth/youtube.readonly', // YouTube Music liked videos
+  calendar:  'https://www.googleapis.com/auth/calendar.readonly',
+  gmail:     'https://www.googleapis.com/auth/gmail.metadata',       // metadata only — never body
+  tasks:     'https://www.googleapis.com/auth/tasks.readonly',
+  youtube:   'https://www.googleapis.com/auth/youtube.readonly',     // YouTube Music liked videos
+  // Google Fit — syncs from Health Connect on Android + any paired wearable
+  fit_heart: 'https://www.googleapis.com/auth/fitness.heart_rate.read',
+  fit_sleep: 'https://www.googleapis.com/auth/fitness.sleep.read',
+  fit_steps: 'https://www.googleapis.com/auth/fitness.activity.read',
 };
 
 const ALL_SCOPES = Object.values(SCOPE_DEFINITIONS);

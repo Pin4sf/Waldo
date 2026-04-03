@@ -37,11 +37,11 @@ export function PersonalSetup({ userId, name, onDone }: Props) {
         boxShadow: '0 4px 40px rgba(0,0,0,0.08)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-          <img src="/logo/light-mode-ui/logo.svg" alt="" style={{ width: 28, height: 28 }} />
-          <img src="/logo/light-mode-ui/horizontal-stack.svg" alt="Waldo" style={{ height: 18 }} />
+          <img src="/logo.svg" alt="" style={{ width: 28, height: 28 }} />
+          <img src="/horizontal-stack.svg" alt="Waldo" style={{ height: 18 }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-          <img src="/illustration-svgs/light-mode-ui/on-it-light-mode.svg" alt="" style={{ width: 140, height: 140, objectFit: 'contain' }} />
+          <img src="/on-it-light-mode.svg" alt="" style={{ width: 140, height: 140, objectFit: 'contain' }} />
         </div>
         <h2 style={{ fontFamily: 'var(--font-headline)', fontSize: 28, marginBottom: 6 }}>
           {name}'s Waldo is ready
@@ -120,7 +120,7 @@ export function PersonalSetup({ userId, name, onDone }: Props) {
               background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 8,
               padding: '10px 14px', marginTop: 10, fontSize: 12, color: '#92400E', lineHeight: 1.7,
             }}>
-              1. Open Telegram → find <strong>@YourWaldoBot</strong><br />
+              1. Open Telegram → find <strong>@wadloboi1_test_bot</strong><br />
               2. Send <code>/start</code><br />
               3. Paste the code above
             </div>

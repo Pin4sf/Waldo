@@ -213,7 +213,7 @@ export function OnboardingScreen({ onComplete }: Props) {
           <Text className="text-sm font-semibold text-orange-800 mb-2">How to link:</Text>
           <Text className="text-sm text-orange-700 leading-5">
             1. Open Telegram{'\n'}
-            2. Search for <Text className="font-semibold">@YourWaldoBot</Text>{'\n'}
+            2. Search for <Text className="font-semibold">@wadloboi1_test_bot</Text>{'\n'}
             3. Send <Text className="font-semibold">/start</Text>{'\n'}
             4. Enter the 6-digit code above
           </Text>

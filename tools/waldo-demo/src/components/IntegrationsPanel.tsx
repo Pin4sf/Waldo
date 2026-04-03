@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchSyncStatus, getGoogleConnectUrl, triggerSync } from '../supabase-api.js';
+import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, triggerSync } from '../supabase-api.js';
 import type { SyncStatus } from '../types.js';
 
 interface Props { userId: string }
@@ -59,17 +59,18 @@ export function IntegrationsPanel({ userId }: Props) {
           <div style={{ padding: '12px 14px' }}>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
               Connect Google to give Waldo calendar context, Gmail load, and task pressure.
-              After connecting, syncs run automatically every 30 min (Calendar) and nightly (Gmail, Tasks).
+              Add Google Fit scopes to also sync Android health data (steps, heart rate, sleep).
             </p>
-            <a
-              href={googleConnectUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-accent"
-              style={{ fontSize: 12, textDecoration: 'none', display: 'inline-block', padding: '8px 16px' }}
-            >
-              Connect Google Workspace →
-            </a>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <a href={googleConnectUrl} target="_blank" rel="noreferrer"
+                className="btn btn-accent" style={{ fontSize: 12, textDecoration: 'none', display: 'inline-block', padding: '8px 16px' }}>
+                Connect Google →
+              </a>
+              <a href={getGoogleConnectUrl(userId, true)} target="_blank" rel="noreferrer"
+                className="btn btn-ghost" style={{ fontSize: 12, textDecoration: 'none', display: 'inline-block', padding: '8px 16px' }}>
+                Connect Google + Android Health →
+              </a>
+            </div>
           </div>
         )}
 
@@ -116,6 +117,38 @@ export function IntegrationsPanel({ userId }: Props) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Spotify */}
+      <div className="debug-section" style={{ marginTop: 8 }}>
+        <div className="debug-header" style={{ cursor: 'default' }}>
+          <span>Spotify</span>
+          {statuses.find(s => s.provider === 'spotify')?.connected
+            ? <span style={{ fontSize: 11, color: '#34D399' }}>Connected</span>
+            : <span style={{ fontSize: 11, color: '#9CA3AF' }}>Not connected</span>
+          }
+        </div>
+        <div style={{ padding: '10px 14px' }}>
+          {statuses.find(s => s.provider === 'spotify')?.connected ? (
+            <div className="debug-metric">
+              <span className="label">Last sync</span>
+              <span className="value">{timeSince(statuses.find(s => s.provider === 'spotify')?.lastSyncAt ?? null)}</span>
+            </div>
+          ) : (
+            <>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.6 }}>
+                Spotify gives Waldo real audio features per track (valence, energy, tempo) — much better mood inference than YouTube Music. Requires a Spotify account.
+              </p>
+              <a href={getSpotifyConnectUrl(userId)} target="_blank" rel="noreferrer"
+                className="btn btn-accent" style={{ fontSize: 12, textDecoration: 'none', display: 'inline-block', padding: '8px 16px' }}>
+                Connect Spotify →
+              </a>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 8 }}>
+                Requires: SPOTIFY_CLIENT_ID + SPOTIFY_CLIENT_SECRET in Supabase secrets
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Telegram */}

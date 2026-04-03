@@ -37,10 +37,11 @@ interface Props {
 
 type Mode = 'welcome' | 'new' | 'returning' | 'admin';
 
+// All SVGs live at the public root — use root paths, not subdirectories
 function WaldoIllustration({ state, size = 160 }: { state: string; size?: number }) {
   return (
     <img
-      src={`/illustration-svgs/light-mode-ui/${state}-light-mode.svg`}
+      src={`/${state}-light-mode.svg`}
       alt=""
       style={{ width: size, height: size, objectFit: 'contain' }}
       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -118,8 +119,8 @@ export function LandingPage({ onLogin }: Props) {
         <div style={welcomeCard}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 40 }}>
-            <img src="/logo/light-mode-ui/logo.svg" alt="Waldo" style={{ width: 36, height: 36 }} />
-            <img src="/logo/light-mode-ui/workmark.svg" alt="Waldo" style={{ height: 22 }} />
+            <img src="/logo.svg" alt="Waldo" style={{ width: 36, height: 36 }} />
+            <img src="/horizontal-stack.svg" alt="Waldo" style={{ height: 22 }} />
           </div>
 
           {/* Dalmatian illustration */}
@@ -156,8 +157,8 @@ export function LandingPage({ onLogin }: Props) {
         <div style={{ ...formCard }}>
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-            <img src="/logo/light-mode-ui/logo.svg" alt="" style={{ width: 28, height: 28 }} />
-            <img src="/logo/light-mode-ui/horizontal-stack.svg" alt="Waldo" style={{ height: 18 }} />
+            <img src="/logo.svg" alt="" style={{ width: 28, height: 28 }} />
+            <img src="/horizontal-stack.svg" alt="Waldo" style={{ height: 18 }} />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
@@ -212,8 +213,8 @@ export function LandingPage({ onLogin }: Props) {
       <div style={pageWrap}>
         <div style={formCard}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-            <img src="/logo/light-mode-ui/logo.svg" alt="" style={{ width: 28, height: 28 }} />
-            <img src="/logo/light-mode-ui/horizontal-stack.svg" alt="Waldo" style={{ height: 18 }} />
+            <img src="/logo.svg" alt="" style={{ width: 28, height: 28 }} />
+            <img src="/horizontal-stack.svg" alt="Waldo" style={{ height: 18 }} />
           </div>
           <WaldoIllustration state="good" size={100} />
           <h2 style={{ ...headlineStyle, fontSize: 24, marginTop: 16, marginBottom: 6 }}>Welcome back</h2>

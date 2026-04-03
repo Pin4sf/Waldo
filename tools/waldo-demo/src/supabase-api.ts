@@ -388,13 +388,20 @@ export async function fetchSyncStatus(userId = DEFAULT_USER_ID): Promise<SyncSta
     supabase.from('sync_log').select('provider, last_sync_at, last_sync_status, records_synced, last_error').eq('user_id', userId),
   ]);
 
-  const providers = ['google_calendar', 'gmail', 'google_tasks'];
+  const { data: spotifyToken } = await supabase
+    .from('oauth_tokens').select('id').eq('user_id', userId).eq('provider', 'spotify').maybeSingle();
+
+  const providers = ['google_calendar', 'gmail', 'google_tasks', 'google_fit', 'spotify', 'youtube_music'];
   return providers.map(provider => {
     const log = (logs ?? []).find((l: any) => l.provider === provider);
-    const connected = token !== null;
+    const isSpotify = provider === 'spotify';
+    const connected = isSpotify ? spotifyToken !== null : token !== null;
     const label = provider === 'google_calendar' ? 'Google Calendar'
       : provider === 'gmail' ? 'Gmail'
-      : 'Google Tasks';
+      : provider === 'google_tasks' ? 'Google Tasks'
+      : provider === 'google_fit' ? 'Google Fit (Android health)'
+      : provider === 'spotify' ? 'Spotify'
+      : 'YouTube Music';
 
     return {
       provider,
@@ -412,8 +419,38 @@ export async function fetchSyncStatus(userId = DEFAULT_USER_ID): Promise<SyncSta
 }
 
 /** Get the Google OAuth connect URL for a user. */
-export function getGoogleConnectUrl(userId: string): string {
-  return `${SUPABASE_FN_URL}/oauth-google/connect?user_id=${userId}&scopes=calendar,gmail,tasks,youtube`;
+/** Google Workspace + Fit connect URL. Includes fitness scopes for Android health data. */
+export function getGoogleConnectUrl(userId: string, includeFit = false): string {
+  const scopes = includeFit
+    ? 'calendar,gmail,tasks,youtube,fit_heart,fit_sleep,fit_steps'
+    : 'calendar,gmail,tasks,youtube';
+  return `${SUPABASE_FN_URL}/oauth-google/connect?user_id=${userId}&scopes=${scopes}`;
+}
+
+/** Spotify connect URL. */
+export function getSpotifyConnectUrl(userId: string): string {
+  return `${SUPABASE_FN_URL}/oauth-spotify/connect?user_id=${userId}`;
+}
+
+/** Check Spotify connection status for a user. */
+export async function fetchSpotifyStatus(userId: string): Promise<{ connected: boolean; lastSyncAt: string | null; status: string }> {
+  const { data } = await supabase
+    .from('sync_log')
+    .select('last_sync_at, last_sync_status')
+    .eq('user_id', userId)
+    .eq('provider', 'spotify')
+    .maybeSingle();
+  const { data: token } = await supabase
+    .from('oauth_tokens')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('provider', 'spotify')
+    .maybeSingle();
+  return {
+    connected: token !== null,
+    lastSyncAt: data?.last_sync_at ?? null,
+    status: !token ? 'not_connected' : (data?.last_sync_status ?? 'pending'),
+  };
 }
 
 /** Manually trigger a sync for a provider. */
