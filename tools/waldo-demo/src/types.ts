@@ -1,4 +1,4 @@
-/** API response types for the Waldo demo frontend */
+/** API response types for the Waldo console */
 
 export interface DateEntry {
   date: string;
@@ -26,7 +26,7 @@ export interface DayResponse {
   date: string;
   crs: {
     score: number;
-    zone: 'peak' | 'moderate' | 'low';
+    zone: 'peak' | 'moderate' | 'low' | 'nodata';
     confidence: number;
     componentsWithData: number;
     sleep: ComponentScore;
@@ -51,12 +51,7 @@ export interface DayResponse {
     bedtime: string;
     wakeTime: string;
   } | null;
-  hrv: {
-    avg: number;
-    min: number;
-    max: number;
-    count: number;
-  } | null;
+  hrv: { avg: number; min: number; max: number; count: number } | null;
   activity: {
     steps: number;
     exerciseMinutes: number;
@@ -68,18 +63,46 @@ export interface DayResponse {
   wristTemp: number | null;
   avgNoiseDb: number | null;
   daylightMinutes: number;
-  weather: { temperatureF: number; humidity: number; source: 'workout' | 'api' } | null;
+  weather: { temperatureF: number; humidity: number; source: string } | null;
   aqi: number | null;
   aqiLabel: string | null;
   pm25: number | null;
   sleepDebt: { debtHours: number; direction: string; shortNights: number; avgSleepHours: number; summary: string } | null;
   strain: { score: number; level: string; zoneMinutes: number[]; zoneNames: string[]; totalActiveMinutes: number; peakHR: number; summary: string } | null;
-  calendar: { meetingLoadScore: number; totalMeetingMinutes: number; eventCount: number; backToBackCount: number; focusGaps: Array<{ durationMinutes: number }>; events: Array<{ summary: string; startTime: string; durationMinutes: number; attendeeCount: number }> } | null;
-  tasks: { summary: string; pendingCount: number; overdueCount: number; recentVelocity: number; completionRate: number } | null;
-  email: { totalEmails: number; sentCount: number; receivedCount: number; afterHoursCount: number; afterHoursRatio: number; uniqueThreads: number; volumeSpike: number } | null;
-  cognitiveLoad: { score: number; level: string; components: { meetingLoad: number; communicationLoad: number; taskLoad: number; sleepDebtImpact: number }; summary: string } | null;
-  burnoutTrajectory: { score: number; status: string; components: { hrvSlope: number; sleepDebtTrend: number; afterHoursTrend: number; mlsTrend: number }; summary: string } | null;
-  resilience: { score: number; level: string; components: { crsStability: number; hrvTrend: number; stressRecovery: number }; summary: string } | null;
+  calendar: {
+    meetingLoadScore: number;
+    totalMeetingMinutes: number;
+    eventCount: number;
+    backToBackCount: number;
+    boundaryViolations: number;
+    focusGaps: Array<{ durationMinutes: number; quality?: number }>;
+    events: Array<{ summary: string; startTime: string; durationMinutes: number; attendeeCount: number }>;
+  } | null;
+  tasks: {
+    summary: string;
+    pendingCount: number;
+    overdueCount: number;
+    recentVelocity: number;
+    completionRate: number;
+    urgencyQueue?: Array<{ title: string; due: string }>;
+  } | null;
+  email: {
+    totalEmails: number;
+    sentCount: number;
+    receivedCount: number;
+    afterHoursCount: number;
+    afterHoursRatio: number;
+    uniqueThreads: number;
+    volumeSpike: number;
+  } | null;
+  cognitiveLoad: {
+    score: number;
+    level: string;
+    components: { meetingLoad: number; communicationLoad: number; taskLoad: number; sleepDebtImpact: number };
+    summary: string;
+  } | null;
+  burnoutTrajectory: { score: number; status: string; components: any; summary: string } | null;
+  resilience: { score: number; level: string; components: any; summary: string } | null;
   crossSourceInsights: Array<{ type: string; summary: string; confidence: string; evidenceCount: number }>;
   patterns: PatternData[];
   waldoActions: WaldoActionData[];
@@ -89,9 +112,11 @@ export interface DayResponse {
 export interface PatternData {
   id: string;
   type: string;
-  confidence: string;
+  confidence: number | string;
   summary: string;
   evidenceCount: number;
+  firstSeen?: string;
+  lastSeen?: string;
 }
 
 export interface WaldoActionData {
@@ -144,27 +169,88 @@ export interface WaldoResponse {
   tokensIn: number;
   tokensOut: number;
   responseTimeMs: number;
-  debug: {
-    systemPrompt: string;
-    userMessage: string;
-    model: string;
-  };
+  crsScore?: number;
+  iterations?: number;
+  toolsCalled?: string[];
+  method?: 'claude' | 'template';
+  fallback?: boolean;
+  debug?: { systemPrompt: string; userMessage: string; model: string };
 }
 
 export interface WaldoError {
   error: string;
-  debug?: {
-    systemPrompt: string;
-    userMessage: string;
-  };
+  debug?: { systemPrompt: string; userMessage: string };
 }
 
-export type MessageMode = 'morning_wag' | 'fetch_alert' | 'conversational';
+export type MessageMode = 'morning_wag' | 'fetch_alert' | 'conversational' | 'evening_review';
 
 export interface SummaryResponse {
-  profile: { dateOfBirth: string; biologicalSex: string; age: number };
+  profile: { name?: string; dateOfBirth?: string; biologicalSex: string; age: number | null };
   recordCounts: Record<string, number>;
   dateRange: { start: string; end: string };
   richDayCount: number;
   totalDays: number;
+  exportDate?: string;
+  userIntelligence?: string;
+  intelligenceScore?: number;
+  connectedSources?: string[];
+}
+
+// ─── New types for multi-user console ──────────────────────────
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  age: number | null;
+  timezone: string;
+  chronotype: 'early' | 'normal' | 'late';
+  wearableType: string;
+  telegramLinked: boolean;
+  onboardingComplete: boolean;
+  lastHealthSync: string | null;
+  wakeTimeEstimate: string;
+  preferredEveningTime: string;
+  createdAt: string;
+}
+
+export interface SyncStatus {
+  provider: string;
+  label: string;
+  connected: boolean;
+  status: 'ok' | 'error' | 'no_token' | 'token_expired' | 'pending' | 'not_connected';
+  lastSyncAt: string | null;
+  recordsSynced: number;
+  lastError: string | null;
+  tokenExpiry: string | null;
+}
+
+export interface ConversationMessage {
+  id: string;
+  role: 'user' | 'waldo';
+  content: string;
+  mode: string | null;
+  channel: string;
+  createdAt: string;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface CoreMemoryEntry {
+  id: string;
+  key: string;
+  value: string;
+  updatedAt: string;
+}
+
+export interface AgentLogEntry {
+  id: string;
+  traceId: string;
+  triggerType: string;
+  toolsCalled: string[];
+  iterations: number;
+  totalTokens: number;
+  latencyMs: number;
+  deliveryStatus: string;
+  llmFallbackLevel: number;
+  estimatedCostUsd: number;
+  createdAt: string;
 }

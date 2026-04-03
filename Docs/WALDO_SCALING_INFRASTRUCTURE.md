@@ -731,7 +731,239 @@ Code Mode works best for **predictable workflows** where the set of tools is kno
 
 ---
 
-## 11. Open Questions
+## 11. Cloudflare R2 — Archival Storage Layer (Phase E+)
+
+**Status:** Not yet in the architecture. Researched April 2026.
+**Decision:** Add R2 as a cold-storage overflow tier alongside DO SQLite. Not required for Phase D. Becomes important at Phase E+ when conversation history grows past 30 days per user.
+
+---
+
+### Why R2 Matters for Waldo
+
+Durable Objects with SQLite give each user a persistent brain. The problem: every row in DO SQLite costs compute (query reads are billed). Conversation history, episodic memory, and old observations accumulate fast. Without archival, you either:
+- Delete old context (loses agent learning over months)
+- Keep it all in SQLite (costs scale with history length, not just active users)
+
+R2 is Cloudflare's object storage — zero egress, $0.015/GB/month, accessible from DOs via binding. It's the natural cold tier for anything older than 30-90 days.
+
+**The key number:** DO SQLite caps at **10 GB per DO**. For a health AI generating 5-20 KB of episodic memory per day, that's 136-550 years of headroom — more than enough. R2 is less about capacity and more about **cost and compliance**: archiving old episodes to R2 reduces DO query costs, and R2 signed URLs enable GDPR-compliant data exports with zero engineering overhead.
+
+---
+
+### Storage Decision Matrix
+
+| Data | Hot (0-30 days) | Warm (30-90 days) | Cold (90+ days) | Never |
+|------|-----------------|-------------------|-----------------|-------|
+| Semantic memory (memory_blocks) | DO SQLite | DO SQLite | DO SQLite (stays forever, tiny) | — |
+| Episodic memory (episodes) | DO SQLite | DO SQLite (compressed) | **R2 archival** | — |
+| Procedural memory (procedures/evolutions) | DO SQLite | DO SQLite | DO SQLite (small, keep forever) | — |
+| Raw health values (HRV, HR, sleep) | **Supabase only** | Supabase | Supabase | DO, R2 |
+| Derived health insights | DO SQLite | DO SQLite | DO SQLite | Raw values |
+| CRS scores | Supabase | Supabase | Supabase | — |
+| Conversation exports (GDPR) | — | — | **R2 exports bucket** | Supabase, DO |
+| Monthly health snapshots | Supabase | Supabase | **R2 backups** (optional) | — |
+
+**Key invariant:** Raw health values never touch R2. Health data is Supabase-only (RLS, encryption, compliance). R2 is for **agent memory** (episodic) and **user-facing exports**.
+
+---
+
+### DO SQLite vs R2: When to Use Each
+
+```
+Use DO SQLite when:
+  ✓ Data accessed on most invocations (memory_blocks always loaded)
+  ✓ Data needs SQL queries (filter by date, join with other tables)
+  ✓ Data is <30 days old (high likelihood of being needed)
+  ✓ Data drives real-time decisions (current zone, cooldown state)
+
+Use R2 when:
+  ✓ Data >90 days old and accessed <1x/month (old episodes)
+  ✓ Large blobs (conversation exports, health data dumps)
+  ✓ User-facing downloads (signed URLs, GDPR exports)
+  ✓ Cross-region backups (R2 automatic replication)
+  ✗ Never for real-time decisions
+  ✗ Never for raw health values
+```
+
+---
+
+### The Archival Pattern: DO SQLite → R2
+
+**Trigger:** Patrol Agent's weekly consolidation (already in HEARTBEAT_WEEKLY.md). After compacting old episodes into summaries, archive the raw episodes to R2.
+
+**R2 bucket structure:**
+```
+waldo-episodes/
+  {user_id}/
+    {year}/
+      {month}/
+        episodes_{timestamp}.jsonl   ← raw episodes, newline-delimited JSON
+        summary_{timestamp}.md       ← Patrol Agent's weekly summary
+```
+
+**DO SQLite schema addition** (add to `episodes` table):
+```sql
+ALTER TABLE episodes ADD COLUMN archived_to_r2 BOOLEAN DEFAULT false;
+ALTER TABLE episodes ADD COLUMN r2_key TEXT;  -- full R2 path for retrieval
+```
+
+**Patrol Agent archival logic** (TypeScript, runs inside DO):
+```typescript
+// 1. Find episodes older than 90 days, not yet archived
+const oldEpisodes = await this.ctx.storage.sql`
+  SELECT * FROM episodes
+  WHERE created_at < datetime('now', '-90 days')
+    AND archived_to_r2 = false
+  ORDER BY created_at
+`.all();
+
+if (oldEpisodes.length === 0) return;
+
+// 2. Serialize as JSONL
+const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+const month = new Date().toISOString().slice(0, 7);
+const r2Key = `${userId}/${new Date().getFullYear()}/${month}/episodes_${timestamp}.jsonl`;
+const body = oldEpisodes.map(e => JSON.stringify(e)).join('\n');
+
+// 3. Write to R2 (env.R2 = R2Bucket binding)
+await this.env.WALDO_R2.put(r2Key, body, {
+  httpMetadata: { contentType: 'application/jsonl' },
+  customMetadata: {
+    user_id: userId,
+    episode_count: String(oldEpisodes.length),
+    date_range_start: oldEpisodes[0].created_at,
+    date_range_end: oldEpisodes[oldEpisodes.length - 1].created_at,
+  },
+});
+
+// 4. Mark episodes as archived, then delete from SQLite
+const ids = oldEpisodes.map(e => e.id);
+await this.ctx.storage.sql`
+  UPDATE episodes
+  SET archived_to_r2 = true, r2_key = ${r2Key}
+  WHERE id IN (${ids.join(',')})
+`;
+await this.ctx.storage.sql`
+  DELETE FROM episodes WHERE archived_to_r2 = true
+`;
+
+// 5. Store the archive index in memory_blocks so agent knows what's archived
+await this.ctx.storage.sql`
+  INSERT OR REPLACE INTO memory_blocks (key, value, updated_at)
+  VALUES (
+    'archived_episodes_index',
+    json_patch(
+      COALESCE((SELECT value FROM memory_blocks WHERE key = 'archived_episodes_index'), '{}'),
+      json_object(${r2Key}, json_object(
+        'count', ${oldEpisodes.length},
+        'archived_at', ${new Date().toISOString()}
+      ))
+    ),
+    datetime('now')
+  )
+`;
+```
+
+**Retrieval (if agent needs old context):** The `constellation_search()` tool (Phase 2) fetches from Supabase pgvector. For episodic archival lookup, a new tool `retrieve_archived_episodes(date_range)` reads the R2 key from memory_blocks index and streams the JSONL.
+
+---
+
+### GDPR Export Pattern
+
+When a user requests their data (right to access, right to portability), generate a complete export and store in R2 with a signed URL:
+
+```typescript
+// New tool: export_user_data()
+async function exportUserData(userId: string, env: Env): Promise<string> {
+  // 1. Pull from Supabase (health data — never in DO)
+  const healthData = await fetchAllUserHealthData(userId);
+
+  // 2. Pull from DO SQLite (memory, patterns, episodes summary)
+  const agentMemory = await getFullAgentMemory(userId);
+
+  // 3. Compile export
+  const exportData = {
+    exported_at: new Date().toISOString(),
+    user_id: userId,
+    health_data: healthData,        // CRS scores, health snapshots
+    agent_memory: agentMemory,      // Memory blocks, patterns, calibrations
+    disclaimer: 'Not a medical device. For informational purposes only.',
+  };
+
+  // 4. Upload to R2 exports bucket
+  const exportKey = `exports/${userId}/waldo_export_${Date.now()}.json`;
+  await env.WALDO_R2.put(exportKey, JSON.stringify(exportData, null, 2), {
+    httpMetadata: { contentType: 'application/json' },
+    customMetadata: { user_id: userId, type: 'gdpr_export' },
+  });
+
+  // 5. Generate signed URL (valid 24 hours)
+  const signedUrl = await env.WALDO_R2.createSignedUrl(exportKey, {
+    expiresIn: 86400,
+    method: 'GET',
+  });
+
+  return signedUrl;  // Send to user via Telegram or email
+}
+```
+
+**R2 Lifecycle rule** (set in Cloudflare dashboard):
+- `exports/` prefix: delete after 7 days (download window)
+- `{user_id}/` archive prefix: move to Infrequent Access class after 30 days, delete after 2 years
+
+---
+
+### Wrangler Configuration (Phase E)
+
+Add to `cloudflare/waldo-agent/wrangler.toml`:
+```toml
+[[r2_buckets]]
+binding = "WALDO_R2"
+bucket_name = "waldo-episodes"
+preview_bucket_name = "waldo-episodes-preview"  # for local dev
+
+# Separate bucket for user-facing exports
+[[r2_buckets]]
+binding = "WALDO_EXPORTS"
+bucket_name = "waldo-exports"
+preview_bucket_name = "waldo-exports-preview"
+```
+
+**Note:** Two buckets — one for internal archival (episodes, summaries), one for user-facing exports. Different lifecycle rules, different access patterns.
+
+---
+
+### Cost Model
+
+**For 10,000 users at Phase D-E:**
+
+| Layer | Data Size | Monthly Cost |
+|---|---|---|
+| DO SQLite (Tier 1-3, active memory) | 10K users × 500 KB avg = 5 GB | ~$5-10/month |
+| R2 archival (episodic, >90 days) | 10K users × 2 MB/month accumulation = 20 GB after 1yr | **$0.30/month** |
+| R2 exports (GDPR, temporary) | 10K users × 5 MB, deleted after 7d | **<$0.10/month** |
+| Supabase health data (unchanged) | Existing Supabase plan | $25/month |
+| **Total storage** | | **~$35-45/month** |
+
+**R2 egress: $0.00/GB** — This is the killer advantage. If users download health exports or Waldo retrieves archived episodes, there's no egress charge. Compare to S3 at $0.09/GB which makes large exports expensive at scale.
+
+**Break-even vs keeping everything in DO SQLite:** R2 is cheaper past ~100 MB per user. Below that, the operational overhead isn't worth it. Start archiving at Phase E (100+ users, 6+ months of data per user).
+
+---
+
+### Open Questions for R2 Integration
+
+1. **R2 bindings in DOs** — R2 bucket access from a DO requires a Worker binding (`env.WALDO_R2`). The binding is passed to the DO constructor. Verify the Cloudflare Agents SDK supports this natively (it should — it's a standard Worker env pattern).
+
+2. **Privacy of archived episodes** — Archived episodes are user's conversation history and agent observations. They do NOT contain raw health values (per architecture rule), but they contain personal context ("user mentioned they're stressed about deadline"). Apply at-rest encryption using Cloudflare R2's SSE-C option or encrypt before writing.
+
+3. **Cross-region data residency** — If your Supabase is in eu-west and Cloudflare routes the DO to a US datacenter, archived R2 objects are written from that US DO. R2 auto-replicates globally anyway. May need `jurisdiction` setting on R2 bucket for EU data residency compliance.
+
+4. **Retrieval latency** — R2 reads from a DO are ~50-150ms (R2 is designed for low-latency). Acceptable for archival retrieval (not on the critical path of Morning Wag generation). Only trigger R2 reads when user explicitly asks about historical context.
+
+---
+
+## 12. Open Questions
 
 1. **Supabase Auth integration with Cloudflare Workers** — how do we validate Supabase JWTs in Workers? (Answer: verify JWT signature against Supabase JWKS endpoint)
 
@@ -752,6 +984,10 @@ Code Mode works best for **predictable workflows** where the set of tools is kno
 
 - [Cloudflare Agents SDK](https://github.com/cloudflare/agents) — TypeScript framework for persistent stateful agents on Durable Objects
 - [Cloudflare Durable Objects Pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/) — $0.15/M requests, free hibernation
+- [Cloudflare R2 Overview](https://developers.cloudflare.com/r2/) — zero-egress object storage, S3-compatible API
+- [Cloudflare R2 Pricing](https://developers.cloudflare.com/r2/pricing/) — $0.015/GB/month, $0 egress
+- [Cloudflare Storage Options Guide](https://developers.cloudflare.com/workers/platform/storage-options/) — DO vs R2 vs KV vs D1 decision matrix
+- [SQLite in Durable Objects GA](https://blog.cloudflare.com/sqlite-in-durable-objects/) — 10 GB per DO limit, billing model
 - [Fly.io Sprites](https://devclass.com/2026/01/13/fly-io-introduces-sprites-lightweight-persistent-vms-to-isolate-agentic-ai/) — persistent VMs for AI agents
 - [E2B Sandboxes](https://e2b.dev/docs) — Firecracker microVMs, 200ms boot, 15M sessions/month
 - [Agent-Sandbox](https://github.com/agent-sandbox/agent-sandbox) — E2B-compatible, K8s-based, self-hosted

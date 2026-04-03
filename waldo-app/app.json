@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "Waldo",
+    "slug": "waldo-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "waldo",
+    "platforms": ["ios", "android"],
+    "splash": {
+      "backgroundColor": "#FAFAF8"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.waldo.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Waldo reads your health data from Apple Watch to compute your Nap Score — your daily cognitive readiness number.",
+        "NSHealthUpdateUsageDescription": "Waldo does not write health data.",
+        "UIBackgroundModes": ["fetch", "processing"]
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.background-delivery": true,
+        "com.apple.developer.healthkit.access": []
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FAFAF8"
+      },
+      "package": "com.waldo.app",
+      "versionCode": 1
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-dev-client",
+        {
+          "launchMode": "most-recent"
+        }
+      ],
+      "./modules/healthkit/expo-module.config.json"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "waldo-app"
+      }
+    }
+  }
+}

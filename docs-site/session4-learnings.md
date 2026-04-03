@@ -106,6 +106,27 @@ From VentureBeat deep dive, Reddit/HN community analysis (489 Reddit comments, 3
 
 ---
 
+## 6 New Patterns from ccunpacked.dev + DeepWiki (April 2026)
+
+Source: Claude Code production internals from ccunpacked.dev and deepwiki.com/zackautocracy/claude-code — patterns NOT in our earlier research.
+
+| # | Pattern | What | Waldo Addition | Phase |
+|---|---------|------|---------------|-------|
+| 1 | **Diminishing-returns loop guard** | If last 3 iterations each produce <500 tokens, agent is stuck — stop and fallback | Add to Hook 8 (Loop Guard): check recent output token count before each iteration | D |
+| 2 | **Skip already-summarized episodes** | Patrol Agent checks `consolidated: boolean` per episode — never re-summarizes old content | Enforce in Patrol Agent consolidation logic | G |
+| 3 | **Compaction circuit breaker** | If consolidation fails 3× consecutively, skip it and proceed — never block delivery | Add `compaction_failure` to error taxonomy | G |
+| 4 | **Partial response retry** | If Claude truncates due to output token limit, retry up to 3× appending partial and continuing | New retry branch between fallback Level 1 and Level 2 | Phase 2 |
+| 5 | **Message smooshing** | Merge consecutive same-role messages before sending to Claude — reduces turn count overhead | Apply in prompt builder when loading Tier 2 episodic memory | D |
+| 6 | **KAIROS tick-and-decide** | Patrol Agent wakes → assesses state → decides WHETHER to run — not always runs | Add tick assessment before consolidation: skip if <3 unconsolidated episodes AND <48h since last run | G |
+
+### On AutoDream and KAIROS for Waldo
+
+**AutoDream = Patrol Agent (already built).** The 4-phase consolidation (Orient, Gather, Consolidate, Pre-stage) is our implementation. New addition: pattern #2 — skip already-summarized episodes.
+
+**KAIROS = DO alarm architecture (already built).** Our persistent DO with alarms IS KAIROS. The tick-and-decide pattern (item #6) is the missing piece — Patrol should assess before acting, not always run.
+
+---
+
 ## Competitive Intelligence (Key Numbers)
 
 | Metric | Value | Source |

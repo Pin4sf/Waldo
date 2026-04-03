@@ -9,7 +9,8 @@
   - [Agent OS intelligence](agent-intelligence.md)
   - [CRS & algorithms](research-algorithms.md)
   - [Adapter ecosystem](adapter-ecosystem.md)
-  - [Scaling infrastructure](scaling-infrastructure.md)
+  - [Scaling & Cloudflare DOs](scaling-infrastructure.md)
+  - [R2 archival storage](scaling-infrastructure.md#cloudflare-r2--cold-storage-layer-phase-e)
   - [Security & reliability](security-reliability.md)
 
 - **Session 4 Research (March 2026)**

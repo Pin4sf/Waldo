@@ -113,7 +113,7 @@ graph TD
     subgraph Post["Post-Reasoning (before delivery)"]
         H6["6. Health Language Safety<br/>(no diagnosis, no 'you are stressed')"]
         H7["7. Confidence Check<br/>(Fetch: ≥0.60, patterns: ≥3 data points)"]
-        H8["8. Loop Guard<br/>(SHA256 duplicate detection)"]
+        H8["8. Loop Guard<br/>(SHA256 duplicate + diminishing-returns:<br/>if last 3 iters <500 tokens → fallback)"]
         H9["9. Memory Update + Verify<br/>(persist facts, verify before assert)"]
         H10["10. Clean State Exit<br/>(trace logged, session_state updated,<br/>no orphaned state)"]
     end
@@ -350,9 +350,9 @@ Cost control comes from **prompt caching** (cached tokens cost 0.1x) and the **r
 | LLM (Claude Haiku) | $0.30-0.90 | 5-20 calls/day with pre-filter + caching |
 | **Total** | **$0.31-0.91** | Revenue at Rs 399/mo ($4.34) = **73%+ margin** |
 
-## 5-Tier Memory Architecture (Session 4 — Finalized)
+## 5-Tier Memory Architecture (Updated April 2026 — R2 Added)
 
-Mapped to cognitive science. Tiers 1-3 live in Cloudflare DO's SQLite (per-user, <1ms access). Tier 4 in Supabase pgvector.
+Tiers 1-3 live in Cloudflare DO SQLite (per-user, <1ms). Tier 2 episodes older than 90 days archive to **Cloudflare R2** (cold, zero egress). Tier 4 is Supabase pgvector for semantic constellation search.
 
 ```mermaid
 graph TB
@@ -364,12 +364,16 @@ graph TB
         S1["Identity, health profile, preferences<br/>Active goals, recent Spots<br/>~200 tokens, structured blocks"]
     end
 
-    subgraph T2["Tier 2: Episodic Memory<br/>(DO SQLite — On-Demand)"]
-        E1["Conversation logs, daily observations<br/>Feedback signals, pending followups<br/>7d full → 30d summary → 90d archive"]
+    subgraph T2["Tier 2: Episodic Memory<br/>(DO SQLite 0-90d → R2 90d+)"]
+        E1["Conversation logs, daily observations<br/>Feedback signals, pending followups<br/>7d full → 30d summary → 90d R2 archive"]
     end
 
     subgraph T3["Tier 3: Procedural Memory<br/>(DO SQLite — Phase G)"]
         P1["Evolution entries, intervention effectiveness<br/>Learned skills (Phase 3)"]
+    end
+
+    subgraph R2["R2: Episodic Archive + GDPR Exports<br/>(Cloudflare R2 — Phase E+)"]
+        RA["waldo-episodes/{user}/{year}/{month}/<br/>episodes.jsonl  •  $0 egress  •  $0.015/GB/mo"]
     end
 
     subgraph T4["Tier 4: Archival / Constellation<br/>(Supabase pgvector — Phase 2)"]
@@ -379,16 +383,27 @@ graph TB
     T0 -.->|reads| T1 & T2
     T2 -->|consolidation| T1
     T2 -->|signals| T3
-    T2 -->|archive >90d| T4
+    T2 -->|"Patrol Agent<br/>weekly archive >90d"| R2
+    R2 -.->|semantic index| T4
 
     style T0 fill:#f1f5f9,stroke:#94a3b8
     style T1 fill:#dcfce7,stroke:#22c55e
     style T2 fill:#fef3c7,stroke:#f59e0b
     style T3 fill:#eef2ff,stroke:#6366f1
+    style R2 fill:#e0f2fe,stroke:#0284c7
     style T4 fill:#fce7f3,stroke:#ec4899
 ```
 
-> Raw health values NEVER enter DO SQLite. Only derived insights.
+| Tier | Storage | What | When | Phase |
+|------|---------|------|------|-------|
+| 0 | Context window | Active conversation | Every call (volatile) | D |
+| 1 | DO SQLite | Identity, profile, preferences | Always loaded | D |
+| 2 | DO SQLite → R2 | Episodes, observations | On-demand; auto-archive >90d | D→E |
+| 3 | DO SQLite | Evolutions, procedures | Selectively loaded | G |
+| R2 | Cloudflare R2 | Old episodes + GDPR exports | Cold retrieval + downloads | E+ |
+| 4 | Supabase pgvector | Embeddings, Constellation | Semantic search | Phase 2 |
+
+> Raw health values NEVER enter DO SQLite or R2. Supabase only, always encrypted with RLS.
 
 ## Three-Stage Context Compaction (From Claude Code)
 

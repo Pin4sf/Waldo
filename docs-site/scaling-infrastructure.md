@@ -73,8 +73,112 @@ Claude generates a single TypeScript function instead of multiple tool calls. A 
 |-------|---------|-----------|--------|
 | B-C (now) | Supabase Edge Functions | pg_cron (global) | Supabase Postgres |
 | **D (agent core)** | **Cloudflare DO** | **DO alarms (per-user)** | **DO SQLite** |
-| E (proactive) | DO + Dynamic Workers | DO alarms + Code Mode | DO SQLite |
-| F (onboarding) | DO + WebSocket | DO alarms | DO SQLite |
-| G (evolution) | DO (full) | DO alarms | DO SQLite (all 5 tiers) |
+| E (proactive) | DO + Dynamic Workers | DO alarms + Code Mode | DO SQLite **+ R2 archival** |
+| F (onboarding) | DO + WebSocket | DO alarms | DO SQLite + R2 |
+| G (evolution) | DO (full) | DO alarms | DO SQLite (all 5 tiers) + R2 |
 
-> **Full details:** [Docs/WALDO_SCALING_INFRASTRUCTURE.md](https://github.com/Pin4sf/Waldo/blob/main/Docs/WALDO_SCALING_INFRASTRUCTURE.md)
+---
+
+## Cloudflare R2 — Cold Storage Layer (Phase E+)
+
+> **Researched April 2026.** R2 was not in the original architecture. Added as the episodic memory archival tier and GDPR export layer.
+
+### The Problem R2 Solves
+
+DO SQLite stores everything for Tiers 1-3. As conversation history grows past 90 days, old episodic memory accumulates — it's rarely accessed but still takes up space and costs query reads. R2 is Cloudflare's object storage with **zero egress cost** and $0.015/GB/month. It's the natural cold tier.
+
+### What Goes Where
+
+```mermaid
+graph LR
+    subgraph Active["DO SQLite (Hot — 0-90 days)"]
+        M1["memory_blocks (forever)"]
+        E1["episodes (0-90d)"]
+        P1["procedures / evolutions"]
+    end
+
+    subgraph Archive["R2 (Cold — 90+ days)"]
+        A1["waldo-episodes/\n{user_id}/{year}/{month}/\nepisodes.jsonl"]
+        A2["waldo-exports/\n{user_id}/\nGDPR export.json"]
+    end
+
+    subgraph Health["Supabase (Health Data Only)"]
+        H1["health_snapshots\ncrs_scores\nstress_events"]
+        H2["pgvector\n(Tier 4 Archival)"]
+    end
+
+    E1 -->|"Patrol Agent\nweekly archive"| A1
+    M1 -.->|stays forever| M1
+    H1 -->|never leaves| H1
+    A2 -->|"signed URL\n24h expiry"| User["User download"]
+
+    style Active fill:#fef3c7,stroke:#f59e0b
+    style Archive fill:#e0f2fe,stroke:#0284c7
+    style Health fill:#dcfce7,stroke:#22c55e
+```
+
+**Key invariant: Raw health values never touch R2.** Health data is Supabase-only (encrypted, RLS). R2 stores agent conversation archives and user exports — no biometrics.
+
+### Cost Impact
+
+| Layer | Data (10K users) | Monthly Cost |
+|-------|-----------------|-------------|
+| DO SQLite (active memory) | 5 GB | ~$5-10 |
+| R2 archival (old episodes) | 20 GB after 1yr | **$0.30** |
+| R2 exports (GDPR, 7d TTL) | ~50 MB rolling | **<$0.10** |
+| R2 egress | Any amount | **$0.00** |
+
+R2 adds ~$0.40/month for 10K users. The zero-egress is the win — user data exports don't cost anything to serve.
+
+### Archival Pattern
+
+Patrol Agent's Sunday compaction (already in HEARTBEAT_WEEKLY) archives old episodes during weekly consolidation:
+
+```typescript
+// Inside DO weekly compaction
+const oldEpisodes = await sql`
+  SELECT * FROM episodes
+  WHERE created_at < datetime('now', '-90 days')
+    AND archived_to_r2 = false
+`;
+
+const r2Key = `${userId}/${year}/${month}/episodes_${timestamp}.jsonl`;
+await env.WALDO_R2.put(r2Key, oldEpisodes.map(e => JSON.stringify(e)).join('\n'));
+
+await sql`DELETE FROM episodes WHERE archived_to_r2 = true`;
+```
+
+### GDPR Export Pattern
+
+```typescript
+// New tool: export_user_data() → signed R2 URL
+const exportKey = `exports/${userId}/waldo_export_${Date.now()}.json`;
+await env.WALDO_EXPORTS.put(exportKey, JSON.stringify(exportData));
+const signedUrl = await env.WALDO_EXPORTS.createSignedUrl(exportKey, { expiresIn: 86400 });
+// Deliver via Telegram or email
+```
+
+### Wrangler Config (Phase E)
+
+```toml
+[[r2_buckets]]
+binding = "WALDO_R2"
+bucket_name = "waldo-episodes"
+
+[[r2_buckets]]
+binding = "WALDO_EXPORTS"
+bucket_name = "waldo-exports"
+```
+
+### DO SQLite Schema Addition (Tier 2)
+
+```sql
+ALTER TABLE episodes ADD COLUMN archived_to_r2 BOOLEAN DEFAULT false;
+ALTER TABLE episodes ADD COLUMN r2_key TEXT;
+```
+
+> **Full R2 design:** Section 11 of [Docs/WALDO_SCALING_INFRASTRUCTURE.md](https://github.com/Pin4sf/Waldo/blob/main/Docs/WALDO_SCALING_INFRASTRUCTURE.md)
+
+---
+
+> **Full DO architecture:** [Docs/WALDO_SCALING_INFRASTRUCTURE.md](https://github.com/Pin4sf/Waldo/blob/main/Docs/WALDO_SCALING_INFRASTRUCTURE.md)

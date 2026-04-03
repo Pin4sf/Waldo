@@ -1,0 +1,14 @@
+{
+  "name": "expo-healthkit",
+  "version": "0.1.0",
+  "description": "Expo Modules API wrapper for Apple HealthKit",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "expo-module build"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "expo-modules-core": "*"
+  }
+}

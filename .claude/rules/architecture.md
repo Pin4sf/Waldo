@@ -235,13 +235,53 @@ When tool results are large (detailed sleep breakdown, multi-day activity data):
 |------|------|---------|--------|-------|
 | 0 | Working Memory | LLM context window | Every invocation (volatile) | D |
 | 1 | Semantic Memory | DO SQLite `memory_blocks` | Always (<200 tokens) | D |
-| 2 | Episodic Memory | DO SQLite `episodes` | On-demand via tool calls | D |
+| 2 | Episodic Memory | DO SQLite `episodes` (0-90d) → **R2** (90d+) | On-demand; R2 via `retrieve_archived_episodes` tool | D → E |
 | 3 | Procedural Memory | DO SQLite `procedures` | Selectively (unapplied evolutions) | G |
 | 4 | Archival Memory | Supabase pgvector | Semantic search for Constellations | Phase 2 |
 
-**Key rule:** Raw health values (HRV, HR, sleep hours) NEVER enter DO SQLite. Health data lives in encrypted Supabase with RLS. DO stores only derived insights ("HRV declining" — not "HRV was 42ms").
+**Key rule:** Raw health values (HRV, HR, sleep hours) NEVER enter DO SQLite or R2. Health data lives in encrypted Supabase with RLS. DO stores only derived insights. R2 stores episodic archives and GDPR exports (no raw health values).
+
+**R2 archival:** Episodes older than 90 days are moved from DO SQLite to Cloudflare R2 (`waldo-episodes/{user_id}/{year}/{month}/episodes.jsonl`) during Patrol Agent weekly consolidation. Separate `waldo-exports` bucket for user data exports with signed URLs (24h expiry). R2 egress is free. See `Docs/WALDO_SCALING_INFRASTRUCTURE.md` Section 11 for full design.
 
 Full 5-tier schema with DO SQLite DDL: `Docs/WALDO_AGENT_UPGRADE_REPORT.md` Section 5B.
+
+## 6 Agent Loop Refinements (from ccunpacked.dev + deepwiki, April 2026)
+
+Source: Claude Code production patterns discovered via ccunpacked.dev and deepwiki/zackautocracy analysis.
+
+### 1. Diminishing-Returns Loop Guard (enhance existing Loop Guard)
+Add to Loop Guard (Hook 8): if the last 3 iterations each produced <500 tokens of output, stop the loop immediately and fall back to template. Agent is stuck — more iterations won't help.
+```typescript
+const recentOutputTokens = lastThreeIterations.map(i => i.outputTokens);
+if (recentOutputTokens.every(t => t < 500)) {
+  return { action: 'fallback', level: 3, reason: 'diminishing_returns' };
+}
+```
+
+### 2. Skip Already-Summarized Episodes in Patrol Agent
+Patrol Agent consolidation must check `consolidated: boolean` on each episode before processing. Skip any episode where `consolidated = true`. Only ever process new, unconsolidated data. Prevents re-summarizing the same content on every nightly run.
+
+### 3. Compaction Circuit Breaker
+Separate from the LLM circuit breaker: if the Patrol Agent's consolidation fails 3 consecutive times, skip consolidation and proceed without it. The Morning Wag still fires — just without freshly consolidated context. Log as `compaction_failure` in the error taxonomy. Never let consolidation block delivery.
+
+### 4. Partial Response Retry (max_output_tokens recovery)
+If Claude truncates a response due to hitting output token limits, retry up to 3 times by appending the partial response and asking Claude to continue. Only relevant for long Constellation queries (Phase 2). Between Level 1 and Level 2 of the fallback chain.
+
+### 5. Message Smooshing
+When loading Tier 2 episodic memory into context, merge consecutive same-role message sequences into one before sending to Claude. Reduces turn count overhead. Small but consistent token saving every invocation.
+
+### 6. KAIROS Tick-and-Decide for Patrol Agent
+Patrol Agent should not always run consolidation when it wakes. It should assess first, then decide:
+```typescript
+async function patrolTick(do: DurableObject) {
+  const unconsolidated = await countUncollectedEpisodes(do);
+  const hoursSinceLast = await getTimeSinceLastConsolidation(do);
+  // Agent decides — only run if worth it
+  if (unconsolidated < 3 && hoursSinceLast < 48) return; // hibernate
+  await runConsolidation(do);
+}
+```
+This matches KAIROS's tick-and-decide pattern: wake, assess, decide, act or skip.
 
 ## Tools to Evaluate (Not Locked — Keep Flexible)
 

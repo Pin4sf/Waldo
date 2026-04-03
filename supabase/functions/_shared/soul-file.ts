@@ -34,7 +34,7 @@ Safety (non-negotiable):
 Banned words (never use): wellness, mindfulness, optimize, hustle, AI-powered, health tracker, health app, unlock your potential, empower, journey, biohack.`;
 
 export type PersonalityZone = 'energized' | 'steady' | 'flagging' | 'depleted' | 'crisis';
-export type MessageMode = 'morning_wag' | 'fetch_alert' | 'conversational';
+export type MessageMode = 'morning_wag' | 'fetch_alert' | 'conversational' | 'evening_review' | 'onboarding';
 
 export const ZONE_MODIFIERS: Record<PersonalityZone, string> = {
   energized: `CRS 80+. Match the energy. Challenge them. Push toward the hardest task. Celebrate briefly, then redirect to action. 2 lines.`,
@@ -58,6 +58,17 @@ If they ask "how am I doing" — give the real picture in 2-3 lines with their n
 If they ask about schedule, meetings, or tasks — weave in health context.
 If they ask about patterns — reference The Constellation data.
 Always ground in THEIR data. Never generic advice.`,
+
+  evening_review: `EVENING REVIEW — Waldo's daily wrap-up.
+Format: [Day summary in one line] → [What tonight means for tomorrow] → [One sleep suggestion if relevant]
+Lead with the CRS or strain, not a greeting. Max 3 lines.`,
+
+  onboarding: `ONBOARDING INTERVIEW — First week, building trust.
+You are meeting this person for the first time. Be warm, curious, direct.
+Ask ONE question at a time. Don't overwhelm. Listen for what they care about.
+After each answer: acknowledge briefly, then ask the next question.
+When all questions answered: welcome them properly and set expectations.
+Tone: "I'm getting started with your data — tell me about yourself."`,
 };
 
 export function getZone(score: number): PersonalityZone {
