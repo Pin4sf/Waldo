@@ -1,0 +1,33 @@
+name = "waldo-agent"
+main = "src/index.ts"
+compatibility_date = "2025-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Each user gets one Durable Object — their persistent Waldo brain
+[[durable_objects.bindings]]
+name = "WALDO_AGENT"
+class_name = "WaldoAgent"
+
+# SQLite storage in DO (10 GB per DO, hibernate when idle = zero cost)
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["WaldoAgent"]
+
+# R2 for episodic archive (episodes > 90 days) — Phase E
+# [[r2_buckets]]
+# binding = "WALDO_EPISODES"
+# bucket_name = "waldo-episodes"
+
+[vars]
+SUPABASE_URL = "https://ogjgbudoedwxebxfgxpa.supabase.co"
+ENVIRONMENT = "production"
+
+# Secrets — set with: wrangler secret put ANTHROPIC_API_KEY
+# Required:  ANTHROPIC_API_KEY, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN
+# Optional:  DEEPSEEK_API_KEY (enables cheaper provider for generation tasks)
+
+[observability]
+enabled = true
+
+# Routes — after deploying: wrangler deploy
+# Worker will be at: https://waldo-agent.<your-subdomain>.workers.dev

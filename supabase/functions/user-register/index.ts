@@ -98,11 +98,40 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const googleConnectUrl = `${supabaseUrl}/functions/v1/oauth-google/connect?user_id=${userId}&scopes=calendar,gmail,tasks,youtube,fit_heart,fit_sleep,fit_steps`;
 
+  // ─── Provision Cloudflare DO for this user (fire-and-forget) ─────
+  // If CLOUDFLARE_WORKER_URL is set, spin up the user's persistent Waldo agent.
+  // If not set (during initial testing), this is skipped gracefully.
+  let doProvisioned = false;
+  const workerUrl = Deno.env.get('CLOUDFLARE_WORKER_URL');
+  const workerSecret = Deno.env.get('WALDO_WORKER_SECRET');
+
+  if (workerUrl && !existing) {
+    try {
+      const provisionRes = await fetch(`${workerUrl}/provision/${userId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(workerSecret ? { 'x-waldo-secret': workerSecret } : {}),
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      doProvisioned = provisionRes.ok;
+      if (!provisionRes.ok) {
+        const err = await provisionRes.text();
+        console.warn(`DO provision failed for ${userId}: ${err.slice(0, 100)}`);
+      }
+    } catch (err) {
+      console.warn(`DO provision error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   return json({
     user_id: userId,
     name: name.trim(),
     linking_code: code,
     google_connect_url: googleConnectUrl,
     telegram_instructions: `DM @wadloboi1_test_bot and send: /start, then enter code ${code}`,
+    do_provisioned: doProvisioned,
+    agent_status: doProvisioned ? 'running' : workerUrl ? 'provision_failed' : 'not_configured',
   }, existing ? 200 : 201);
 });
