@@ -179,9 +179,16 @@ Deep research session: reverse-engineered Claude Code's 1,905-file TypeScript co
 
 **Key decisions from research:**
 - Cloudflare Durable Objects locked as Phase D+ agent runtime (health data stays in Supabase)
-- 5-tier memory: Working (context) → Semantic (DO SQLite) → Episodic (DO SQLite) → Procedural (Phase G) → Archival (Supabase pgvector, Phase 2)
+- 5-tier memory: Working (context) → Semantic (DO SQLite `memory_blocks`) → Episodic (DO SQLite `episodes`) → Procedural (Phase G `procedures`) → Archival (R2 after 90d)
 - Waldo as MCP server = strategic moat (biological intelligence as a service, Phase 2)
 - Cost: $0.01-0.03/user/day with all optimizations (semantic caching, Code Mode, pre-filter, prompt caching)
+
+**Memory architecture (AtlanClaw-validated pattern — April 2026):**
+- Soul files (`agent/SOUL_*.md`, `agent/IDENTITY.md`) = READ-ONLY (ConfigMap equivalent). Never writable at runtime. Changes require git PR. This is a security boundary — not a convenience.
+- `memory_blocks` = MEMORY.md equivalent (persistent compact summary, always in context)
+- `episodes` = memory/YYYY-MM-DD.md equivalent (raw daily event log, accumulates per day)
+- **Daily compaction is a Phase D requirement, not Phase G.** Nightly at 2 AM local: episodes → diary entry in memory_blocks → promotes validated patterns. Without it, memory_blocks drifts stale between weekly compaction cycles. See `docs-site/agent-intelligence.md` Section 5 for implementation.
+- Memory poisoning gap: DO's `provision` handler needs a startup diff against known-good memory state before Phase H (beta).
 
 **Competitive urgency:** Nori (YC, 2 exits) is live on App Store. Prana (YC W26) is building. ChatGPT Health has 230M weekly health users. **Ship Phase D.**
 

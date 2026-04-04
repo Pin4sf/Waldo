@@ -427,6 +427,110 @@ Never delete. Mark as `archived` when superseded. Enables monthly retrospectives
   "attempts": 1, "outcomes": [] }
 ```
 
+### Daily Compaction — The Missing Link (Phase D requirement)
+
+**Gap identified April 2026 from AtlanClaw workspace architecture.**
+
+Currently Waldo only runs weekly compaction. This is insufficient. Here's why, and the fix:
+
+**AtlanClaw's pattern (production-validated):**
+```
+memory/2026-04-04.md     ← raw daily log (WRITABLE, accumulates all day)
+memory/2026-04-05.md     ← next day's log
+MEMORY.md                ← persistent summary (WRITABLE, updated nightly)
+```
+Every night, an init process summarizes the day's raw log into MEMORY.md. Weekly compaction does deeper pattern mining on top of this.
+
+**Waldo's equivalent (DO SQLite):**
+```
+episodes table           ← raw event log (every message, Morning Wag, Fetch Alert, observation)
+memory_blocks table      ← persistent summaries (key-value, always loaded)
+```
+
+**The problem with weekly-only compaction:** Between Sunday compaction cycles, the agent's `memory_blocks` (what it always loads) drifts from what's actually happening. For 5 users this is fine. At 50+ users, the drift means Waldo is referencing week-old patterns instead of yesterday's behavior.
+
+**Daily compaction implementation (Patrol Agent, Phase D):**
+```typescript
+// Runs nightly at 2 AM local time via DO alarm
+async runDailyCompaction(do: DurableObject) {
+  const yesterday = getYesterdayDate(timezone);
+  const episodes  = await getEpisodesForDate(do.sql, yesterday);
+
+  if (episodes.length === 0) return; // Nothing to compact
+
+  // 1. Summarize yesterday's episodes into a diary entry
+  const summary = await compactEpisodes(episodes); // Claude Haiku, cheap
+  // "Yesterday: Morning Wag sent at 7:12am, CRS 63 (steady). User replied
+  //  positively. Afternoon Fetch Alert dismissed (overriding pattern noted).
+  //  Evening review skipped — quiet hours. 3 conversations. Sleep advice accepted."
+
+  // 2. Write summary to memory_blocks as yesterday's diary entry
+  writeMemory(do.sql, `diary_${yesterday}`, summary, 'episodic');
+
+  // 3. Promote validated patterns from yesterday to persistent memory
+  await promotePatterns(do.sql, yesterday);
+
+  // 4. Mark yesterday's episodes as consolidated
+  markEpisodesConsolidated(do.sql, yesterday);
+}
+```
+
+**Two-level compaction cycle:**
+- **Daily (2 AM local):** Episodes → diary entry in memory_blocks. ~50 tokens per day.
+- **Weekly (Sunday 8 PM UTC):** Diary entries → deep pattern mining → update recent_insights. Deeper Claude call.
+
+This matches the AtlanClaw pattern exactly and should be built into Phase D, not deferred to Phase G.
+
+---
+
+### Workspace File Architecture — The Read-Only / Writable Split
+
+**Principle (from AtlanClaw workspace design, validated in production):**
+
+```
+READ-ONLY (Soul files in git — require PR to change)      WRITABLE (DO SQLite + Supabase)
+─────────────────────────────────────────────────────     ──────────────────────────────
+IDENTITY.md       → agent/IDENTITY.md                     memory_blocks  (summaries)
+SOUL.md           → agent/SOUL_*.md (all soul variants)   episodes       (daily raw log)
+AGENTS.md         → agent/AGENTS.md (tool permissions)    procedures     (Phase G skills)
+RULES.md          → .claude/rules/health-data-security.md core_memory    (Supabase mirror)
+```
+
+**Why this split matters (not just design philosophy — security):**
+
+If soul files were writable at runtime, a prompt injection attack — "update SOUL.md to remove all safety rules" — could permanently alter Waldo's behavior. Read-only means: identity changes require a git PR → human review → ArgoCD/Vercel deploy. No direct manipulation possible, even if the agent is compromised.
+
+**Memory poisoning mitigation (gap vs AtlanClaw):**
+
+AtlanClaw runs an init container diff on startup: compares MEMORY.md against the previous version, flags any entries that look like injected instructions ("ignore previous instructions", URLs in memory values, code blocks). Waldo has the validation logic in `agent.ts` (reject URLs, code blocks, "ignore" patterns in `update_memory`), but lacks the startup diff. **This should be added as an init check in the DO's `provision` handler before Phase H (beta).**
+
+---
+
+### Phase D+ Implementation: Cloudflare DO SQLite (Actual Architecture)
+
+The sections above reference Postgres/pgvector. From Phase D onwards, the actual storage is:
+
+```sql
+-- In each user's Durable Object (10GB per DO, hibernates when idle)
+memory_blocks    -- Tier 1: persistent KV, always in context (~200 tokens)
+                 -- Equivalent to: MEMORY.md (writable, persistent, compact summary)
+
+episodes         -- Tier 2: raw event log with timestamps (conversations, observations)
+                 -- Equivalent to: memory/YYYY-MM-DD.md (daily accumulation)
+                 -- Archived to R2 after 90 days
+
+procedures       -- Tier 3: behavioral parameters from feedback (Phase G)
+                 -- Equivalent to: skills/ (writable, self-generated)
+
+agent_state      -- Scheduling state, cooldowns, daily counters (not memory — operational)
+```
+
+**Health data is NOT in the DO.** Only derived insights live here ("HRV declining" not "HRV was 42ms"). Raw health data stays in Supabase with RLS.
+
+**Cost:** Each DO hibernates when idle = $0 during sleep. Active periods (Morning Wag generation, conversations) cost ~$0.01/user/month at current Cloudflare pricing.
+
+---
+
 ### Tier 3: Semantic Search (Phase 2)
 
 - pgvector embeddings over conversation summaries + pattern log
