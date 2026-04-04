@@ -62,7 +62,7 @@ export async function fetchHealthSnapshot(userId: string, date: string, env: Env
   const data = await res.json() as Array<Record<string, unknown>>;
   const row = data[0];
   if (!row) return null;
-  return row as HealthSnapshot;
+  return row as unknown as HealthSnapshot;
 }
 
 export async function fetchCoreMemoryFromSupabase(userId: string, env: Env): Promise<Record<string, string>> {

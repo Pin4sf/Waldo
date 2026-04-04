@@ -23,8 +23,10 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env, UserProfile, TriggerType } from './types';
 import {
-  initSchema, readMemory, writeMemory, loadCoreMemory,
+  initSchema, readMemory, writeMemory, loadCoreMemory, loadCompactMemory,
+  loadProfileMemory, loadRecentDiaries, sanitizeMemoryValue,
   addEpisode, getRecentEpisodes, getConversationHistory,
+  getUnconsolidatedEpisodes, markEpisodesConsolidated,
   getState, setState, wasRecentlySent, markSent, countTodaySent,
 } from './memory';
 import { callLLM } from './llm';
@@ -36,11 +38,12 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────
 
-const ALARM_PATROL_MS = 15 * 60 * 1000;         // 15 minutes
+const ALARM_PATROL_MS       = 15 * 60 * 1000;   // 15 minutes
 const MORNING_WAG_WINDOW_MS = 15 * 60 * 1000;   // 15-min window after wake time
 const MAX_FETCH_ALERTS_PER_DAY = 3;
-const FETCH_ALERT_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
+const FETCH_ALERT_COOLDOWN_MS  = 2 * 60 * 60 * 1000; // 2 hours
 const DAILY_COST_CAP_USD = 0.10;
+const MIN_EPISODES_FOR_COMPACTION = 2;           // Don't compact nearly-empty days
 
 // ─── Interview questions ──────────────────────────────────────────
 const INTERVIEW_QUESTIONS = [
@@ -96,12 +99,31 @@ export class WaldoAgent extends DurableObject<Env> {
     if (!userId) return;
     this.userId = userId;
 
-    console.log(`[WaldoAgent] Alarm fired for user ${userId.slice(0, 8)}`);
+    const timezone = readMemory(this.sql, 'timezone') ?? 'UTC';
+    const localHour = getLocalHour(timezone);
 
+    console.log(`[WaldoAgent] Alarm for ${userId.slice(0, 8)} at local hour ${localHour}`);
+
+    // ─── KAIROS tick-and-decide: daily compaction (2–4 AM local) ──
+    // Run compaction only if: correct window + not already done today
+    if (localHour >= 2 && localHour < 4) {
+      const yesterday          = getYesterdayDate(timezone);
+      const lastCompactionDate = getState(this.sql, 'last_compaction_date');
+      if (lastCompactionDate !== yesterday) {
+        try {
+          await this.runDailyCompaction(yesterday, timezone);
+        } catch (err) {
+          console.error('[WaldoAgent] Daily compaction error:', err);
+          // Compaction failure must NEVER block morning patrol
+        }
+      }
+    }
+
+    // ─── Patrol: Morning Wag, Evening Review, Fetch Alert ─────────
     try {
       await this.runPatrol();
     } catch (err) {
-      console.error('[WaldoAgent] Alarm patrol error:', err);
+      console.error('[WaldoAgent] Patrol error:', err);
     }
 
     // Schedule next patrol in 15 minutes
@@ -121,20 +143,29 @@ export class WaldoAgent extends DurableObject<Env> {
     const profile = await fetchUserProfile(user_id, this.env);
     if (!profile) return json({ error: 'User not found in Supabase' }, 404);
 
-    // 2. Initialize SQLite with user identity (Tier 1 memory)
-    writeMemory(this.sql, 'user_id', user_id, 'identity');
-    writeMemory(this.sql, 'user_name', profile.name, 'identity');
-    writeMemory(this.sql, 'timezone', profile.timezone, 'identity');
-    writeMemory(this.sql, 'wake_time', profile.wakeTimeEstimate, 'identity');
-    writeMemory(this.sql, 'evening_time', profile.preferredEveningTime, 'identity');
-    writeMemory(this.sql, 'wearable_type', profile.wearableType, 'identity');
+    // 2. Initialize SQLite with user identity (Tier 1 — read-only category)
+    // isProvision=true bypasses the identity-key guard
+    writeMemory(this.sql, 'user_id',    user_id,                    'identity', true);
+    writeMemory(this.sql, 'user_name',  profile.name,               'identity', true);
+    writeMemory(this.sql, 'timezone',   profile.timezone,           'identity', true);
+    writeMemory(this.sql, 'wake_time',  profile.wakeTimeEstimate,   'identity', true);
+    writeMemory(this.sql, 'evening_time', profile.preferredEveningTime, 'identity', true);
+    writeMemory(this.sql, 'wearable_type', profile.wearableType,    'identity', true);
     writeMemory(this.sql, 'baselines_established', 'false', 'health');
     writeMemory(this.sql, 'days_of_data', '0', 'health');
 
-    // 3. Load existing core_memory from Supabase (if any)
+    // 3. Load existing core_memory from Supabase — VALIDATE before writing
+    // Prevents poisoned Supabase rows from contaminating the DO's trusted memory.
     const existingMemory = await fetchCoreMemoryFromSupabase(user_id, this.env);
+    let skipped = 0;
     for (const [key, value] of Object.entries(existingMemory)) {
-      writeMemory(this.sql, key, value);
+      const safe = sanitizeMemoryValue(value);
+      if (safe === null) { skipped++; continue; }
+      // Never overwrite identity keys from Supabase import
+      writeMemory(this.sql, key, safe, 'preference');
+    }
+    if (skipped > 0) {
+      console.warn(`[WaldoAgent] Provision: skipped ${skipped} poisoned memory entries for ${user_id.slice(0, 8)}`);
     }
 
     // 4. Add episode: provisioned
@@ -191,11 +222,15 @@ export class WaldoAgent extends DurableObject<Env> {
       fetchUserProfile(this.userId, this.env),
     ]);
 
-    const memory = loadCoreMemory(this.sql);
-    const history = getConversationHistory(this.sql, 8);
+    const memory       = loadCompactMemory(this.sql);
+    const profileMem   = loadProfileMemory(this.sql);
+    const recentDiaries = loadRecentDiaries(this.sql, 2);
+    const history      = getConversationHistory(this.sql, 8);
 
-    // Build system prompt
-    const system = buildSystemPrompt('conversational', memory, profile?.name ?? 'User');
+    const system = buildSystemPrompt('conversational', memory, profile?.name ?? 'User', {
+      profileMemory:  profileMem,
+      recentDiaries,
+    });
 
     // Build messages with history
     const messages = [
@@ -307,9 +342,9 @@ export class WaldoAgent extends DurableObject<Env> {
 
     if (!crs || !profile) return;
 
-    // Update current state in memory
-    writeMemory(this.sql, 'current_score', String(crs.score));
-    writeMemory(this.sql, 'current_zone', crs.zone);
+    // Update current state in memory (health category — system-set, not user-writable)
+    writeMemory(this.sql, 'current_score', String(crs.score), 'health');
+    writeMemory(this.sql, 'current_zone',  crs.zone,          'health');
 
     const localHour = getLocalHour(timezone);
     const localMinute = getLocalMinute(timezone);
@@ -359,9 +394,11 @@ export class WaldoAgent extends DurableObject<Env> {
     const userId = this.userId!;
 
     const today  = new Date().toISOString().slice(0, 10);
-    const health = await fetchHealthSnapshot(userId, today, this.env);
+    const health      = await fetchHealthSnapshot(userId, today, this.env);
+    const profileMem  = loadProfileMemory(this.sql);
+    const recentDiaries = loadRecentDiaries(this.sql, 2);
 
-    const system = buildSystemPrompt('morning_wag', memory, profile.name);
+    const system  = buildSystemPrompt('morning_wag', memory, profile.name, { profileMemory: profileMem, recentDiaries });
     const context = buildUserContext(crs, health, memory);
 
     const result = await callLLM(
@@ -371,8 +408,8 @@ export class WaldoAgent extends DurableObject<Env> {
     );
 
     const message = result.text;
-    writeMemory(this.sql, 'last_morning_wag', message);
-    writeMemory(this.sql, 'last_morning_wag_date', new Date().toISOString().slice(0, 10));
+    writeMemory(this.sql, 'last_morning_wag',      message,                               'health');
+    writeMemory(this.sql, 'last_morning_wag_date', new Date().toISOString().slice(0, 10), 'health');
     addEpisode(this.sql, 'morning_wag', message, 'waldo', { score: crs.score, provider: result.provider });
 
     // Deliver
@@ -394,7 +431,9 @@ export class WaldoAgent extends DurableObject<Env> {
     const startMs = Date.now();
     const userId = this.userId!;
 
-    const system = buildSystemPrompt('evening_review', memory, profile.name);
+    const profileMem    = loadProfileMemory(this.sql);
+    const recentDiaries = loadRecentDiaries(this.sql, 1);
+    const system = buildSystemPrompt('evening_review', memory, profile.name, { profileMemory: profileMem, recentDiaries });
     const result = await callLLM(
       [{ role: 'user', content: `Generate the Evening Review. Nap Score today: ${crs.score} (${crs.zone}).` }],
       { system, maxTokens: 200, triggerType: 'evening_review', cacheSystem: true },
@@ -406,7 +445,7 @@ export class WaldoAgent extends DurableObject<Env> {
     }
 
     addEpisode(this.sql, 'evening_review', result.text, 'waldo');
-    writeMemory(this.sql, 'last_evening_date', new Date().toISOString().slice(0, 10));
+    writeMemory(this.sql, 'last_evening_date', new Date().toISOString().slice(0, 10), 'health');
     this.trackCost(result.costUsd);
     void saveAgentLog(userId, 'evening_review', result.tokensIn, result.tokensOut, Date.now() - startMs, 'sent', result.costUsd, this.env);
   }
@@ -460,6 +499,77 @@ export class WaldoAgent extends DurableObject<Env> {
     return { sent: false };
   }
 
+  // ─── Daily Compaction (AtlanClaw pattern: episodes → diary entry) ─
+
+  private async runDailyCompaction(yesterdayDate: string, timezone: string): Promise<void> {
+    const userId = this.userId!;
+    const episodes = getUnconsolidatedEpisodes(this.sql, yesterdayDate);
+
+    // KAIROS: only compact if there's meaningful content
+    if (episodes.length < MIN_EPISODES_FOR_COMPACTION) {
+      setState(this.sql, 'last_compaction_date', yesterdayDate);
+      console.log(`[WaldoAgent] Compaction skipped for ${yesterdayDate} (${episodes.length} episodes, below threshold)`);
+      return;
+    }
+
+    // Build a summary for Claude to compact
+    const episodeSummary = episodes.map(e => {
+      const who = e.role === 'user' ? 'User' : e.role === 'waldo' ? 'Waldo' : e.type;
+      return `[${e.type}][${e.created_at.slice(11, 16)}] ${who}: ${e.content.slice(0, 200)}`;
+    }).join('\n');
+
+    const compactionPrompt = `You are compacting Waldo's memory for ${yesterdayDate}.
+
+Below are yesterday's raw agent events. Write a concise diary entry (max 300 tokens) that captures:
+- What proactive messages were sent and how the user responded
+- Any new preferences, patterns, or facts revealed
+- The emotional tone of interactions
+- Anything Waldo learned or should remember
+
+Be specific, not generic. Focus on what's DIFFERENT from baseline.
+Never include raw health values (HRV numbers, HR bpm, sleep hours).
+
+RAW EVENTS:
+${episodeSummary}
+
+Diary entry:`;
+
+    let diaryEntry: string;
+    try {
+      const result = await callLLM(
+        [{ role: 'user', content: compactionPrompt }],
+        {
+          system: 'You are a concise memory compactor. Write factual, specific diary entries. No filler.',
+          maxTokens: 300,
+          triggerType: 'weekly_compaction',
+          cacheSystem: false,
+        },
+        this.env,
+      );
+      diaryEntry = result.text.trim();
+      this.trackCost(result.costUsd);
+    } catch (err) {
+      // Compaction failure is NOT fatal — log and mark as done to avoid retry loops
+      console.error('[WaldoAgent] Compaction LLM call failed:', err);
+      setState(this.sql, 'last_compaction_date', yesterdayDate);
+      return;
+    }
+
+    // Write diary entry to memory_blocks (category='episodic')
+    writeMemory(this.sql, `diary_${yesterdayDate}`, diaryEntry, 'episodic');
+
+    // Mark episodes as consolidated
+    markEpisodesConsolidated(this.sql, yesterdayDate);
+
+    // Record compaction complete
+    setState(this.sql, 'last_compaction_date', yesterdayDate);
+
+    // Mirror diary entry to Supabase (fire-and-forget)
+    void syncMemoryToSupabase(userId, `diary_${yesterdayDate}`, diaryEntry, this.env);
+
+    console.log(`[WaldoAgent] Compaction complete for ${yesterdayDate}: ${episodes.length} episodes → diary entry`);
+  }
+
   // ─── Interview flow ────────────────────────────────────────────
 
   private async handleInterviewTurn(userMessage: string): Promise<string> {
@@ -481,9 +591,12 @@ export class WaldoAgent extends DurableObject<Env> {
       return "Got it. I'll be watching. Your first Morning Wag arrives tomorrow.";
     }
 
-    // Save the answer to memory
-    writeMemory(this.sql, question.key, userMessage.slice(0, 500), 'profile');
-    addEpisode(this.sql, 'interview', userMessage, 'user');
+    // Save the answer — validate before writing (interview input is user-controlled)
+    const safeAnswer = sanitizeMemoryValue(userMessage);
+    if (safeAnswer !== null) {
+      writeMemory(this.sql, question.key, safeAnswer, 'profile');
+    }
+    addEpisode(this.sql, 'interview', userMessage.slice(0, 300), 'user');
 
     const nextStep = step + 1;
     setState(this.sql, 'interview_step', String(nextStep));
@@ -538,7 +651,23 @@ export class WaldoAgent extends DurableObject<Env> {
 
 // ─── Soul prompt builder ──────────────────────────────────────────
 
-function buildSystemPrompt(mode: TriggerType | 'conversational', memory: Record<string, string>, name: string): string {
+/**
+ * Build the system prompt for Waldo.
+ *
+ * Loads from 3 sources (AtlanClaw pattern):
+ * 1. SOUL BASE (hardcoded — never writable by user/agent = read-only ConfigMap equivalent)
+ * 2. User profile from memory_blocks (interview answers + health baselines)
+ * 3. Recent diary entries (daily compacted episodes = MEMORY.md equivalent)
+ *
+ * Total: ~400-600 tokens depending on data richness.
+ */
+function buildSystemPrompt(
+  mode: TriggerType | 'conversational',
+  memory: Record<string, string>,
+  name: string,
+  opts?: { profileMemory?: Record<string, string>; recentDiaries?: string[] },
+): string {
+  // ─── SOUL BASE (read-only, never modified by agent or user) ──────
   const base = `You are Waldo. A dalmatian. You watch, you learn, you act.
 
 Rules:
@@ -549,25 +678,52 @@ Rules:
 - Sound like a friend who already handled it. Not a health app.
 - "Already on it" energy. Quiet confidence. No filler words.
 
-Safety:
+Safety (non-negotiable):
 - Never diagnose medical conditions.
 - Never recommend medications.
 - Never say "you are stressed" — say "your body is showing stress signals."
-- Not a medical device.`;
+- Not a medical device. Emergencies → call 112 / emergency services.`;
 
+  // ─── Mode instructions ────────────────────────────────────────
   const modeInstructions: Record<string, string> = {
-    morning_wag: `\nMode: Morning Wag. Warm, specific, actionable. What changed overnight. One thing to watch. Never start with "Good morning".`,
-    fetch_alert:  `\nMode: Fetch Alert. Calm, protective. One sentence. Already handled it.`,
-    evening_review: `\nMode: Evening Review. Reflective, forward-looking. What the day told you. What tomorrow needs.`,
-    conversational: `\nMode: Chat. Answer the question with their data. Be direct. Wit is permitted but never forced.`,
+    morning_wag:      '\nMode: Morning Wag. Warm, specific, actionable. What changed overnight. One thing to watch. Never start with "Good morning".',
+    fetch_alert:      '\nMode: Fetch Alert. Calm, protective. One sentence. Already handled it.',
+    evening_review:   '\nMode: Evening Review. Reflective, forward-looking. What the day told you. What tomorrow needs.',
+    conversational:   '\nMode: Chat. Answer the question with their data. Be direct. Wit is permitted but never forced.',
+    weekly_compaction:'\nMode: Internal compaction. No user-facing output.',
   };
 
-  const memoryContext = Object.entries(memory)
-    .filter(([k]) => ['hrv_baseline', 'sleep_avg_7d', 'resting_hr_baseline', 'chronotype', 'sleep_debt', 'last_weekly_summary'].includes(k))
+  // ─── Health baselines (system-set, trusted) ───────────────────
+  const healthKeys = ['hrv_baseline', 'sleep_avg_7d', 'resting_hr_baseline', 'chronotype', 'sleep_debt', 'last_weekly_summary'];
+  const healthContext = Object.entries(memory)
+    .filter(([k]) => healthKeys.includes(k))
     .map(([k, v]) => `${k}: ${v}`)
     .join('\n');
 
-  return `${base}${modeInstructions[mode] ?? ''}\n\nUser: ${name}${memoryContext ? '\n\nWhat Waldo knows:\n' + memoryContext : ''}`;
+  // ─── User profile from interview (user-supplied, validated at write time) ─
+  const profile = opts?.profileMemory ?? {};
+  const profileParts: string[] = [];
+  if (profile['user_role'])           profileParts.push(`Role: ${profile['user_role']}`);
+  if (profile['stress_triggers'])     profileParts.push(`Stress triggers: ${profile['stress_triggers']}`);
+  if (profile['daily_pattern'])       profileParts.push(`Daily pattern: ${profile['daily_pattern']}`);
+  if (profile['communication_pref']) profileParts.push(`Prefers: ${profile['communication_pref']}`);
+  if (profile['primary_goal'])        profileParts.push(`Goal: ${profile['primary_goal']}`);
+  const profileContext = profileParts.join('\n');
+
+  // ─── Recent diary entries (episodic memory = MEMORY.md equivalent) ─
+  const diaries = opts?.recentDiaries ?? [];
+  const diaryContext = diaries.length > 0
+    ? '\nRecent memory:\n' + diaries.map((d, i) => `[${i + 1}d ago] ${d}`).join('\n')
+    : '';
+
+  return [
+    base,
+    modeInstructions[mode] ?? '',
+    `\n\nUser: ${name}`,
+    healthContext   ? '\n\nHealth baselines:\n' + healthContext : '',
+    profileContext  ? '\n\nWho they are:\n' + profileContext   : '',
+    diaryContext,
+  ].join('');
 }
 
 function buildUserContext(
@@ -603,6 +759,13 @@ function getLocalDate(timezone: string): string {
   try {
     return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
   } catch { return new Date().toISOString().slice(0, 10); }
+}
+
+function getYesterdayDate(timezone: string): string {
+  try {
+    const yesterday = new Date(Date.now() - 86400000);
+    return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(yesterday);
+  } catch { return new Date(Date.now() - 86400000).toISOString().slice(0, 10); }
 }
 
 // ─── Response helper ──────────────────────────────────────────────
