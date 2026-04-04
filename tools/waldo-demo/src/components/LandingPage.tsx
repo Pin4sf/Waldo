@@ -130,15 +130,17 @@ export function LandingPage({ onLogin }: Props) {
 
           <h1 style={headlineStyle}>Already on it.</h1>
           <p style={taglineStyle}>
-            Waldo reads your body signals and acts before you notice you're stressed, depleted, or about to burn out.
+            Every other health product talks to the version of you that's trying.
+            <br />
+            <em>Waldo talks to the version of you that's tired of trying.</em>
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 36 }}>
             <button style={primaryBtn} onClick={() => setMode('new')}>
-              Get started →
+              Get started
             </button>
             <button style={ghostBtn} onClick={() => setMode('returning')}>
-              I already have a Waldo
+              I'm already set up
             </button>
           </div>
 
@@ -165,7 +167,7 @@ export function LandingPage({ onLogin }: Props) {
             <WaldoIllustration state="thinking" size={120} />
           </div>
 
-          <h2 style={{ ...headlineStyle, fontSize: 26, marginBottom: 6 }}>Let's set up your Waldo</h2>
+          <h2 style={{ ...headlineStyle, fontSize: 26, marginBottom: 6 }}>Let's set up Waldo</h2>
           <p style={{ ...taglineStyle, marginBottom: 28 }}>Takes 90 seconds. No Apple Watch required to start.</p>
 
           {error && <div style={errorBox}>{error}</div>}
@@ -196,7 +198,7 @@ export function LandingPage({ onLogin }: Props) {
           </div>
 
           <button onClick={handleCreate} disabled={loading || !name.trim()} style={{ ...primaryBtn, opacity: loading || !name.trim() ? 0.5 : 1 }}>
-            {loading ? 'Creating your Waldo...' : 'Create my Waldo →'}
+            {loading ? 'Setting up Waldo...' : 'Set up Waldo'}
           </button>
 
           <button onClick={() => setMode('welcome')} style={backLink}>← Back</button>

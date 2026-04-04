@@ -259,7 +259,7 @@ export function App() {
         <div className="loading" style={{ flex: 1, flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="loading-dot" /><span className="loading-dot" /><span className="loading-dot" />
-            <span>Connecting to Waldo Cloud...</span>
+            <span>Connecting...</span>
           </div>
           <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Loading from Supabase</span>
         </div>
@@ -480,7 +480,7 @@ export function App() {
               {!dayData && !isLoadingDay && (
                 <div className="empty-state">
                   <h3>Pick a date</h3>
-                  <p>Select a dot on the timeline above to see health data and talk to Waldo.</p>
+                  <p><em>Select a dot on the timeline above to see the data.</em></p>
                 </div>
               )}
 
