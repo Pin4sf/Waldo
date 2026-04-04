@@ -1,0 +1,14 @@
+-- Migration: anon key rotation reminder
+--
+-- SECURITY: The Supabase anon key was committed in migration
+-- 20260402000001_multi_user_auth.sql. That key should be rotated.
+--
+-- Steps to rotate:
+--   1. Go to Supabase dashboard → Settings → API
+--   2. Click "Regenerate anon key"
+--   3. Update waldo-app/.env (EXPO_PUBLIC_SUPABASE_ANON_KEY)
+--   4. Update tools/waldo-demo/.env (VITE_SUPABASE_ANON_KEY)
+--   5. Redeploy web console to Vercel
+--
+-- This migration does nothing to the schema — it's documentation only.
+COMMENT ON SCHEMA public IS 'Anon key rotation required — see migration 20260404000002 for instructions';

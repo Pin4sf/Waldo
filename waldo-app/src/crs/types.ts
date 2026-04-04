@@ -18,7 +18,7 @@ export interface ComponentScore {
 }
 
 /** CRS zone classification */
-export type CrsZone = 'peak' | 'moderate' | 'low';
+export type CrsZone = 'peak' | 'moderate' | 'low' | 'insufficient';
 
 /** Full CRS result for a single day */
 export interface CrsResult {
@@ -30,10 +30,18 @@ export interface CrsResult {
   hrv: ComponentScore;
   circadian: ComponentScore;
   activity: ComponentScore;
-  /** How many components had real data (need ≥3) */
+  /** How many components had real data */
   componentsWithData: number;
+  /** Which components contributed ('sleep', 'hrv', 'circadian', 'activity') */
+  componentsAvailable: string[];
   /** Confidence range (e.g., ±8) — wider with less data */
   confidence: number;
+  /**
+   * True when score is capped because only phone-only data available
+   * (steps + circadian, no wearable body signals).
+   * Max score in this mode: 65.
+   */
+  isPhoneOnlyMode: boolean;
   /** Timestamp this CRS was computed for */
   timestamp: Date;
   /** Human-readable summary */

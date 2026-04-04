@@ -299,25 +299,33 @@ export function computeCrs(
   const activity = computeActivityScore(day);
 
   const components = [sleep, hrv, circadian, activity];
+  const componentNames = ['sleep', 'hrv', 'circadian', 'activity'] as const;
   const withData = components.filter(c => c.dataAvailable);
+  const availableNames = componentNames.filter((_, i) => components[i]!.dataAvailable);
 
-  // Need ≥ 3 components with real data
-  if (withData.length < 3) {
+  // No data at all → insufficient
+  if (withData.length === 0) {
     return {
       score: -1,
-      zone: 'low',
+      zone: 'insufficient',
       sleep,
       hrv,
       circadian,
       activity,
-      componentsWithData: withData.length,
+      componentsWithData: 0,
+      componentsAvailable: [],
+      isPhoneOnlyMode: false,
       confidence: 0,
-      timestamp: day.sleep?.wakeTime ?? new Date(day.date),
-      summary: `Insufficient data (${withData.length}/4 components). Need ≥3 for CRS.`,
+      timestamp: new Date(day.date),
+      summary: 'No health data available yet.',
     };
   }
 
-  // If a component lacks data, redistribute its weight proportionally
+  // Detect phone-only mode: only activity/circadian available (no body signals)
+  const hasBodySignal = sleep.dataAvailable || hrv.dataAvailable;
+  const isPhoneOnlyMode = !hasBodySignal && withData.length > 0;
+
+  // Redistribute weights across components that have data
   let totalWeight = 0;
   let weightedSum = 0;
   const weights = [CRS_WEIGHTS.sleep, CRS_WEIGHTS.hrv, CRS_WEIGHTS.circadian, CRS_WEIGHTS.activity];
@@ -329,11 +337,19 @@ export function computeCrs(
     }
   }
 
-  const score = Math.round(totalWeight > 0 ? weightedSum / totalWeight : 0);
+  let score = Math.round(totalWeight > 0 ? weightedSum / totalWeight : 0);
+
+  // Phone-only mode: cap at 65 (moderate max) — can't claim "peak" without body data
+  if (isPhoneOnlyMode) {
+    score = Math.min(score, 65);
+  }
+
   const zone = getCrsZone(score);
 
-  // Confidence: wider with less data, narrower with more history
-  const confidence = baselines.daysOfData >= 7 ? 5 : baselines.daysOfData >= 3 ? 8 : 15;
+  // Confidence: wider with less data and fewer components
+  const componentPenalty = (4 - withData.length) * 3;
+  const historyPenalty   = baselines.daysOfData >= 7 ? 0 : baselines.daysOfData >= 3 ? 3 : 8;
+  const confidence       = 5 + componentPenalty + historyPenalty;
 
   const summary = buildSummary(score, zone, sleep, hrv, circadian, activity, day);
 
@@ -345,6 +361,8 @@ export function computeCrs(
     circadian,
     activity,
     componentsWithData: withData.length,
+    componentsAvailable: availableNames,
+    isPhoneOnlyMode,
     confidence,
     timestamp: day.sleep?.wakeTime ?? new Date(day.date),
     summary,

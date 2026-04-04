@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, triggerSync } from '../supabase-api.js';
 import type { SyncStatus } from '../types.js';
+import { HealthUploadPanel } from './HealthUploadPanel.js';
+
+const ADMIN_KEY = (import.meta as any).env?.VITE_ADMIN_KEY ?? localStorage.getItem('waldo_admin_key') ?? '';
 
 interface Props { userId: string }
 
@@ -168,6 +171,13 @@ export function IntegrationsPanel({ userId }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Apple Health Upload (iOS users) */}
+      <HealthUploadPanel
+        userId={userId}
+        adminKey={ADMIN_KEY}
+        onImported={(s) => console.log('Health imported:', s)}
+      />
 
       {/* Wearables */}
       <div className="debug-section" style={{ marginTop: 8 }}>

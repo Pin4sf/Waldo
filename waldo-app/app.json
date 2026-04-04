@@ -8,7 +8,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "waldo",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "splash": {
       "backgroundColor": "#FAFAF8"
     },
@@ -19,7 +23,10 @@
       "infoPlist": {
         "NSHealthShareUsageDescription": "Waldo reads your health data from Apple Watch to compute your Nap Score — your daily cognitive readiness number.",
         "NSHealthUpdateUsageDescription": "Waldo does not write health data.",
-        "UIBackgroundModes": ["fetch", "processing"]
+        "UIBackgroundModes": [
+          "fetch",
+          "processing"
+        ]
       },
       "entitlements": {
         "com.apple.developer.healthkit": true,
@@ -33,18 +40,24 @@
         "backgroundColor": "#FAFAF8"
       },
       "package": "com.waldo.app",
-      "versionCode": 1
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_HEART_RATE_VARIABILITY",
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_OXYGEN_SATURATION",
+        "android.permission.health.READ_EXERCISE",
+        "android.permission.health.READ_RESTING_HEART_RATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_HEALTH"
+      ]
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store",
-      [
-        "expo-dev-client",
-        {
-          "launchMode": "most-recent"
-        }
-      ],
-      "./modules/healthkit/expo-module.config.json"
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
@@ -52,9 +65,6 @@
     "extra": {
       "router": {
         "origin": false
-      },
-      "eas": {
-        "projectId": "waldo-app"
       }
     }
   }

@@ -165,44 +165,53 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Method not allowed' }, 405);
   }
 
-  // ─── Auth ──────────────────────────────────────────────────
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return json({ error: 'Missing Authorization header' }, 401);
-  }
-  const jwt = authHeader.slice(7);
-
-  const anonClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: `Bearer ${jwt}` } } },
-  );
-  const { data: { user: authUser }, error: authError } = await anonClient.auth.getUser();
-  if (authError || !authUser) {
-    return json({ error: 'Invalid or expired token' }, 401);
-  }
+  // ─── Auth: user JWT OR admin key (for web console seeding) ──
+  const authHeader      = req.headers.get('Authorization') ?? '';
+  const adminKey        = req.headers.get('x-admin-key') ?? '';
+  const expectedAdminKey = Deno.env.get('ADMIN_API_KEY') ?? '';
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  // ─── Look up waldo user_id from auth_id ────────────────────
-  const { data: waldoUser } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', authUser.id)
-    .maybeSingle();
+  let userId: string;
 
-  if (!waldoUser) {
-    return json({ error: 'User profile not found. Create profile first via POST /user-profile' }, 404);
-  }
-  const userId = waldoUser.id;
-
-  // ─── Parse + validate body ─────────────────────────────────
+  // ─── Parse body first (needed for both auth paths) ────────
   const rawBody = await req.json().catch(() => null);
   if (rawBody === null) {
     return json({ error: 'Invalid JSON body' }, 400);
+  }
+
+  if (rawBody === null) {
+    return json({ error: 'Invalid JSON body' }, 400);
+  }
+
+  if (adminKey && expectedAdminKey && adminKey === expectedAdminKey) {
+    // Admin path — user_id supplied in body
+    const adminUserId = (rawBody as Record<string, unknown>)['user_id'] as string | undefined;
+    if (!adminUserId) return json({ error: 'Admin path requires user_id in body' }, 400);
+    userId = adminUserId;
+    log('info', 'admin_import', { userId });
+
+  } else if (authHeader.startsWith('Bearer ')) {
+    // User JWT path
+    const jwt = authHeader.slice(7);
+    const anonClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: `Bearer ${jwt}` } } },
+    );
+    const { data: { user: authUser }, error: authError } = await anonClient.auth.getUser();
+    if (authError || !authUser) return json({ error: 'Invalid or expired token' }, 401);
+
+    const { data: waldoUser } = await supabase
+      .from('users').select('id').eq('auth_id', authUser.id).maybeSingle();
+    if (!waldoUser) return json({ error: 'User profile not found' }, 404);
+    userId = (waldoUser as { id: string }).id;
+
+  } else {
+    return json({ error: 'Missing Authorization or x-admin-key' }, 401);
   }
 
   const parsed = ImportBodySchema.safeParse(rawBody);

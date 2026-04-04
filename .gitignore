@@ -59,3 +59,11 @@ tools/health-parser/output/
 "claude code source/"
 claude code source/
 takeoutexport_ark/
+
+# Cloudflare
+.wrangler/
+cloudflare/waldo-worker/node_modules/
+
+# Dead code (scheduled for deletion — see Docs/plans/IMPLEMENTATION_PLAN_ANDROID_FIRST_BETA.md Phase 0)
+# agent-runtime/
+# memory/ (root level scratch)

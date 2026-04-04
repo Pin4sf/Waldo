@@ -22,6 +22,7 @@ import type { HealthDataSource, StorageAdapter, SyncQueue } from '@/types/adapte
 import { aggregateDailyData, localDateString, getTodayRange, getLastNightRange } from '@/crs/aggregator';
 import { computeCrs } from '@/crs/engine';
 import type { DailyHealthData } from '@/types/health';
+import type { LocationAdapter } from '@/adapters/location/location-adapter';
 import { v4 as uuid } from 'uuid';
 
 /** How many recent days to load for CRS baseline computation */
@@ -38,6 +39,8 @@ export class HealthPipeline {
     private readonly syncQueue: SyncQueue,
     /** Called when CRS recomputes — updates UI store */
     private readonly onCrsUpdate: () => void,
+    /** Optional — provides GPS-based weather. Omit to skip weather enrichment. */
+    private readonly location?: LocationAdapter,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -116,8 +119,21 @@ export class HealthPipeline {
         this.health.queryRespiratoryRate(todayRange),
       ]);
 
-      // Step 2: Aggregate into DailyHealthData
-      const dailyData = aggregateDailyData(today, {
+      // Step 2: Fetch weather from GPS (non-blocking — failure is acceptable)
+      let weatherData: DailyHealthData['weather'] = null;
+      if (this.location) {
+        const weatherResult = await this.location.getCurrentWeather().catch(() => null);
+        if (weatherResult?.ok) {
+          weatherData = {
+            temperatureF: weatherResult.data.tempC * 9 / 5 + 32,
+            humidity: weatherResult.data.humidity,
+            source: 'api',
+          };
+        }
+      }
+
+      // Step 3: Aggregate into DailyHealthData
+      const rawAggregate = aggregateDailyData(today, {
         hrv: hrv.ok ? hrv.data : [],
         heartRate: heartRate.ok ? heartRate.data : [],
         restingHR: restingHR.ok ? restingHR.data : [],
@@ -127,7 +143,12 @@ export class HealthPipeline {
         respiratoryRate: respiratoryRate.ok ? respiratoryRate.data : [],
       });
 
-      // Step 3: Load historical data for CRS baseline computation
+      // Inject weather into aggregate
+      const dailyData: DailyHealthData = weatherData
+        ? { ...rawAggregate, weather: weatherData }
+        : rawAggregate;
+
+      // Step 4: Load historical data for CRS baseline computation
       const recentSnapshots = await this.storage.getRecentSnapshots(BASELINE_LOOKBACK_DAYS);
       const allDays = new Map<string, DailyHealthData>();
       for (const snap of recentSnapshots) {
@@ -136,10 +157,10 @@ export class HealthPipeline {
       // Add today's fresh data
       allDays.set(today, dailyData);
 
-      // Step 4: Compute CRS (pure synchronous, < 1ms)
+      // Step 5: Compute CRS (pure synchronous, < 1ms)
       const crsResult = computeCrs(dailyData, allDays);
 
-      // Step 5: Write to local encrypted storage (fast — must complete before background window closes)
+      // Step 6: Write to local encrypted storage (fast — must complete before background window closes)
       await this.storage.upsertSnapshot({
         id: uuid(),
         date: today,
@@ -149,10 +170,10 @@ export class HealthPipeline {
 
       this.lastSyncAt = new Date();
 
-      // Step 6: Notify UI to refresh (Zustand store update)
+      // Step 7: Notify UI to refresh (Zustand store update)
       this.onCrsUpdate();
 
-      // Step 7: Sync to Supabase (non-blocking — do NOT await in background handler)
+      // Step 8: Sync to Supabase (non-blocking — do NOT await in background handler)
       // Use void + catch to ensure completionHandler isn't blocked
       void this.syncQueue.sync().catch((_err) => {
         console.error('[Pipeline] Supabase sync failed. Event: supabase_sync_error');

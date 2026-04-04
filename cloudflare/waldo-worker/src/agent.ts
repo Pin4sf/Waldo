@@ -42,6 +42,15 @@ const MAX_FETCH_ALERTS_PER_DAY = 3;
 const FETCH_ALERT_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
 const DAILY_COST_CAP_USD = 0.10;
 
+// ─── Interview questions ──────────────────────────────────────────
+const INTERVIEW_QUESTIONS = [
+  { key: 'user_role',           question: "What do you do? I'll use this to understand your day." },
+  { key: 'stress_triggers',     question: "What tends to wear you out or stress you most?" },
+  { key: 'daily_pattern',       question: "Walk me through a typical day — when do you start, peak, wind down?" },
+  { key: 'communication_pref',  question: "How do you want me to talk to you? Quick and direct, or more detail?" },
+  { key: 'primary_goal',        question: "One thing you'd want me to help you stay on top of?" },
+] as const;
+
 // Emergency patterns — bypass all gates
 const EMERGENCY_REGEX = /chest\s*pain|can'?t\s*breathe|suicid|kill\s*(my|him|her)self|heart\s*attack|overdos/i;
 const BANNED_OUTPUT_REGEX = /diagnos|you\s+have\s+(anxiety|depression|insomnia|sleep\s+apnea|afib|arrhythmia)/i;
@@ -131,8 +140,9 @@ export class WaldoAgent extends DurableObject<Env> {
     // 4. Add episode: provisioned
     addEpisode(this.sql, 'system', `Waldo provisioned for ${profile.name}. Timezone: ${profile.timezone}. Wake time: ${profile.wakeTimeEstimate}.`);
 
-    // 5. Schedule first alarm (patrol starts now, Morning Wag at next wake time)
-    await this.ctx.storage.setAlarm(Date.now() + ALARM_PATROL_MS);
+    // 5. Start interview — patrol alarm set after interview completes
+    setState(this.sql, 'interview_step', '0');
+    setState(this.sql, 'interview_complete', 'false');
 
     console.log(`[WaldoAgent] Provisioned for user ${user_id.slice(0, 8)} (${profile.name})`);
 
@@ -141,8 +151,8 @@ export class WaldoAgent extends DurableObject<Env> {
       userId: user_id,
       name: profile.name,
       timezone: profile.timezone,
-      firstPatrol: new Date(Date.now() + ALARM_PATROL_MS).toISOString(),
-      message: `Waldo is live for ${profile.name}. First Morning Wag at ${profile.wakeTimeEstimate} ${profile.timezone}.`,
+      message: `Waldo is live for ${profile.name}. Starting onboarding interview.`,
+      firstQuestion: INTERVIEW_QUESTIONS[0]!.question,
     });
   }
 
@@ -158,6 +168,19 @@ export class WaldoAgent extends DurableObject<Env> {
     if (EMERGENCY_REGEX.test(message)) {
       const emergency = "I'm not equipped to help with this. Please contact emergency services (112) or a medical professional immediately. Your safety matters more than any data.";
       return json({ reply: emergency, emergency: true });
+    }
+
+    // Interview gate — route through interview flow until complete
+    const interviewComplete = getState(this.sql, 'interview_complete') === 'true';
+    if (!interviewComplete) {
+      const reply = await this.handleInterviewTurn(message);
+      return json({ reply, inInterview: true });
+    }
+
+    // Cost cap gate
+    if (this.isDailyCostCapReached()) {
+      const fallback = "I'm at my daily limit — I'll be back tomorrow with fresh eyes. If it's urgent, check the Waldo dashboard.";
+      return json({ reply: fallback, costCapped: true });
     }
 
     const startMs = Date.now();
@@ -198,6 +221,8 @@ export class WaldoAgent extends DurableObject<Env> {
     }
 
     const latencyMs = Date.now() - startMs;
+
+    this.trackCost(result.costUsd);
 
     // Store in DO episodes (Tier 2)
     addEpisode(this.sql, 'conversation', message, 'user', { channel });
@@ -251,9 +276,10 @@ export class WaldoAgent extends DurableObject<Env> {
   // ─── Reset: wipe all memory (admin) ───────────────────────────
 
   private async handleReset(request: Request): Promise<Response> {
-    const adminKey = request.headers.get('x-admin-key');
-    // Simple validation — in production add proper admin auth
-    if (!adminKey) return json({ error: 'Unauthorized' }, 401);
+    const adminKey    = request.headers.get('x-admin-key');
+    const env         = this.env as unknown as Record<string, string>;
+    const expectedKey = env['ADMIN_KEY'] ?? env['WALDO_WORKER_SECRET'];
+    if (!adminKey || adminKey !== expectedKey) return json({ error: 'Unauthorized' }, 401);
 
     this.sql.exec('DELETE FROM memory_blocks');
     this.sql.exec('DELETE FROM episodes');
@@ -315,11 +341,12 @@ export class WaldoAgent extends DurableObject<Env> {
     }
 
     // ─── Fetch Alert ────────────────────────────────────────
-    const alertable = crs.score <= 60;
+    const alertable     = crs.score <= 60;
     const cooldownPassed = !wasRecentlySent(this.sql, 'fetch_alert', FETCH_ALERT_COOLDOWN_MS);
-    const dailyCount = countTodaySent(this.sql, 'fetch_alert');
+    const dailyCount     = countTodaySent(this.sql, 'fetch_alert');
+    const costOk         = !this.isDailyCostCapReached();
 
-    if (alertable && cooldownPassed && dailyCount < MAX_FETCH_ALERTS_PER_DAY) {
+    if (alertable && cooldownPassed && dailyCount < MAX_FETCH_ALERTS_PER_DAY && costOk) {
       await this.sendFetchAlert(profile, crs, memory);
       markSent(this.sql, 'fetch_alert', FETCH_ALERT_COOLDOWN_MS);
     }
@@ -331,7 +358,8 @@ export class WaldoAgent extends DurableObject<Env> {
     const startMs = Date.now();
     const userId = this.userId!;
 
-    const health = await fetchHealthSnapshot(userId, crs.date ?? new Date().toISOString().slice(0, 10), this.env);
+    const today  = new Date().toISOString().slice(0, 10);
+    const health = await fetchHealthSnapshot(userId, today, this.env);
 
     const system = buildSystemPrompt('morning_wag', memory, profile.name);
     const context = buildUserContext(crs, health, memory);
@@ -353,6 +381,7 @@ export class WaldoAgent extends DurableObject<Env> {
     }
 
     const latencyMs = Date.now() - startMs;
+    this.trackCost(result.costUsd);
     void saveConversationToSupabase(userId, 'waldo', message, 'morning_wag', this.env);
     void saveAgentLog(userId, 'morning_wag', result.tokensIn, result.tokensOut, latencyMs, 'sent', result.costUsd, this.env);
 
@@ -378,6 +407,7 @@ export class WaldoAgent extends DurableObject<Env> {
 
     addEpisode(this.sql, 'evening_review', result.text, 'waldo');
     writeMemory(this.sql, 'last_evening_date', new Date().toISOString().slice(0, 10));
+    this.trackCost(result.costUsd);
     void saveAgentLog(userId, 'evening_review', result.tokensIn, result.tokensOut, Date.now() - startMs, 'sent', result.costUsd, this.env);
   }
 
@@ -399,6 +429,7 @@ export class WaldoAgent extends DurableObject<Env> {
     }
 
     addEpisode(this.sql, 'fetch_alert', result.text, 'waldo', { score: crs.score });
+    this.trackCost(result.costUsd);
     void saveAgentLog(userId, 'fetch_alert', result.tokensIn, result.tokensOut, Date.now() - startMs, 'sent', result.costUsd, this.env);
   }
 
@@ -427,6 +458,81 @@ export class WaldoAgent extends DurableObject<Env> {
       return { sent: true };
     }
     return { sent: false };
+  }
+
+  // ─── Interview flow ────────────────────────────────────────────
+
+  private async handleInterviewTurn(userMessage: string): Promise<string> {
+    const step = parseInt(getState(this.sql, 'interview_step') ?? '0', 10);
+    const question = INTERVIEW_QUESTIONS[step];
+
+    // User wants to skip
+    if (/skip|later|no thanks|not now/i.test(userMessage)) {
+      setState(this.sql, 'interview_complete', 'true');
+      await this.ctx.storage.setAlarm(Date.now() + ALARM_PATROL_MS);
+      const wakeTime = readMemory(this.sql, 'wake_time') ?? '07:00';
+      return `No worries — I'll learn as we go. Your first Morning Wag arrives tomorrow at ${wakeTime}. Say anything to chat.`;
+    }
+
+    if (!question) {
+      // Shouldn't happen, but complete interview gracefully
+      setState(this.sql, 'interview_complete', 'true');
+      await this.ctx.storage.setAlarm(Date.now() + ALARM_PATROL_MS);
+      return "Got it. I'll be watching. Your first Morning Wag arrives tomorrow.";
+    }
+
+    // Save the answer to memory
+    writeMemory(this.sql, question.key, userMessage.slice(0, 500), 'profile');
+    addEpisode(this.sql, 'interview', userMessage, 'user');
+
+    const nextStep = step + 1;
+    setState(this.sql, 'interview_step', String(nextStep));
+
+    const nextQuestion = INTERVIEW_QUESTIONS[nextStep];
+
+    if (!nextQuestion) {
+      // Interview complete
+      setState(this.sql, 'interview_complete', 'true');
+      await this.ctx.storage.setAlarm(Date.now() + ALARM_PATROL_MS);
+      const wakeTime = readMemory(this.sql, 'wake_time') ?? '07:00';
+      const reply = `Got it. I know enough to start being useful. Your first Morning Wag arrives tomorrow at ${wakeTime}. Say anything to chat anytime.`;
+      addEpisode(this.sql, 'interview', reply, 'waldo');
+      return reply;
+    }
+
+    // Return next question with a brief transition
+    const transitions = [
+      'Good to know.',
+      'Makes sense.',
+      'Got it.',
+      'Noted.',
+      'Understood.',
+    ];
+    const transition = transitions[step % transitions.length] ?? 'Got it.';
+    const reply = `${transition} ${nextQuestion.question}`;
+    addEpisode(this.sql, 'interview', reply, 'waldo');
+    return reply;
+  }
+
+  // ─── Daily cost cap ────────────────────────────────────────────
+
+  private isDailyCostCapReached(): boolean {
+    const today       = getLocalDate(readMemory(this.sql, 'timezone') ?? 'UTC');
+    const resetDate   = getState(this.sql, 'cost_reset_date');
+
+    if (resetDate !== today) {
+      setState(this.sql, 'daily_cost_usd', '0');
+      setState(this.sql, 'cost_reset_date', today);
+      return false;
+    }
+
+    const todayCost = parseFloat(getState(this.sql, 'daily_cost_usd') ?? '0');
+    return todayCost >= DAILY_COST_CAP_USD;
+  }
+
+  private trackCost(costUsd: number): void {
+    const current = parseFloat(getState(this.sql, 'daily_cost_usd') ?? '0');
+    setState(this.sql, 'daily_cost_usd', String(current + costUsd));
   }
 }
 
