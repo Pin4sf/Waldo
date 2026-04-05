@@ -116,6 +116,7 @@ async function storeTokens(
   userId: string,
   tokens: { access_token: string; refresh_token?: string; expires_in: number; token_type: string },
   scopes: string[],
+  googleEmail?: string | null,
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
@@ -129,6 +130,7 @@ async function storeTokens(
       refresh_token: tokens.refresh_token ?? null,
       token_type: tokens.token_type ?? 'Bearer',
       expires_at: expiresAt,
+      google_email: googleEmail ?? null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,provider' });
 
@@ -295,9 +297,32 @@ Deno.serve(async (req: Request) => {
       return errorRedirect('Failed to exchange Google authorization code — please try again');
     }
 
-    await storeTokens(supabase, stateData.userId, tokens, stateData.scopes);
+    // Fetch the connected Google account's email via userinfo endpoint
+    let googleEmail: string | null = null;
+    try {
+      const userinfoResp = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+      if (userinfoResp.ok) {
+        const info = await userinfoResp.json() as { email?: string };
+        googleEmail = info.email ?? null;
+      }
+    } catch {
+      // Non-fatal — email is nice-to-have, not blocking
+    }
 
-    log('info', 'oauth_connected', { userId: stateData.userId, scopes: stateData.scopes.length });
+    await storeTokens(supabase, stateData.userId, tokens, stateData.scopes, googleEmail);
+
+    // Also store email on the users table if it's currently null
+    if (googleEmail) {
+      await supabase
+        .from('users')
+        .update({ email: googleEmail })
+        .eq('id', stateData.userId)
+        .is('email', null); // only set if not already set
+    }
+
+    log('info', 'oauth_connected', { userId: stateData.userId, scopes: stateData.scopes.length, googleEmail });
     return successRedirect('google');
   }
 
