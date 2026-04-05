@@ -442,31 +442,60 @@ export function HealthUploadPanel({ userId, adminKey, onImported }: Props) {
 
       setState('uploading');
       setProgress(90);
-      setStatusMsg(`Uploading ${payload.health_snapshots.length} days…`);
 
-      const res = await fetch(`${SUPABASE_FN_URL}/health-import`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-admin-key': adminKey,
-        },
-        body: JSON.stringify({ user_id: userId, ...payload }),
-      });
+      // Upload in batches of 30 days to stay under Supabase Edge Function 2MB body limit
+      const BATCH_DAYS = 30;
+      const totalDays  = payload.health_snapshots.length;
+      const batches    = Math.ceil(totalDays / BATCH_DAYS);
+      let totalImported = 0;
+      let crsValues: number[] = [];
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as Record<string, unknown>;
-        throw new Error((err['error'] as string) || `HTTP ${res.status}`);
+      for (let b = 0; b < batches; b++) {
+        const start = b * BATCH_DAYS;
+        const end   = Math.min(start + BATCH_DAYS, totalDays);
+        const batchSnaps = payload.health_snapshots.slice(start, end);
+        const batchDates = new Set(batchSnaps.map(s => (s as Record<string, unknown>)['date'] as string));
+        const batchCrs   = payload.crs_scores.filter(c => batchDates.has(c.date));
+
+        setStatusMsg(`Uploading batch ${b + 1}/${batches} (${batchSnaps.length} days)…`);
+        setProgress(90 + Math.round((b / batches) * 10));
+
+        const res = await fetch(`${SUPABASE_FN_URL}/health-import`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': adminKey,
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            health_snapshots: batchSnaps,
+            crs_scores: batchCrs,
+            stress_events: b === 0 ? payload.stress_events : [], // Only send stress on first batch
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` })) as Record<string, unknown>;
+          throw new Error(`Batch ${b + 1} failed: ${(err['error'] as string) || `HTTP ${res.status}`}`);
+        }
+
+        const result = await res.json() as Record<string, unknown>;
+        totalImported += (result['days_imported'] as number) ?? batchSnaps.length;
+
+        const range = result['crs_range'] as Record<string, number> | null;
+        if (range) {
+          crsValues.push(range['min'] ?? 0, range['max'] ?? 0);
+        }
       }
 
-      const result = await res.json() as Record<string, unknown>;
       setProgress(100);
 
       const sum: ImportSummary = {
-        days:        (result['days_imported'] as number) ?? payload.health_snapshots.length,
-        crsAvg:      (result['crs_range'] as Record<string,number> | null)?.['avg'] ?? 0,
-        crsMin:      (result['crs_range'] as Record<string,number> | null)?.['min'] ?? 0,
-        crsMax:      (result['crs_range'] as Record<string,number> | null)?.['max'] ?? 0,
-        stressEvents:(result['stress_events_imported'] as number) ?? 0,
+        days:        totalImported,
+        crsAvg:      crsValues.length > 0 ? Math.round(crsValues.reduce((a, b) => a + b, 0) / crsValues.length) : 0,
+        crsMin:      crsValues.length > 0 ? Math.min(...crsValues) : 0,
+        crsMax:      crsValues.length > 0 ? Math.max(...crsValues) : 0,
+        stressEvents: 0,
       };
 
       setSummary(sum);
