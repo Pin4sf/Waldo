@@ -238,12 +238,12 @@ async function processOneUser(
       }),
     });
 
-    const agentResult = await agentResponse.json();
-    const message = agentResult.message;
+    const agentResult = await agentResponse.json().catch(() => ({ error: `invoke-agent returned ${agentResponse.status}` })) as Record<string, unknown>;
+    const message = agentResult['message'] as string | null;
 
     if (!message) {
-      log('warn', 'no_message', { userId: user.id, trigger: trigger.triggerType, error: agentResult.error });
-      return { userId: user.id, triggered: true, triggerType: trigger.triggerType, delivered: false, error: agentResult.error };
+      log('warn', 'no_message', { userId: user.id, trigger: trigger.triggerType, error: agentResult['error'] });
+      return { userId: user.id, triggered: true, triggerType: trigger.triggerType, delivered: false, error: agentResult['error'] };
     }
 
     const telegramUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-bot/send`;

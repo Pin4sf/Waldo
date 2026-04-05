@@ -107,7 +107,7 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
     return null;
   }
 
-  return resp.json();
+  return resp.json().catch(() => null);
 }
 
 // ─── Store tokens ──────────────────────────────────────────────

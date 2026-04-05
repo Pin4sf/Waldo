@@ -64,7 +64,8 @@ export async function getValidGoogleToken(
     return null;
   }
 
-  const tokens = await resp.json() as { access_token: string; expires_in: number };
+  const tokens = await resp.json().catch(() => null) as { access_token: string; expires_in: number } | null;
+  if (!tokens?.access_token) return null;
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
   await supabase
@@ -120,6 +121,7 @@ export async function googleFetch(
     return { ok: false, status: resp.status, data: null };
   }
 
-  const data = await resp.json();
+  const data = await resp.json().catch(() => null);
+  if (data === null) return { ok: false, status: resp.status, data: null };
   return { ok: true, status: 200, data };
 }
