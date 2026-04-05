@@ -112,6 +112,139 @@ When components are unavailable (user didn't wear watch to bed, no HRV from devi
 | Oura Readiness | Component breakdown with color coding = trust |
 | Samsung Stress | On-demand only, NOT continuous passive. Even Samsung doesn't trust passive daytime HRV |
 
+---
+
+## CRS v2 — Three-Pillar Architecture (April 2026 Research)
+
+> **Status:** Research-validated target architecture. CRS v1 (flat 4-component) remains in production — validated on 856 days. CRS v2 is the target upgrade when we have sufficient new user data to validate the hierarchical model. Implementation target: **Phase G** (during self-test tuning).
+
+### Why Upgrade
+
+CRS v1 uses a flat 4-component model: Sleep (35%) + HRV (25%) + Circadian (25%) + Activity (15%). This works but has three weaknesses:
+
+1. **Mixes "why" signals** — a score of 65 doesn't tell you whether recovery was fine but your body is depleted, or vice versa
+2. **Wastes 5 signals we already collect** — respiratory rate, SpO2, wrist temperature, walking HR, daylight minutes are parsed but unused
+3. **No load accumulation** — today's score doesn't account for yesterday's exertion or timezone shifts
+
+CRS v2 decomposes into three meaningful pillars that answer distinct questions:
+
+| Pillar | Question it answers | Weight |
+|--------|-------------------|--------|
+| **Recovery Score** | "How well did your body restore itself during sleep?" | 50% |
+| **Current Autonomic State (CASS)** | "What state is your nervous system in right now?" | 35% |
+| **Inverse Load Accumulation (ILAS)** | "How much physiological debt has accumulated?" | 15% |
+
+```
+CRS v2 = (Recovery Score × 0.50) + (CASS × 0.35) + (ILAS × 0.15)
+```
+
+### Pillar 1 — Recovery Score (0–100)
+
+Reflects overnight sleep restoration quality. **Not affected by preceding day's load** — this is deliberate (prevents blaming sleep for a load problem).
+
+| Sub-component | Weight | What it measures | Source |
+|--------------|--------|-----------------|--------|
+| Sleep Stage Quality (SSQ) | 50% | Deep sleep 13–23% target, REM 20–25% target, efficiency ≥85% | Apple Watch sleep stages |
+| Respiratory Rate Score (RRS) | 20% | Median sleeping RR within 12–18 breaths/min | Apple Watch respiratory rate |
+| SpO2 Score (SO2S) | 20% | Median SpO2 ≥95% normal, linear penalty to 90%, zero below | Apple Watch SpO2 |
+| Wrist Temperature Score (WTS) | 10% | Deviation ≤±0.5°C from personal baseline | Apple Watch wrist temp |
+
+**SSQ formula (research-validated reference ranges):**
+```
+Deep Sleep Score: Deep% ≥ 13% → 100; Deep% < 13% → (Deep%/13) × 100
+REM Score:        REM% ≥ 20% → 100;  REM% < 20% → (REM%/20) × 100
+Efficiency Score: SE% ≥ 85% → 100;   SE% < 85% → (SE%/85) × 100
+SSQ = (Deep × 0.40) + (REM × 0.35) + (Efficiency × 0.25)
+```
+
+**RRS formula:** Median_RR 12–18 → 100; >18 → 100 − ((RR − 18) × 10); <12 → (RR/12) × 100
+
+**SO2S formula:** ≥95% → 100; 90–95% → ((SpO2 − 90)/5) × 100; <90% → 0
+
+**WTS formula:** ±0.5°C → 100; >+0.5°C → 100 − ((deviation − 0.5) × 100); <−0.5°C → 100 − ((|deviation| − 0.5) × 50)
+
+### Pillar 2 — Current Autonomic State Score (CASS, 0–100)
+
+Real-time snapshot of nervous system readiness. This is where HRV lives — alongside resting HR trend and walking HR.
+
+| Sub-component | Weight | What it measures | Source |
+|--------------|--------|-----------------|--------|
+| Morning HRV Z-Score (HRVS) | 60% | Today's SDNN vs personal 30-day baseline, normalized by SD | Apple Watch / Health Connect HRV |
+| Resting HR Trend (RHRTS) | 25% | Today's RHR delta from 7-day average (−10pts per beat above) | Apple Watch RestingHeartRate |
+| Walking HR Average (WHAS) | 15% | Today's walking HR delta from 30-day baseline (−5pts per beat above) | Apple Watch WalkingHeartRateAverage |
+
+**HRVS formula (Z-score normalization — most important change vs v1):**
+```
+Z = (Today_HRV − 30day_Mean) / 30day_SD
+HRVS = clamp(50 + (Z × 15), 0, 100)
+```
+Z = 0 → score 50 (your average). Z = +2 → 80. Z = −2 → 20. Each SD = 15 points. This is cleaner and more precise than v1's bracket thresholds.
+
+**RHRTS formula:** Delta ≤ 0 → 100; Delta > 0 → max(0, 100 − (Delta × 10))
+
+**WHAS formula:** Delta ≤ 0 → 100; Delta > 0 → max(0, 100 − (Delta × 5))
+
+### Pillar 3 — Inverse Load Accumulation Score (ILAS, 0–100)
+
+Higher load = lower score. Captures multi-day physiological debt.
+
+| Sub-component | Weight | What it measures | Source |
+|--------------|--------|-----------------|--------|
+| Energy Expenditure Score (EES) | 30% | 48h active energy vs baseline (−100 per 100% above baseline) | ActiveEnergyBurned |
+| Physical Effort Score (PES) | 25% | 24h MET ratio vs 30-day baseline (−80 per 100% above) | PhysicalEffort / ExerciseMinutes |
+| Circadian Disruption Penalty (CDP) | 30% | Timezone delta from sleep record metadata (−12 per hour of shift) | Timezone metadata on sleep records |
+| Daylight Adequacy Score (DAS) | 15% | TimeInDaylight: 30–120 min = linear; <30 min = half score | TimeInDaylight / daylightMinutes |
+
+**CDP formula (new dimension):**
+```
+TZ_delta = |current_sleep_timezone − 48h_prior_sleep_timezone| in hours
+CDP = max(0, 100 − (TZ_delta × 12))
+```
+1h shift → 88. 3h (cross-country) → 64. 5.5h (India → UK) → 34. 9h+ → 0.
+
+### CRS v1 → v2 Migration Path
+
+| Phase | What happens |
+|-------|-------------|
+| **Now (v1 in production)** | Flat 4-component CRS, validated on 856 days. Don't touch. |
+| **Phase G (self-test)** | Implement v2 alongside v1. Compute BOTH scores per day. Compare. |
+| **Phase G + 14 days** | If v2 correlates better with user-reported readiness → swap v1 for v2 in production |
+| **Phase H (beta)** | v2 is the primary score. v1 available as fallback for devices that don't provide respiratory rate / SpO2 / wrist temp |
+
+### What v2 Unlocks That v1 Cannot
+
+1. **Per-pillar intervention routing:** CASS is the lowest pillar → recommend autonomic recovery (breathing exercise). Recovery is lowest → recommend sleep. ILAS is lowest → recommend rest + daylight. The flat model can't do this.
+2. **"Why is my score low?"** becomes answerable with one sentence: "Your recovery was fine (94), but your nervous system is significantly depleted (29) from yesterday's travel."
+3. **5 new data signals** enter the CRS that we currently collect but waste: respiratory rate, SpO2, wrist temperature, walking HR, daylight minutes.
+4. **Timezone disruption detection** — a signal no consumer product computes today. Critical for frequent travelers (our pilot ICP from the research).
+5. **48-hour load window** captures accumulated multi-day fatigue that a single-day view misses.
+
+### Signals Already Collected But Currently Unused (Quick Wins)
+
+These are in `DailyHealthData` today — we just need to wire them into the CRS v2 computation:
+
+| Signal | Field in DailyHealthData | Currently used? | v2 pillar |
+|--------|-------------------------|----------------|-----------|
+| Respiratory rate | `respiratoryReadings[]` | ❌ Parsed, unused | Recovery (RRS) |
+| SpO2 | `spo2Readings[]` | ❌ Parsed, unused | Recovery (SO2S) |
+| Wrist temperature | `wristTemp` | ❌ Parsed, unused | Recovery (WTS) |
+| Walking HR | Not currently in type | ❌ Not collected | CASS (WHAS) — needs new HealthKit query |
+| Daylight minutes | `daylightMinutes` | ❌ Parsed, unused | ILAS (DAS) |
+| Active energy burned | `activeEnergyBurned` | ❌ Parsed, unused | ILAS (EES) |
+| Exercise minutes | `exerciseMinutes` | ✅ Used in Activity | ILAS (PES) |
+| Distance | `distanceKm` | ❌ Parsed, unused | Could enhance PES |
+
+### Samsung / Android Degradation (CRS v2)
+
+When HRV is unavailable (Samsung doesn't write RMSSD to Health Connect):
+- CASS: redistribute HRVS weight (60%) to RHRTS (55%) + WHAS (45%)
+- Recovery: unchanged (sleep-based)
+- ILAS: unchanged
+
+When respiratory rate / SpO2 / wrist temp unavailable (most Android watches):
+- Recovery: redistribute to SSQ (85%) — sleep stages become the sole recovery indicator
+- Note: this is what v1 already does effectively
+
 **Implication:** Be conservative. Morning CRS (from overnight data) is most reliable. Daytime CRS is supplementary and should carry a confidence indicator.
 
 ---
