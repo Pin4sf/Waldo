@@ -461,7 +461,7 @@ Deno.serve(async (req: Request) => {
       // Save to conversation_history and return without calling Claude
       await supabase.from('conversation_history').insert({
         user_id: userId, role: 'waldo', content: templateMessage,
-        mode: triggerType, channel: body.channel ?? 'api',
+        mode: triggerType, channel: parsed.data.channel ?? 'api',
         metadata: { method: 'template', tokens_in: 0, tokens_out: 0, latency_ms: Date.now() - startMs },
       });
       await supabase.from('agent_logs').insert({
@@ -637,12 +637,12 @@ Deno.serve(async (req: Request) => {
     if (question) {
       savePromises.push(supabase.from('conversation_history').insert({
         user_id: userId, role: 'user', content: question,
-        mode: triggerType, channel: body.channel ?? 'api',
+        mode: triggerType, channel: parsed.data.channel ?? 'api',
       }));
     }
     savePromises.push(supabase.from('conversation_history').insert({
       user_id: userId, role: 'waldo', content: finalMessage,
-      mode: triggerType, channel: body.channel ?? 'api',
+      mode: triggerType, channel: parsed.data.channel ?? 'api',
       metadata: { tokens_in: totalTokensIn, tokens_out: totalTokensOut, latency_ms: latencyMs, tools: toolsCalled, iterations },
     }));
     savePromises.push(supabase.from('agent_logs').insert({
