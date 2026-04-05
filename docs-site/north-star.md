@@ -98,6 +98,10 @@ The health AI startups — Nori, Galen, Prana — are building coaches, not agen
 
 Nobody has put biology + agency + context + device-agnosticism + external messaging + cross-platform together. Not because it's impossible. Because it requires thinking about the problem from the body outward, not from the calendar inward. That's our starting point. That's our edge.
 
+**Positioning frame (non-negotiable):** "Already on it." Not "Waldo noticed X." Not "Here's what I found." Already on it. This phrase must appear consistently across every user-facing surface — every Waldo message, every loading state, every onboarding screen, every fallback. LittleBird ($11M, launched March 2026) owns "already knows your work" with relentless consistency. We own "already on it" with the same discipline — every touchpoint, no exceptions.
+
+**Privacy frame (non-negotiable):** "Waldo doesn't store your HRV readings or your sleep staging data. It stores what they mean for you, today." Our architecture already does this (DO stores derived insights, not raw values). Make it explicit everywhere — it's a stronger privacy claim than any competitor because it's active intelligence, not just format preference.
+
 > **Ecosystem lens:** These players are also potential partners. WHOOP's wearable data could flow into Waldo's agent. Oura's ring data could enhance our CRS. Lindy's task automation could be powered by our biology layer. We're building the biological intelligence layer — others can plug into it.
 
 ---

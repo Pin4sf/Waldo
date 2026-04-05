@@ -61,6 +61,7 @@ quadrantChart
 | **Lindy** ($50M+ raised) | **Integration partner.** AI Chief of Staff with 4000+ integrations but zero biology. Lindy + Waldo biology = a smarter task agent that knows when you're depleted. |
 | **ChatGPT Health** | **Complementary.** Reactive Q&A (230M weekly health queries). Waldo is proactive. Different interaction model. |
 | **Sahha.ai** | **Potential data partner.** Health AI SDK for developers. Their SDK could feed into our agent. |
+| **LittleBird** ($11M seed, Lotus Studio) | **Complementary — future integration candidate.** Screen-reading AI that builds continuous memory of digital work (reads active window text, transcribes meetings, delivers scheduled "Routines"). Zero health data, zero wearable integration. Their moat: "already knows your work." Our moat: "already knows your body." Together = an agent that knows when your body can handle your work. LittleBird launched March 26, 2026 (Product Hunt #1). Watch for partnership opportunity once we have 1,000+ users. |
 
 ## Wearable Data Platforms
 
@@ -114,6 +115,63 @@ While competitors lock users into their app and their hardware, Waldo's adapter 
 
 1. **WHOOP** can't be device-agnostic (hardware is their business model)
 2. **Apple** can't be cross-platform (Android is off-limits)
+
+---
+
+## LittleBird Deep-Dive — What Waldo Should Learn From Them (April 2026)
+
+LittleBird is not a competitor, but it's the most instructive product in the adjacent space. Research conducted April 5, 2026.
+
+**What they do:** macOS screen-reader AI. Reads active window text in real-time (never screenshots), transcribes meetings, builds continuous private memory of digital work. Delivers scheduled "Routines" — natural language prompts on a cadence. $11M seed from Lotus Studio. Founders from Sentieo (sold to AlphaSense).
+
+**Their core claim:** "The only full-context AI — already knows your work." Never have to paste context or explain what you're working on.
+
+**Their moat vs. Recall/Rewind:** Text storage (not screenshots) = lighter, more private, more powerful AI queries.
+
+### 7 Things Waldo Should Adopt From LittleBird
+
+**1. Routines as a user-configurable layer on top of proactive delivery**
+LittleBird: write a natural language prompt + set a cadence → scheduled briefing runs automatically. "Every Monday morning, tell me what meetings I have and what I worked on last week."
+Waldo equivalent: "Every Sunday evening, tell me how my recovery looks for the week ahead based on my HRV trend." Currently Morning Wag is hardcoded. Making it partially user-configurable (cadence + focus area: sleep / HRV / calendar / mood) would be a major UX upgrade. Candidate for **Phase G+**.
+
+**2. Follow-up chat attached to every proactive delivery**
+Every LittleBird Routine output has a chat icon — immediate follow-up without context switching.
+Waldo: Morning Wag and Fetch Alerts should embed contextual reply buttons — "Tell me more" / "What should I do?" / "Compare to last week." Not just 👍/👎 feedback. Lowers interaction friction dramatically. Candidate for **Phase E/F**.
+
+**3. "Prep for Activity" trigger — calendar-aware pre-event Waldo message**
+LittleBird: "Prep for Meeting" surfaces past notes, email threads, company background 30 min before a call.
+Waldo equivalent: Before a high-stakes meeting, presentation, or intense workout, Waldo fires a pre-activity Spot: "Board call in 40 min. CRS 58, running on 5.8h sleep. Keep it short today, let others lead." Uses Calendar connector (already built) + CRS + sleep debt. New trigger type: **calendar-aware pre-event Spot**. Candidate for **Phase E**.
+
+**4. "Already on it" must be consistent everywhere**
+LittleBird executes "already knows your work" on every single touchpoint — homepage hero, every tooltip, testimonial copy, onboarding steps. Relentless consistency.
+Waldo's "Already on it" is our version. Currently used inconsistently — appears in some messages, absent in others. Every Waldo-facing surface should echo this frame. Not "Waldo noticed X" — "Already on it." Every loading state, every onboarding screen, every fallback message.
+
+**5. "Derived insights, not raw data" as privacy positioning**
+LittleBird: "We store text, not screenshots — lighter, more private, more powerful AI."
+Waldo's stronger version: "Waldo doesn't store your HRV readings or sleep staging data. It stores what they mean for you, today." Our DO architecture already does this (stores "HRV declining" not "HRV was 42ms"). Make this explicit in privacy copy and onboarding — it's a stronger claim than LittleBird's because it's active intelligence, not just format preference.
+
+**6. Emotional outcome testimonials, not feature descriptions**
+LittleBird's best testimonials: "switch tasks without losing flow," "cuts through daily chaos to find clarity," "backup brain for morning clarity." Feelings, not features.
+Waldo's testimonial shape: "I stopped crashing before important calls," "Waldo caught my burnout before I did," "I didn't make the 3pm decision mistake anymore." When collecting user feedback, actively shape testimonials toward these emotional outcomes.
+
+**7. No-integration cold start — state it explicitly**
+LittleBird works from day one (screen context alone). Integrations add depth later. They never gate the core experience on setup.
+Waldo equivalent: Apple Health alone is enough for CRS. Google, Spotify, Tasks make it smarter. **Onboarding should say this explicitly:** "Waldo starts working the moment your Apple Watch syncs. Everything else makes it smarter over time — but it's optional." Reduces signup anxiety.
+
+### What Waldo Has That LittleBird Never Will
+
+| Dimension | LittleBird | Waldo |
+|-----------|-----------|-------|
+| Data source | Digital (screen) | Biological (body) |
+| Proactivity model | Scheduled queries you configure | Physiological detection → acts before you know |
+| Hardware | Mac app only | Apple Watch, Galaxy, Fitbit, WHOOP, Oura — 10 adapters |
+| Offline | Cloud-dependent | On-device CRS, works offline |
+| Longitudinal | Screen history | Months of biological patterns (The Constellation) |
+| Delivery channel | In-app sidebar only | Telegram, WhatsApp, in-app — wherever you live |
+| Science foundation | Pattern matching over text | SAFTE-FAST, HRV chronobiology, validated CRS |
+| Prevention vs recall | Recall ("what happened?") | Prevention ("what's about to happen to your body?") |
+
+**The relationship:** LittleBird knows your work. Waldo knows your body. Together they'd know when your body can actually handle your work. Potential future integration story for pitch decks.
 3. **Lindy/Manus** can't add biology without building what we're building
 4. **Nori** can't serve Android users (iOS-only architecture)
 5. **Generic health apps** can't add agent autonomy without rearchitecting

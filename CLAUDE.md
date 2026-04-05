@@ -192,5 +192,18 @@ Deep research session: reverse-engineered Claude Code's 1,905-file TypeScript co
 
 **Competitive urgency:** Nori (YC, 2 exits) is live on App Store. Prana (YC W26) is building. ChatGPT Health has 230M weekly health users. **Ship Phase D.**
 
+## Product Vision — Non-Negotiable Frames (April 2026)
+
+**"Already on it"** — Every user-facing Waldo surface must echo this phrase. Not "Waldo noticed X." Already on it. Relentless consistency across every message, onboarding step, loading state, fallback. This is our positioning frame. LittleBird owns "already knows your work" consistently — we own "already on it" the same way.
+
+**"Derived insights, not raw data"** — Privacy positioning: "Waldo doesn't store your HRV readings or sleep staging data. It stores what they mean for you, today." Our DO architecture already does this. Make it explicit everywhere — stronger than any competitor's privacy claim because it's active intelligence, not format preference.
+
+**New trigger types to build (from LittleBird competitive research, April 2026):**
+- **Pre-Activity Spot (Phase E):** Calendar-aware Waldo message 30 min before high-stakes meetings. "Board call in 35 min. Running lower than usual today." Uses CalendarProvider + CRS + sleep debt.
+- **User-Configurable Routines (Phase G+):** Users write natural language prompts on cadences. Waldo runs them against biological data. "Every Sunday, tell me my recovery outlook for next week."
+- **Contextual follow-up threading:** Every proactive message (Morning Wag, Fetch Alert) should embed reply buttons — "Tell me more" / "What should I do?" — not just 👍/👎.
+
+**LittleBird is a complement, not a competitor.** They know your work. We know your body. Together = an agent that knows when your body can handle your work. Future integration partner candidate. Full competitive analysis: `docs-site/competitive-landscape.md`.
+
 ## Learnings
 - Always update your learning, and whenever we try to solve or resolve anything, be a proactive learner. Keep a log of this in the memories, and keep a hard won lessons file also.

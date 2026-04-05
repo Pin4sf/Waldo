@@ -646,6 +646,66 @@ PLAYBOOK:
   Phase 5 — Validate/decay memory entries (hot → warm → cold based on recency)
 ```
 
+### Pre-Activity Spot Hand (Phase E — Calendar-Aware) — NEW
+
+**Inspired by:** LittleBird's "Prep for Meeting" pattern — surfaces context before high-stakes events. Applied to biology instead of digital work history.
+
+```
+Schedule: Triggered by calendar event detection (30 min before flagged events)
+Model: Claude Haiku 4.5
+Gate: CRS data available AND calendar event qualifies (high-attendee or user-flagged)
+Tools: get_crs, get_sleep, get_stress_events, read_memory, send_message
+Requires: Google Calendar connector active (CalendarProvider adapter)
+
+WHAT IT FIRES FOR:
+  - Meetings with 3+ attendees
+  - Meetings user has starred or flagged "important"
+  - Back-to-back blocks (no gap before next meeting)
+  - High-stakes tags (board, investor, client, interview, presentation)
+
+PLAYBOOK:
+  Phase 0 — Detect upcoming event (15-30 min window)
+  Phase 1 — Load current CRS + sleep debt + last stress event time
+  Phase 2 — Assess biological readiness for this type of event
+  Phase 3 — Generate 2-sentence pre-activity Spot:
+    [State] Your body right now, in one sentence (CRS-aware, no raw numbers)
+    [Recommendation] One specific adjustment for this event (pacing, hydration, duration)
+
+EXAMPLE OUTPUTS:
+  "Board call in 35 min. Running lower than usual today — let others carry the room if you can."
+  "Back-to-back starting in 20 min and you've had no recovery window. Block 5 min between calls."
+  "Presentation in 30 min. You're actually in a strong window — HRV trend is up from this morning."
+
+WHAT IT DOESN'T DO:
+  - Never shares raw numbers (HRV ms, HR bpm)
+  - Never fires during quiet hours (22:00-06:00)
+  - Never fires more than once per event
+  - Skips if CRS > 75 and no stress events in last 4h (user is fine, no noise)
+```
+
+### User-Configurable Routines (Phase G+) — NEW
+
+**Inspired by:** LittleBird's Routines — users write a natural language prompt and set a cadence. Gets more personalized over time as Waldo learns preferences.
+
+Unlike hardcoded Morning Wag / Fetch Alert, Routines let users create custom scheduled deliveries on top of biological data:
+
+```
+Examples users can configure:
+  "Every Sunday evening, summarize my HRV trend and tell me what next week looks like."
+  "Every Monday morning, tell me my sleep debt and one thing I can do about it."
+  "On days my CRS drops below 60, send me my recovery recommendations."
+  "Every 2 weeks, tell me what patterns Waldo has learned about me."
+
+Implementation:
+  - Stored in user_routines table (user_id, prompt, schedule_cron, last_run, active)
+  - Agent executes Routine with same tool access as Morning Wag
+  - Each Routine delivery includes a contextual follow-up chat thread
+  - Users can edit, pause, or delete Routines from web console or in-chat command
+  
+Phase G gate: Agent must have 30+ days of data for Routines to be useful.
+UI: Simple form in web console — "What do you want Waldo to tell you, and when?"
+```
+
 ### Weekly Review Hand (Phase 2)
 
 ```
