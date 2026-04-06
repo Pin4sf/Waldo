@@ -1,5 +1,5 @@
 # Waldo — Designer Brief
-**Version 2.0 — April 2026**
+**Version 3.0 — April 2026**
 **For:** UI/UX designers, brand designers, web designers, social media team
 
 ---
@@ -626,6 +626,525 @@ The quadrant of **proactive + channel-delivered + scientifically grounded + devi
 
 ---
 
+## Web Console Dashboard — Home Screen Design (The Brief)
+
+> This section is the primary brief for designing the Waldo web console home screen. Read it fully before opening Figma.
+
+### The Design Problem (Say This Out Loud Before You Start)
+
+Every health dashboard shows you **numbers**. Apple Health shows rings. WHOOP shows recovery. Oura shows readiness. They all say: "Here is what happened to your body."
+
+Waldo's dashboard says: **"Here is what your agent already did about it."**
+
+The unit of the Waldo console is not a score. It is a **patrol entry** — a timestamped record of Waldo's observation and action. Scores are the *why*. Actions are the *what*. The home screen leads with agency, supports it with data.
+
+This is the differentiation. Design to it relentlessly.
+
+---
+
+### The Four Dashboard Architectures (Pick One, Scaffold the Others)
+
+#### Architecture 1: "The Morning State" ⭐ RECOMMENDED FOR LAUNCH
+
+Score-led with agency panel below. Familiar pattern, differentiated by the Patrol section.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Waldo   [dalmatian mood: wagging / steady / curled]  Apr 6  │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│              ╭──────────────────╮                           │
+│              │        73        │  ← Nap Score              │
+│              │     STEADY       │     (large arc gauge)     │
+│              ╰──────────────────╯                           │
+│                                                              │
+│   Sleep ████████░  81    HRV  ██████░░  68                  │
+│   Strain ████░░░░  9.2   Debt  ↑ 1.4h owed                 │
+│                                                              │
+│  ──────────────────────────────────────────────             │
+│  THE PATROL — What Waldo handled today                       │
+│  ──────────────────────────────────────────────             │
+│  ☀  7:02am  Morning Wag sent                                │
+│     "Rough night. Moved your 9am → 10:30. Nothing drastic." │
+│                                                              │
+│  ⚡  9:47am  Stress detected · Confidence 0.71              │
+│     "HR elevated 18bpm over 12 min. Sent you a nudge."      │
+│                                                              │
+│  🧠 11:30am  Peak window open                               │
+│     "CRS 78. HRV stabilized. Good time for deep work."      │
+│                                                              │
+│  [ Patrol active · Updated 4 min ago ]                      │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Why this first:** Scores are familiar (users understand health numbers), Patrol section below is additive and explains what Waldo *did* with those numbers. Low learning curve, high differentiation.
+
+---
+
+#### Architecture 2: "The Patrol Timeline" — Agency-First
+
+Flip the hierarchy. Start with what Waldo did — score is supporting context.
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Monday, April 6  ·  Nap Score: 73  ·  [Waldo avatar]       │
+├──────────────────────────────────────────────────────────────┤
+│  THE PATROL                                                  │
+│                                                              │
+│  ● 7:02am   ☀ Morning Wag                                   │
+│     "Rough night — sleep short by 40 min."                  │
+│     "Moved 9am → 10:30. Nothing drastic."          [open ↗] │
+│                                                              │
+│  ● 9:47am   ⚡ Fetch Alert                                   │
+│     Stress confidence 0.71 · HR +18bpm sustained 12 min     │
+│     Sent nudge. You replied: "Thanks, needed that." [open ↗] │
+│                                                              │
+│  ● 11:30am  🧠 Peak window detected                         │
+│     CRS 78 · HRV stabilized. Marked as focus-protected.      │
+│                                                              │
+│  ● 2:00pm   😴 Circadian dip (predicted)                    │
+│     Nothing heavy scheduled. All clear.                      │
+│                                                              │
+│  ─────────────────────────────────────────────              │
+│  TODAY'S READINGS   Sleep 81 · HRV 68 · Strain 9.2          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Use for:** Power users, beta users who want to see everything Waldo did. Good as an alternate "detailed view" or as the default after users have used Waldo for 7+ days and trust it.
+
+---
+
+#### Architecture 3: "The Six Rings" — Full Dimensional (Phase 2 Vision)
+
+Extend Apple's rings metaphor to all 6 life dimensions. Design this now, wire for Phase 2.
+
+```
+                  BODY (Nap Score 73) ────────── ● green arc
+                 /
+         SCHEDULE (MLS 6) ───────────────────── ● amber arc
+        /
+    COMMS (CSI 42) ──────────────────────────── ● green arc
+        \
+         TASKS (3 overdue) ──────────────────── ● red arc
+                 \
+                  MOOD (Mood Score 68) ─────── ● amber arc
+                           \
+                            WALDO IQ (34%) ── ● gray (connect more)
+```
+
+Six concentric arcs. Center shows today's master score. Each arc expandable. Empty rings (disconnected sources) show greyed-out with "Connect to unlock →".
+
+**Design intent:** Empty rings are not a failure state — they are a hook. The user sees the rings for Calendar, Slack, Todoist all grayed out and thinks "I want those." It's a viral growth mechanic built into the UI.
+
+---
+
+#### Architecture 4: "The Constellation Map" — Phase 3 Vision Teaser
+
+For the Constellation tab. Show discovered patterns as an interactive graph.
+
+```
+   [Sleep 81] ────── [HRV 68]
+       |                  |
+       └───── [Nap 73] ───┘ ← Waldo Intelligence hub
+                   |
+          [Calendar: heavy] ──── [Stress 0.71]
+                                       |
+                              "Tuesday 2pm pattern"
+                             (3 occurrences, high conf)
+```
+
+Nodes = data points. Edges = correlations Waldo discovered. Orange glow on high-confidence patterns. Tap any node to see the raw Spot. Tap an edge to see the pattern and what Waldo does about it. This is the Phase 3 deep dive tab. Design the shell now; populate with real data later.
+
+---
+
+### Recommended Build Order
+
+| Phase | Dashboard Architecture | When |
+|-------|----------------------|------|
+| **Launch (now)** | **Agentic Bento Grid** (see section below) — agent-generated, swipeable tiles with L1/L2/L3 depth | Build this sprint |
+| **Launch (now)** | Architecture 1 (Morning State) lives inside the hero bento tile | Part of bento |
+| **Launch (now)** | Architecture 2 (Patrol Timeline) as a bento tile + expanded view | Part of bento |
+| **Phase 2** | Architecture 3 (Six Rings) as a new bento tile when sources connect | When Calendar/Slack connect |
+| **Phase 2** | Workspace Smart Stack tile (Calendar/Tasks/Mail vertical cycling) | When Phase 2 adapters ship |
+| **Phase 3** | Architecture 4 (Constellation) as dedicated tab + mini bento tile | When patterns accumulate |
+
+---
+
+### The Nap Score — Hero Visualization
+
+The most important component in the entire product. Get this right first.
+
+**Geometry:** 220° arc (not full circle — leaves room for zone labels at bottom). Filled clockwise from left bottom.
+
+**Zone colors:**
+- 80-100 · Peak → arc color `#059669` · background card `#D1FAE5`
+- 65-79 · Steady → arc color `#D97706` · background card `#FEF3C7`
+- 50-64 · Flagging → arc color `#EA580C` · background card `#FFF7ED`
+- 0-49 · Low → arc color `#DC2626` · background card `#FEE2E2`
+- No data → arc color `#D1D5DB` · label "Wear your Watch tonight"
+
+**Center text:**
+- Score number: 64px DM Sans 700, zone-colored
+- Zone label: 14px DM Sans 500, muted (`#6B7280`)
+- Below gauge: "Updated 4 min ago" in 12px muted
+
+**CRS v2 upgrade path (Phase G):** The arc stays the same. But below it, instead of 4 component bars (Sleep/HRV/Circadian/Activity), show 3 pillar bars: Recovery / Autonomic State / Load. Each pillar is expandable to see sub-components. Design both states in Figma — v1 (4 bars) for launch, v2 (3 pillars) as a Figma variant. Don't build v2 yet — just have the design ready.
+
+---
+
+### The Patrol Section — Design Specification
+
+The Patrol is the soul of the product. It answers "what has Waldo actually done for me today?"
+
+**Entry types and their icons:**
+
+| Type | Icon | Color | What it shows |
+|------|------|-------|---------------|
+| Morning Wag | ☀️ | Warm yellow | Daily brief sent — excerpt + "open" link to full message |
+| Fetch Alert | ⚡ | Rose/orange | Stress detected — confidence + what was observed + nudge sent |
+| Peak Window | 🧠 | Mint green | High CRS + stable HRV — "good time for deep work" |
+| Pre-Activity Spot | 📅 | Amber | Calendar-aware — "Board call in 35 min. Running lower today." |
+| Circadian Dip | 😴 | Muted | Expected afternoon dip — nothing needed / scheduled lightly |
+| Fetch Suppressed | 🔇 | Gray | Stress detected but cooldown active — "already alerted today" |
+| Morning Wag Skipped | — | Gray | CRS > 60 + stress confidence < 0.3 → rules pre-filter kicked in. Nothing to flag. |
+
+**Empty state (no patrol entries yet):**
+> "Patrol active. First scan at 7am tomorrow. Waldo's watching."
+> — Dalmatian sniffing animation below.
+
+**Entry design:**
+- Left: colored dot + icon
+- Middle: timestamp (bold) + event label + 1-line excerpt
+- Right: "open ↗" chip if the message was sent (opens the full message in chat view)
+- Bottom: user reaction if given (👍/👎/reply excerpt)
+
+**Feedback loop (critical for learning):**
+Every sent message entry shows the user's reaction. If they replied — show the first line of their reply. This closes the loop visually: "Waldo acted → you responded → Waldo learned."
+
+---
+
+### All Scores: What to Show, When, and How
+
+#### Tier 1 — MVP (live today, show on launch)
+
+| Score | Visual | Notes |
+|-------|--------|-------|
+| **Nap Score** | 220° arc, large, hero | The only full-size viz. Everything else is supporting. |
+| **Sleep Score** | Horizontal bar + sleep stage breakdown strip | Show stages as color-coded segments (Core/Deep/REM/Awake) |
+| **HRV Score** | Score pill + 7-day sparkline with baseline band | Show "Beat-to-beat" or "SDNN fallback" label |
+| **Day Strain** | Segmented 0-21 bar (0-4 rest / 4-10 low / 10-14 med / 14-18 high / 18+ over) | WHOOP-style. Orange at 14+, red at 18+ |
+| **Sleep Debt** | Debt meter: battery icon draining — "1.4h owed" + direction arrow (↑↓→) | "Paying off" (green arrow down) or "Accumulating" (red arrow up) |
+| **Circadian Score** | Today's position on a time-of-day energy curve | Show current time as a dot on the arc. "You're at your dip — expected." |
+| **Resting HR** | Number + 7-day trend sparkline | Flag if trending up over 7 days |
+| **SpO2** | Number + "Normal" / "Low" tag | Flag if < 95% |
+| **Respiratory Rate** | Number + trend | Flag if trending up (early illness signal) |
+| **Stress Events (today)** | Count chip: "2 today" | Taps through to stress events log |
+
+#### Tier 2 — Phase 2 (design empty states now, fill when connected)
+
+Show as locked/grayed cards on dashboard with "Connect [Source] →" CTA:
+
+| Score | Source | Empty State Copy |
+|-------|--------|-----------------|
+| **Meeting Load Score** | Calendar | "Connect Calendar to see your cognitive schedule load" |
+| **Focus Time** | Calendar | "See how much uninterrupted time you actually have" |
+| **Comms Stress Index** | Gmail / Slack | "Connect email to measure communication pressure" |
+| **Task Pile-Up** | Todoist / Notion / Linear | "Connect your task manager to see cognitive weight of undone work" |
+| **Task-Energy Match** | Calendar + tasks | "Waldo will match your hardest tasks to your peak windows" |
+| **Mood Score** | Spotify | "Connect Spotify to infer mood from your listening patterns" |
+| **Burnout Trajectory** | All sources | "Needs 30 days of data + 3+ sources. Keep going." |
+| **Waldo Intelligence Score** | All sources | Progress bar: "2/10 sources connected. 34% intelligence." |
+
+#### Tier 3 — Phase 3 (show as future cards, animated/teased)
+
+- **Resilience Score** — "How fast you bounce back after bad days"
+- **Recovery-Load Balance** — "Strain demanded vs recovery available"
+- **Predicted Tomorrow Score** — "Tomorrow's Nap Score forecast: 71"
+- **Constellation Patterns** — "3 patterns discovered across 90 days"
+- **Waldo as MCP** — "Other AI agents can now query your biology"
+
+Show Tier 3 features as teaser cards at the bottom of the dashboard: grayed, labeled "Coming soon," with a "Notify me" toggle. This builds anticipation without cluttering the launch UI.
+
+---
+
+### Dashboard Tab Structure (Web Console Navigation)
+
+```
+[ Today ] [ Patrol ] [ History ] [ Chat ] [ Insights ] [ Connect ]
+```
+
+| Tab | What's here |
+|-----|-------------|
+| **Today** | Morning State dashboard (Nap Score + Patrol entries for today) |
+| **Patrol** | Full Patrol Timeline — all of Waldo's actions, searchable, filterable by type |
+| **History** | 7/30/90 day Nap Score chart + day-dot strip + any day's full dashboard |
+| **Chat** | Conversational thread with Waldo. Morning Wag appears here too. |
+| **Insights** | Spots grid + confirmed patterns + Constellation (Phase 2) |
+| **Connect** | All 10 adapters — connected/not connected, one-click OAuth or upload |
+
+---
+
+### Waldo Moods — Integration Into the Dashboard
+
+The dalmatian avatar lives in the top-left of the dashboard header. It is not decoration — it IS the score at a glance.
+
+| State | When | What Waldo does in the UI |
+|-------|------|--------------------------|
+| **Energized** | Nap Score 80+ | Tail animated, bouncing slightly. Bright spots. "Push hard today." |
+| **Steady** | 65-79 | Sitting attentively, tail gently wagging. Calm. |
+| **Flagging** | 50-64 | Sitting lower, ears drooping slightly. Protective. |
+| **Depleted** | < 50 | Curled up. Spots faded. Minimal UI. Less information shown. |
+| **Stress detected** | Fetch Alert active | Ears back, nose forward, alert posture. Orange border on page. |
+| **No data** | No Apple Watch data yet | Head tilted, curious. "Wear your Watch tonight for a full score." |
+| **Patrol active** | Background (always) | Small paw-print pulse animation in corner. "The Patrol never sleeps." |
+
+**Design rule:** When Nap Score is < 50, reduce information density on the dashboard. Don't show 8 metric cards. Show 3: Nap Score, "Rest today," and the single most important thing. Waldo doesn't overwhelm depleted people with data.
+
+---
+
+### Progressive Disclosure — Don't Overwhelm
+
+Waldo is NOT a dashboard. The UI must resist becoming one.
+
+**The One Thing rule:** Every dashboard state should have exactly one primary action/insight surfaced. Not three. Not a list. One.
+
+| State | The One Thing |
+|-------|--------------|
+| Peak (80+) | "Deep work window open. 3.5h until your dip." |
+| Steady (65-79) | "Good baseline. Watch your meeting load this afternoon." |
+| Flagging (50-64) | "One priority today. Protect your energy." |
+| Depleted (<50) | "Rest. Waldo's handling the rest." |
+| Stress detected | "Take 2 minutes. Waldo spotted something." |
+
+Show this as a large, warm, conversational line directly below the Nap Score arc. This IS Waldo's voice. Not a notification. Not a card. Just text, like a text from a friend.
+
+**Don't show by default:**
+- All 10 metrics at once
+- Raw HRV values (users don't know what "42ms RMSSD" means)
+- More than 3 Patrol entries on the home screen (show "View all →")
+- Confidence scores (0.71 stress confidence means nothing to a user — say "elevated" or "high")
+- Formula breakdowns
+
+**Always show:**
+- Nap Score (the number and the zone)
+- Waldo's one-line insight
+- At least one Patrol entry ("what Waldo did today")
+- When data was last updated
+
+---
+
+### Micro-Copy Standards for the Dashboard
+
+Write like Waldo, not like a dashboard label:
+
+| Don't write | Write instead |
+|-------------|--------------|
+| "HRV Score: 68" | "Heart rate variability — holding steady" |
+| "Sleep Debt: 1.4h" | "1.4h in the hole — paying it back slowly" |
+| "Stress Confidence: 0.71" | "High stress detected" |
+| "Day Strain: 9.2" | "Light day. Body mostly rested." |
+| "Circadian Score: 74" | "You're past your dip — second wind ahead." |
+| "Fetch Alert triggered" | "Waldo spotted something and sent you a nudge" |
+| "No data available" | "Wear your Watch tonight — Waldo's waiting" |
+| "System error" | "Waldo lost signal. Back in a moment." |
+| "Loading…" | "The Patrol is running…" |
+
+---
+
+### Phase 3 Features to Tease in the Design (Don't Build Yet, Design the Shell)
+
+These live at the bottom of the "Connect" tab and the bottom of "Insights" as teaser cards. Make users want them before they exist.
+
+**1. Waldo as MCP Server**
+> "Other AI agents — Cursor, Notion, Claude — will soon be able to ask Waldo how you're doing before making decisions on your behalf. Your body API, for the agentic economy."
+> [Notify me when live]
+
+**2. Predicted Tomorrow Score**
+> "Waldo will forecast your Nap Score 24h in advance based on your sleep debt trend, circadian phase, and historical patterns. 78% correlation on test data."
+> [Coming in Phase 3]
+
+**3. Voice Interface**
+> "Ask Waldo anything. 'How did I sleep?' 'Am I burning out?' 'When's my best time to code today?' Voice replies from Waldo. Ambient health intelligence."
+> [Coming in Phase 3]
+
+**4. The Constellation (Phase 2)**
+> "After 30 days, Waldo starts mapping your personal patterns. Correlations between sleep, stress, calendar, and output. A constellation of everything Waldo has learned about you."
+> Teaser: show a blurred/semi-transparent constellation graph with "30 days to unlock" counter.
+
+**5. Pack Tier (Team / Family)**
+> "See cognitive readiness across your whole team before a sprint. Or check in on family members who share. Built for coaches, founders, and anyone who cares about the people they work with."
+> [Coming in Phase 4]
+
+---
+
+### Key Design Decisions to Resolve Before Figma
+
+Before starting the mockup, align on these:
+
+1. **Arc shape:** 220° semi-arc (more space for score label below) or 270° (tighter, more compact)? Recommendation: 220° for web where space is available.
+
+2. **Dalmatian size:** Full illustration (56px) in header vs small animated paw-print (24px) vs large mascot on loading/empty screen only? Recommendation: Small in header (subtle), large on empty/depleted states only.
+
+3. **The Patrol — card list vs timeline dots:** Vertical timeline with dot + line (like a changelog) vs plain list of cards? Recommendation: Dot-timeline for visual character.
+
+4. **Phase 2 empty states:** Grayed-out rings (visible but empty) vs completely hidden until connected? Recommendation: Grayed with CTA — visible as hooks, not gaps.
+
+5. **Mobile responsiveness:** Web console is primary but must work on mobile browser before native app ships. Design web at 1280px wide, then verify at 375px.
+
+6. **"Already on it" tagline placement:** Every loading state uses "Already on it." as the loading copy. Splash screen. Error fallback. Anywhere Waldo is working in the background.
+
+---
+
+## Complete Agent Capabilities — 23 Things Waldo Can Do
+
+Every capability below can appear as a Patrol entry on the dashboard. Design an entry card for each.
+
+### Proactive — Waldo Speaks First (11 capabilities)
+
+| # | Capability | Trigger | Patrol Icon | Status |
+|---|-----------|---------|-------------|--------|
+| 1 | **Morning Wag** | Daily at wake time | ☀️ | ✅ Live |
+| 2 | **Fetch Alert** | Stress confidence ≥0.60, 2h cooldown, max 3/day | ⚡ | ✅ Live |
+| 3 | **Evening Review** | Daily at user's evening time | 🌙 | ✅ Live |
+| 4 | **Pre-Activity Spot** | 30 min before high-stakes calendar events | 📅 | 🔵 Phase E |
+| 5 | **Peak Window Alert** | CRS ≥78 + HRV stabilized | 🧠 | ✅ Live (template) |
+| 6 | **Back-to-Back Circuit Breaker** | >3 meetings with <5min gap detected | 🔴 | 🔵 Phase 2 |
+| 7 | **Focus Block Protection** | Guards peak energy window from interruption | 🛡️ | 🔵 Phase 2 |
+| 8 | **Sleep Debt Alarm** | Sleep debt >3h and accumulating | 💤 | 🟡 Logic built |
+| 9 | **Communication Overwhelm Alert** | CSI spike >80 | 📬 | 🔵 Phase 2 |
+| 10 | **Weekly Pattern Breaker** | Detects recurring patterns (e.g., "Monday syndrome") | 🔄 | 🔵 Phase G |
+| 11 | **Burnout Trajectory Warning** | 30-day BTS >0.6 | 🔥 | 🔵 Phase G |
+
+### Task Intelligence — Waldo Plans Your Work (8 capabilities)
+
+Waldo never blocks tasks. It adapts HOW, not WHETHER. Deadlines are sacred.
+
+| # | Capability | What It Does | Status |
+|---|-----------|-------------|--------|
+| 12 | **Deadline-Aware Prioritization** | urgency × importance × energy_fit ranking | 🔵 Phase 2 |
+| 13 | **Smart Sequencing** | Hardest at CRS peak, momentum starters when depleted | 🔵 Phase 2 |
+| 14 | **Break-It-Down** | Splits heavy tasks into 25-min chunks for low-CRS days | 🔵 Phase 2 |
+| 15 | **Overdue Triage** | "Pick 3 to do today, defer the rest" | 🔵 Phase 2 |
+| 16 | **Recurring Task Surfacing** | Day-of-week patterns from task history | 🔵 Phase 2 |
+| 17 | **Deferral Intelligence** | Uses predicted tomorrow CRS to defer or escalate | 🔵 Phase G |
+| 18 | **Implicit Task Capture** | Extracts tasks from calendar follow-ups and stale threads | 🔵 Phase 3 |
+| 19 | **Completion Tracking** | Learns which energy states produce best output per user | 🔵 Phase G |
+
+### Automation — Waldo Acts (5 capabilities)
+
+| # | Capability | What It Does | Status |
+|---|-----------|-------------|--------|
+| 20 | **Meeting Rescheduling Suggestions** | "Move this to 10:30 — your CRS will be higher" | 🔵 Phase 2 |
+| 21 | **Auto-DND During Focus/Low-CRS** | Sets Slack status to DND during peak or depleted windows | 🔵 Phase 2 |
+| 22 | **Recovery Day Enforcement** | After 3 consecutive low-CRS days, blocks all non-critical triggers | 🔵 Phase 2 |
+| 23 | **Communication Batching** | Groups notifications into 2-3 daily windows | 🔵 Phase 3 |
+| 24 | **Sleep Optimization Nudge** | Screen time reduction + bedtime reminder | 🔵 Phase 2 |
+
+### Learning — Waldo Gets Smarter (6 capabilities)
+
+These don't show as Patrol entries — they happen silently in the background. Show in the "What Waldo Knows" section of the Profile tab.
+
+| # | What Waldo Learns | How | Status |
+|---|------------------|-----|--------|
+| 25 | Meeting → stress correlation | Detects which meeting types spike your stress | 🔵 Phase G |
+| 26 | Music → mood → CRS link | Correlates Spotify audio features with next-day CRS | 🔵 Phase 2 |
+| 27 | Coding time vs cognitive state | Learns when you produce best output | 🔵 Phase G |
+| 28 | Email → sleep causation | After-hours email → poor sleep quality | 🔵 Phase 2 |
+| 29 | Screen time → recovery correlation | Late screen time → lower next-day HRV | 🔵 Phase 2 |
+| 30 | Task completion timing patterns | Learns your personal velocity at different CRS levels | 🔵 Phase G |
+
+---
+
+## 10 Adapters — The Connect Tab Design Spec
+
+Each adapter gets a card in the "Connect" tab. Design the card with these elements:
+- Provider logo (left)
+- Provider name + one-line description (middle)
+- Status: green dot "Connected" / gray dot "Not connected" / amber "Sync error"
+- Connected state shows: "Connected as email@gmail.com · Last sync: 3h ago · 204 records"
+- CTA: "Connect →" (accent button) or "Sync now" (ghost button) or "Disconnect" (destructive, in settings)
+
+| # | Adapter | Provider(s) + Logos | Data It Gives Waldo | Status |
+|---|---------|-------------------|-------------------|--------|
+| 1 | **Body (HealthDataSource)** | Apple Watch · Fitbit · Oura · WHOOP · Galaxy Watch | HR, HRV, sleep stages, SpO2, respiratory rate, wrist temp, steps, VO2Max | ✅ HealthKit + HC built |
+| 2 | **Schedule (CalendarProvider)** | Google Calendar · Outlook · Apple Calendar | Meeting load, focus gaps, boundary violations, back-to-back count | ✅ Google syncing |
+| 3 | **Communication (EmailProvider)** | Gmail · Outlook (metadata only — never reads content) | Volume, after-hours ratio, response pressure, thread depth | ⚠️ Gmail 403 (reconnect needed) |
+| 4 | **Tasks (TaskProvider)** | Google Tasks · Todoist · Notion · Linear · Microsoft To Do | Pile-up, velocity, urgency queue, procrastination index | ✅ Google Tasks syncing |
+| 5 | **Mood (MusicProvider)** | Spotify · YouTube Music · Apple Music | Mood from audio features (valence, energy, tempo) | 🟡 Spotify OAuth ready |
+| 6 | **Screen (ScreenTimeProvider)** | RescueTime | Screen quality, focus sessions, late-night digital | 🔴 Phase 2 |
+| 7 | **Environment (WeatherProvider)** | Open-Meteo (automatic, no connect needed) | Temperature, UV index, humidity, AQI — from GPS location | ✅ Live |
+| 8 | **Location (LocationAdapter)** | Phone GPS (automatic) | Real weather at your exact location, place context | ✅ Built (mobile) |
+| 9 | **AI Brain (LLMProvider)** | Claude Haiku 4.5 (invisible to user) | Reasoning, conversation, message generation | ✅ Live |
+| 10 | **Delivery (ChannelAdapter)** | Telegram · WhatsApp · Discord · Slack · In-App | How Waldo sends you messages | ✅ Telegram live |
+
+**Special adapter: Apple Health Upload (iOS users without native app)**
+- NOT an adapter card — it's an upload zone in the Body adapter section
+- Shows: drag-and-drop zone + "How to export from iPhone" instructions
+- After upload: shows days imported + Nap Score range
+
+**Special adapter: Google Fit (Android wearable data via cloud)**
+- Listed under Body adapter as a secondary source
+- "Connect Google with health scopes" button
+- Shows: steps, HR, sleep from any Android watch synced to Google Fit
+
+### Connect Tab Empty State
+
+When a user first arrives with nothing connected:
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Connect your world to Waldo                                     │
+│                                                                  │
+│  Each source makes Waldo exponentially smarter.                 │
+│  Start with your watch — everything else is optional.            │
+│                                                                  │
+│  [Body]      Apple Watch / Fitbit / Oura       [ Connect → ]    │
+│  [Schedule]  Google Calendar / Outlook          [ Connect → ]    │
+│  [Email]     Gmail / Outlook (metadata only)    [ Connect → ]    │
+│  [Tasks]     Google Tasks / Todoist / Linear    [ Connect → ]    │
+│  [Music]     Spotify / YouTube Music            [ Connect → ]    │
+│  [Telegram]  Link via 6-digit code              [ Connect → ]    │
+│                                                                  │
+│  ─────────────────────────────────────────────────               │
+│  Waldo Intelligence: 0/10 sources · 0% intelligence              │
+│  [ ████░░░░░░░░░░░░░░░░ ]                                       │
+│  "Connect your first source to start. Waldo's waiting."          │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Waldo Intelligence Progress Bar
+
+Shows on the Connect tab AND as a small indicator on the dashboard.
+
+```
+Intelligence: 3/10 sources · 34%
+[ ██████░░░░░░░░░░░░░░ ]
+"Calendar + Gmail + Apple Watch. Add Spotify for mood awareness."
+```
+
+Each new source adds a specific capability message:
+- Apple Watch: "Body intelligence active"
+- Calendar: "Schedule awareness unlocked"
+- Gmail: "Communication pressure tracking"
+- Spotify: "Mood inference from your music"
+- Tasks: "Work queue intelligence"
+
+---
+
+## Delivery Channels — Design the Notification Cards
+
+| Channel | How Waldo delivers | Status | Design needed |
+|---------|-------------------|--------|--------------|
+| **Telegram** | Bot `@wadloboi1_test_bot` — full chat, Morning Wags, Fetch Alerts, feedback buttons | ✅ Live | Message card templates already exist |
+| **Web Console Chat** | In-browser chat tab with conversation history | ✅ Live | Full chat UI already built |
+| **WhatsApp** | Business API — same messages as Telegram | 🟡 Edge Function deployed, needs Meta credentials | Message card template (same as Telegram) |
+| **Discord** | Webhook → DM or channel | 🔴 Phase 2 | Bot card template |
+| **Slack** | App integration → DM | 🔴 Phase 2 | Slack message card |
+| **In-App Push** | Native push notification on mobile | 🔴 Phase F | Push notification design |
+| **Email Digest** | Weekly summary email | 🔴 Phase 3 | Email template |
+
+---
+
 ## CRS v2 Three-Pillar Architecture (Phase G — Design For This)
 
 > CRS v1 (flat 4-component) is live. CRS v2 is the upgrade target. **Design both** — v1 for launch, v2 for the UI evolution.
@@ -659,6 +1178,341 @@ Three meaningful pillars that answer "why" your score is what it is:
 This is architecturally true — the Cloudflare Durable Object stores "HRV declining" not "HRV was 42ms". Raw health data stays encrypted in Supabase with Row-Level Security. The agent brain only sees summaries.
 
 **"Already on it"** — appears on every Waldo-facing surface. Every loading state, every onboarding screen, every fallback message. Not "Waldo noticed X." Already on it.
+
+---
+
+## The Agentic Bento Grid — Definitive Dashboard Specification
+
+> **This is the primary dashboard pattern for Waldo's web console.** Everything above (Morning State, Patrol Timeline, Six Rings, Constellation) lives INSIDE the bento grid as tiles. Read this section as the authoritative build spec.
+
+### Why Bento Grid
+
+A bento grid is not a layout technique — it's an **editorial hierarchy encoded as spatial size**. A 2x2 tile IS more important than a 1x1 tile. No labels needed. Eye-tracking data: 2.6x longer dwell on larger tiles vs smaller neighbors.
+
+This maps to Waldo's information model:
+- **Large hero tile** = what Waldo wants you to know RIGHT NOW
+- **Medium tiles** = what Waldo did (Patrol entries, Morning Wag)
+- **Small tiles** = supporting context (Sleep, HRV, Strain)
+- **Absent tiles** = nothing happened there today — tiles that have no data don't render
+
+That last point IS the "derived insights, not raw data" principle made visual. The grid is never the same twice — it reflects what Waldo thinks matters today.
+
+### Why "Agentic" Bento (Not Static)
+
+Static bento (Apple keynotes) = fixed layout, fixed content.
+Agentic bento = **the grid is generated by the agent based on today's context:**
+
+| Context | Grid adapts |
+|---|---|
+| Depleted (CRS < 50) | Hero tile expands. Other tiles shrink or hide. Reduced density. |
+| Peak (CRS 80+) | Hero normal. Opportunity tiles appear: "Deep work window: 3.5h" |
+| Stress detected | Fetch Alert tile expands, pulses orange border. Others dim. |
+| No data yet | Single tile: Waldo with tilted head. "Wear your Watch tonight." |
+| New pattern discovered | "Waldo Learned" tile pulses with celebration micro-animation |
+| Phase 2 source connected | New tile slides in: "Calendar connected — unlocking schedule intelligence" |
+| Phase 2 source NOT connected | Ghost tile: grayed, "Connect Calendar →" — empty ring as hook |
+
+This is the **A2UI / Generative UI paradigm** applied to a bento layout. The agent declares which tiles exist; the client renders them natively.
+
+---
+
+### The Two-Axis Interaction Model
+
+Each tile has two gesture dimensions that never conflict:
+
+```
+HORIZONTAL SWIPE (←→) = Depth into ONE metric
+  L1 (What) → L2 (Why) → L3 (Prediction)
+  Same topic, increasing transparency
+
+VERTICAL SWIPE (↕) = Cycling between DIFFERENT integrations
+  Calendar → Tasks → Mail → Mood
+  Different topics stacked in one spatial slot (Apple Smart Stack pattern)
+
+Page scroll is on the OUTER container — never conflicts with tile gestures.
+```
+
+#### Horizontal: L1 → L2 → L3 Transparency Layers
+
+Every tile has up to 3 faces. Swipe left/right or tap to advance.
+
+```
+FACE 1 (L1 — What):          FACE 2 (L2 — Why):           FACE 3 (L3 — Prediction):
+┌────────────────────┐       ┌────────────────────┐       ┌────────────────────┐
+│  Nap Score: 73     │       │  WHY 73?           │       │  WHAT'S NEXT       │
+│  STEADY            │  ←→   │  Sleep ████ 81     │  ←→   │  Peak: 11am-1pm    │
+│  "Second wind      │       │  HRV  ███░ 68     │       │  Dip: 2:30pm       │
+│   ahead."          │       │  Circ ████ 74     │       │  Tomorrow: ~78     │
+│  ● ○ ○             │       │  Act  ██░░ 52     │       │  (if bed by 11pm)  │
+│  [Why this score?] │       │  ○ ● ○             │       │  ○ ○ ●             │
+└────────────────────┘       └────────────────────┘       └────────────────────┘
+```
+
+**Discoverability rules (research-validated):**
+- Dot indicator (● ○ ○) always visible at bottom — shows current face and total
+- "Why this score?" text tap target on L1 — not swipe-only
+- First-time animated nudge: tile slides 20px left and bounces back on first visit
+- L1 is always the default face. User never lands on L2/L3.
+
+#### Vertical: Smart Stack for Workspace Integrations
+
+One bento slot holds multiple integration sub-cards. Swipe up/down to cycle. Dot-row indicator on the side.
+
+```
+┌──────────────────────────────┐
+│  CALENDAR                    │  ↕ swipe vertically
+│  4 meetings · MLS 6 (heavy)  │
+│  Next: Standup in 2h         │
+│  ● ○ ○ ○                    │
+└──────────────────────────────┘
+        ↕ swipe up
+┌──────────────────────────────┐
+│  TASKS                       │
+│  3 overdue · 2 due today     │
+│  Velocity: 0.8 (slowing)    │
+│  ○ ● ○ ○                    │
+└──────────────────────────────┘
+        ↕ swipe up
+┌──────────────────────────────┐
+│  MAIL                        │
+│  2 urgent · 5 unread         │
+│  Response pressure: 0.4      │
+│  ○ ○ ● ○                    │
+└──────────────────────────────┘
+```
+
+**The smart part:** Waldo rotates which sub-card is on top based on context:
+- Morning → Calendar on top (what's your day look like?)
+- 3pm → Tasks on top (what still needs doing?)
+- After hours → Mood on top (how are you winding down?)
+
+---
+
+### The Full Bento Grid Layout
+
+```
+┌─────────────────────────┬────────────┬────────────┐
+│                         │            │            │
+│      NAP SCORE          │  MORNING   │  SLEEP     │
+│      73 · Steady        │  WAG       │  81 · 6h   │
+│      [Waldo mood]       │  "Rough    │  12m       │
+│      "Second wind       │   night.   │  [stages]  │
+│       ahead."           │   Moved    │            │
+│                         │   your 9am"│            │
+│         2x2             │    1x2     │    1x1     │
+├────────────┬────────────┼────────────┤            │
+│            │            │            ├────────────┤
+│  THE       │  HRV       │  FETCH     │  STRAIN    │
+│  PATROL    │  68        │  ALERT     │  9.2       │
+│  3 actions │  ↑ trend   │  1 today   │  Light day │
+│  today     │  sparkline │  @ 9:47am  │            │
+│    1x1     │    1x1     │    1x1     │    1x1     │
+├────────────┴────────────┼────────────┴────────────┤
+│                         │                         │
+│  WALDO LEARNED          │  WORKSPACE STACK ↕      │
+│  "Your stress spikes    │  Calendar / Tasks /     │
+│   Tuesdays 2-4pm"      │  Mail / Mood            │
+│  [3 patterns · 90 days] │  (vertical smart stack) │
+│         1x2             │         1x2             │
+└─────────────────────────┴─────────────────────────┘
+```
+
+**Mobile (375px):** 2-column grid. Hero tile spans full width. All other tiles collapse to 1x1, stacked vertically. Smart stack remains swipeable.
+
+---
+
+### The L1/L2/L3 Per Tile
+
+| Tile | L1 (What) | L2 (Why) | L3 (Prediction) |
+|---|---|---|---|
+| **Nap Score** | 73 Steady | Component breakdown: Sleep 81, HRV 68, Circ 74, Activity 52 | "Peak window 11am-1pm. Dip at 2:30pm. Tomorrow ~78 if bed by 11pm." |
+| **Morning Wag** | Message excerpt | "Triggered by: 5h sleep + CRS below 60 at wake time" | "Tomorrow: aim for 11pm bedtime for a projected 78" |
+| **Sleep** | 81 · 6h12m · stage bar | Duration penalty -10, deep% good, efficiency 89%, debt context | "Paying off 0.4h debt. 2 more good nights to clear." |
+| **HRV** | 68 · sparkline | "4% below your 7-day baseline. Time-normalized: block 3 (afternoon)" | "Trending up over 7 days. Expect recovery by Wednesday." |
+| **Patrol** | "3 actions today" | Full timeline with reasoning per entry | "Quiet afternoon expected. Next check: 6pm." |
+| **Fetch Alert** | "1 alert at 9:47am" | "HR +18bpm for 12min while sedentary. Matched 3 previous events." | "Similar pattern last Tuesday 2-4pm. Watching." |
+| **Waldo Learned** | "2 patterns this week" | Correlation details + confidence + signal count | "Watching for Tuesday spike. Will alert 30min before." |
+| **Workspace Stack** | Calendar: 4 meetings, MLS 6 | Back-to-back count, boundary violations, focus gaps | "Heavy 2-4pm. Protect morning for deep work." |
+
+---
+
+### Onboarding → Layout Generation
+
+Opinionated defaults beat blank canvases. Oura and WHOOP never show a layout builder. Neither does Waldo.
+
+**Onboarding flow (3 questions → default grid):**
+
+```
+Step 1: "What should Waldo watch first?"
+  [ ] My energy levels    → prioritize Nap Score, Sleep, HRV tiles
+  [ ] My stress           → prioritize Fetch Alert, Patrol, HRV tiles
+  [ ] My work-life balance → prioritize Workspace Stack, Patrol tiles
+  [ ] Everything          → Waldo's default layout
+
+Step 2: "When does your day start?"
+  → Sets Morning Wag time + Circadian calculation
+
+Step 3: Connect sources
+  → Each connected source unlocks tiles in the grid
+```
+
+**Layout presets generated from Step 1:**
+
+| Focus | Hero (2x2) | Medium tiles | Small tiles |
+|-------|-----------|--------------|-------------|
+| Energy | Nap Score + mood | Sleep (1x2) + Morning Wag (1x2) | HRV, Strain, Debt, Patrol |
+| Stress | Nap Score + mood | Fetch Alert (1x2) + Patrol (1x2) | HRV, Sleep Debt, Strain |
+| Work-balance | Nap Score + mood | Workspace Stack (1x2) + Patrol (1x2) | Sleep, HRV, Morning Wag |
+| Everything | Nap Score + mood | Morning Wag (1x2) + Patrol (1x1) | All small tiles shown |
+
+**No layout picker on launch.** Power users find "Customize dashboard" in Profile → Preferences. 95% of users never touch it.
+
+**Customization (for power users):**
+- Drag tiles to rearrange
+- Resize tiles (1x1 ↔ 1x2 ↔ 2x2)
+- Hide/show tiles
+- Pin tiles to always show (override agent's context-based hiding)
+
+---
+
+### The Waldo Chat Sidebar
+
+The agent is always one tap away. Persistent sidebar, collapsed by default.
+
+```
+┌────────┬──────────────────────────────────────────┐
+│        │                                          │
+│ WALDO  │         BENTO GRID DASHBOARD             │
+│ CHAT   │                                          │
+│        │  ┌──────────┬──────┬──────┐              │
+│ [mini  │  │ Nap Score│ Wag  │Sleep │              │
+│  thread│  │   73     │      │ 81   │              │
+│  here] │  │          │      │      │              │
+│        │  ├─────┬────┼──────┤──────┤              │
+│        │  │Patrol│HRV │Fetch │Strain│             │
+│        │  ├─────┴────┼──────┴──────┤              │
+│ "Ask   │  │ Learned  │ Workspace   │              │
+│  Waldo │  │          │ Stack       │              │
+│  any-  │  └──────────┴─────────────┘              │
+│  thing"│                                          │
+│  [paw] │                                          │
+└────────┴──────────────────────────────────────────┘
+```
+
+- Collapsed = paw icon in bottom-right corner
+- Click → slides out mini chat panel (320px wide)
+- Full chat → separate tab
+- **Tile-to-chat:** long-press any tile → "Ask Waldo about this" → opens sidebar with that tile's context pre-loaded (e.g., long-press Sleep tile → "Tell me about last night's sleep")
+- Chat supports **inline rich cards** — when you ask "how did I sleep?", Waldo streams a mini sleep stage chart + score directly into the chat bubble, not just text (Generative UI via Vercel AI SDK `streamUI`)
+
+---
+
+### Agentic UI Patterns Encoded in the Bento
+
+These are the 2026 agentic UI paradigms built into Waldo's grid:
+
+| Pattern | Implementation | Research source |
+|---|---|---|
+| **Activity Feed** | The Patrol tile + expanded Patrol tab | GitHub Copilot Workspace, Linear |
+| **Generative UI** | Agent decides which tiles to render based on CRS zone | A2UI (Google), CopilotKit |
+| **Ambient / Background** | Morning Wag + Fetch Alert delivered to channel; dashboard shows results | Notion 3.0, Apple Intelligence |
+| **Chat + Structured Cards** | Sidebar chat with inline rich cards (CRS gauge, sleep chart in chat) | Vercel AI SDK `streamUI` |
+| **Thought Log (Trust Signal)** | L2 face on every tile — "why Waldo did this" | Perplexity, Claude artifacts |
+| **Pre-Action Preview** | Phase 3: "I'm about to move your 2pm. [Approve] [Modify] [Skip]" | Copilot Workspace, Devin |
+| **Autonomy Receipt** | End-of-day Patrol summary: "4 actions. 2 approved. 0 rejected." | Novel to Waldo |
+| **Progressive Disclosure** | L1→L2→L3 swipe depth; tiles appear as data arrives | CHI 2025: Gradual Generation |
+| **Smart Stack** | Workspace tile cycles Calendar→Tasks→Mail by time of day | Apple iOS Widget Stack |
+| **SAAT Transparency** | L1=what, L2=why, L3=prediction on every tile | DoD SAAT model, Stanford HCI |
+
+### The Three-Protocol Stack (Technical Context for Designers)
+
+Waldo sits at the intersection of three emerging agent protocols:
+
+```
+AG-UI  (Agent ↔ Frontend)  → How Waldo streams state to the bento grid in real-time
+MCP    (Agent ↔ Tools)     → How Waldo reads health data, calendar, tasks
+A2A    (Agent ↔ Agent)     → How Waldo coordinates with other agents (Pack tier)
+```
+
+The bento grid is the **AG-UI surface** — each tile reacts to a live event stream from the Durable Object. When Waldo detects stress, the Fetch Alert tile appears in real-time without page refresh. When a Morning Wag is sent, the tile updates. This is not polling — it's event-driven.
+
+---
+
+### Bento Design Rules
+
+1. **One idea per tile.** If you need a subtitle to explain the tile, it's doing too much.
+2. **Hero tile is always Nap Score** — 2x2, top-left. Non-negotiable anchor.
+3. **Tiles without data don't render.** No "0 stress events today." Absence = nothing happened = grid shrinks.
+4. **Max 8-10 tiles on MVP.** Apple keynotes use 6-9 boxes per slide. Same principle.
+5. **12-16px uniform gap** between tiles. White space does separation.
+6. **Each tile has one primary tap target** — expand in-place or navigate to detail.
+7. **Ghost tiles for unconnected sources** — grayed, single CTA. "Connect Calendar →"
+8. **Mobile: 2-column.** Hero spans full width. No horizontal scroll.
+9. **Animation: staggered tile entrance.** 50ms delay between tiles on load.
+10. **Color from the zone, not the tile type.** Hero tile is rose when depleted, mint when peak. The grid's color temperature tells the story before a number is read.
+11. **Dot indicators on every swipeable tile.** (● ○ ○) for L1/L2/L3. Vertical dots for smart stacks.
+12. **Always provide a tap fallback** for swipe gestures. Gesture-only = undiscoverable.
+13. **First-time nudge animation** on swipeable tiles. Slide 20px and bounce back once.
+
+---
+
+### What Makes This a New Pattern (No One Has Shipped This)
+
+| Element | Exists elsewhere? | Waldo's version |
+|---|---|---|
+| Bento grid dashboard | Apple, Datadog | **Agent-generated, context-adaptive** |
+| Horizontal swipe for depth | Rare | **L1→L2→L3 transparency model per tile** |
+| Vertical smart stack | Apple iOS widgets | **Agent-rotated by time + CRS zone** |
+| AI-generated layout from onboarding | Not in consumer health | **3-question → personalized default grid** |
+| Persistent agent chat sidebar | Notion AI, Cursor | **Connected to any tile via long-press** |
+| Tiles appear/disappear by context | A2UI spec only | **Depleted = fewer tiles, stress = alert expands** |
+| Inline rich cards in chat | Vercel AI SDK | **CRS gauge, sleep chart streamed into conversation** |
+| End-of-day autonomy receipt | Novel | **"4 actions taken. 2 approved. 0 rejected."** |
+
+The combination = **Agentic Bento**. A dashboard that is generated by the agent, adapts to biological state, has depth within each tile, has breadth within integration slots, and always has the agent one tap away. This is Waldo's contribution to the agentic UI paradigm.
+
+---
+
+## Visual References — Look at These Before Designing
+
+### Bento Grid References
+- **Apple Keynote Bento Slides** — The gold standard for bento as information hierarchy. Study the September 2023 iPhone 15 event slides: https://www.deck.gallery/deck/bento-grid-slides-from-apples-september-23-event
+- **43 SaaS Bento Grid Examples (SaaSFrame)** — Production bento patterns across real products: https://www.saasframe.io/patterns/bento-grid
+- **Aceternity UI Bento Component** — React bento grid component with hover effects and conditional rendering: https://ui.aceternity.com/components/bento-grid
+- **LogRocket: Bite-Sized Bento Grid UX** — Deep dive on when bento works and fails in product UIs: https://blog.logrocket.com/ux-design/bento-grids-ux/
+- **SaaSFrame: Designing Bento Grids That Actually Work (2026)** — Anti-patterns, sizing rules, responsive strategies: https://www.saasframe.io/blog/designing-bento-grids-that-actually-work-a-2026-practical-guide
+
+### Health Dashboard References
+- **WHOOP 4.0 Home Screen** — Recovery score hero, supporting metrics below, progressive disclosure: https://www.whoop.com/us/en/thelocker/the-all-new-whoop-home-screen/
+- **Oura Ring App** — Readiness/Sleep/Activity rings, daily insight cards, minimal number-forward design
+- **Apple Health Summary Tab** — Adaptive card layout, favorites pinning, trend sparklines in compact cards
+
+### Agentic UI References
+- **AG-UI Protocol Docs** — The event-streaming standard for agent-to-frontend: https://docs.ag-ui.com/introduction
+- **A2UI (Google)** — Agent-driven declarative UI spec: https://a2ui.org/
+- **CopilotKit Generative UI Guide (2026)** — Three tiers of generative UI (static, declarative, full surface): https://www.copilotkit.ai/blog/the-developer-s-guide-to-generative-ui-in-2026
+- **Vercel AI SDK: Generative UI** — `streamUI` pattern for tool-to-component: https://ai-sdk.dev/docs/ai-sdk-ui/generative-user-interfaces
+- **MCP Apps (Anthropic + OpenAI)** — UI inside agent tool responses: https://blog.modelcontextprotocol.io/posts/2026-01-26-mcp-apps/
+
+### Swipeable Card & Smart Stack References
+- **Apple iOS Widget Smart Stack** — Vertical cycling, on-device ML rotation, dot indicators: Study on any iPhone (long-press home screen → add Smart Stack)
+- **NN/g: Swipe to Trigger Contextual Actions** — Research on gesture discoverability: https://www.nngroup.com/articles/contextual-swipe/
+- **NN/g: Carousels on Mobile** — When horizontal swipe works (and when it fails): https://www.nngroup.com/articles/mobile-carousels/
+
+### Transparency & Trust Research
+- **Smashing Magazine: Designing for Agentic AI (2026)** — Practical UX patterns for agent oversight: https://www.smashingmagazine.com/2026/02/designing-agentic-ai-practical-ux-patterns/
+- **Google Research: Generative UI** — LLMs generating custom interactive UIs: https://research.google/blog/generative-ui-a-rich-custom-visual-interactive-user-experience-for-any-prompt/
+- **OrchVis: Multi-Agent Orchestration Visibility** — Goal-level oversight, not action-level: https://arxiv.org/abs/2510.24937
+- **Stanford: Proactive AI Interaction Patterns** — "Why now" surface as the critical design gap: https://arxiv.org/html/2601.10253
+
+### Game UI Inspiration
+- **Assassin's Creed Black Flag Main Menu** — The original bento-as-game-hub. Each tile = portal into a system with live preview. Study the spatial hierarchy and how tile size communicates importance.
+- **Destiny 2 Director Screen** — Node-based navigation where each node is a world/activity. Relevant for Constellation view.
+
+### Animation & Micro-Interaction References
+- **Framer Motion** — Production animation library for React. Use for tile entrance stagger, swipe physics, and mood transitions.
+- **GSAP ScrollTrigger** — For the landing page bento animation (tiles appear as you scroll).
+- **Lottie** — For Waldo mood animations (dalmatian states). Lightweight, vector-based, cross-platform.
 
 ---
 
