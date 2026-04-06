@@ -536,14 +536,141 @@ The quadrant of **proactive + channel-delivered + scientifically grounded + devi
 
 ---
 
+---
+
+## Web Console — The Primary Product Surface (April 2026 Update)
+
+> **IMPORTANT:** The web console (`waldo-sigma.vercel.app`) is now the primary way users onboard, connect integrations, upload health data, view their dashboard, and chat with Waldo. **Design the web console first.** The mobile app comes after — and it should mirror what the web console does.
+
+### Why Web Console First
+
+1. No App Store approval needed. No $99 Apple Developer account. No EAS builds.
+2. iOS users can't install our native app yet — the web console IS their Waldo experience.
+3. Android users upload health data and connect Google via web, then use the APK for live wearable sync.
+4. Investors, designers, friends can see a working demo at a URL. No install friction.
+
+### Web Console User Journey (Design This Flow)
+
+```
+1. ARRIVE → Landing page / waitlist (if not signed up yet)
+     ↓
+2. SIGN UP → Name, timezone, wearable type → user created
+     ↓
+3. SETUP SCREEN ("Your Waldo is ready")
+   ├── Step 1: Connect Google Workspace → OAuth popup → auto-detects completion ✓
+   ├── Step 2: Link Telegram → 6-digit code → auto-detects when linked ✓
+   ├── Step 3 (iOS): Upload Apple Health XML → drag-and-drop → batched upload with progress
+   └── Both optional — "Open my dashboard →" always visible
+     ↓
+4. DASHBOARD → Full Nap Score view, Morning Wag, health stats, spots, CRS components
+     ↓
+5. TABS: Today | History/Timeline | Chat | Constellation | Profile
+```
+
+### What the Web Console Shows Today (Built, Working)
+
+| Tab | Content | Data Source |
+|-----|---------|-------------|
+| **Today** | Nap Score gauge + CRS component bars + Morning Wag card + health stat grid + adjustment cards + spot carousel + date picker with colored dot strip | Supabase: `crs_scores`, `health_snapshots`, `day_activity`, `spots`, `master_metrics`, `calendar_metrics` |
+| **Chat** | Conversational thread + quick-reply suggestions + thread pills + sending indicator | Supabase: `conversation_history` + `invoke-agent` Edge Function (Claude Haiku) |
+| **Insights** | 30-day Nap Score bar chart + weekly pattern summary + confirmed patterns + spots grid | Supabase: `crs_scores`, `patterns`, `spots` |
+| **Profile** | User identity + integration status with sync/connect buttons + core memory tags + agent activity log with cost + Waldo's schedule + sign out + 5-tap admin mode | Supabase: `users`, `oauth_tokens`, `sync_log`, `core_memory`, `agent_logs` |
+
+### New Features to Design (From April 2026 Research)
+
+**1. Apple Health Upload Panel** (Built, needs visual polish)
+- Lives in Integrations tab on Profile
+- Drag-and-drop zone for `export.xml` file
+- Progress bar with batch status: "Uploading batch 2/3 (30 days)…"
+- Success state: "85 days imported. Nap Score range: 30–89."
+- Instructions: "How to export from your iPhone" (4-step visual guide)
+
+**2. Pre-Activity Spot** (New trigger type — Phase E)
+- Calendar-aware: fires 30 min before high-stakes meetings
+- Shows as a card on Dashboard: "Board call in 35 min. Running lower than usual today."
+- Uses CRS + sleep debt + calendar event metadata
+- Design: same card format as Morning Wag but with orange accent border
+
+**3. Follow-up Reply Threading on Proactive Messages**
+- Every Morning Wag and Fetch Alert should have "Tell me more" / "What should I do?" buttons
+- Clicking opens an inline chat thread contextual to that specific message
+- Not just 👍/👎 feedback — actual conversational follow-up
+
+**4. User-Configurable Routines** (Phase G+)
+- Users write a natural language prompt + set a cadence
+- "Every Sunday evening, tell me my recovery outlook for next week"
+- Shows as a "My Routines" section in Profile or a dedicated Routines tab
+- Each routine delivery has a chat follow-up button
+
+**5. "Connected as [email]" on Integration Cards**
+- Google integration now captures the email via OAuth userinfo
+- Show: "Connected as arkpatil2717@gmail.com" instead of just "Connected"
+- Each integration card: status dot (green/amber/gray) + label + last sync time + records synced
+
+### Web Console vs Mobile App — What Goes Where
+
+| Feature | Web Console | Mobile App |
+|---------|-------------|------------|
+| Sign up / onboarding | ✅ Primary | ✅ Alternative |
+| Connect Google OAuth | ✅ Primary (opens browser) | Redirects to web |
+| Connect Spotify OAuth | ✅ Primary | Redirects to web |
+| Upload Apple Health XML | ✅ Only here (iOS users) | N/A (iOS uses HealthKit native) |
+| Link Telegram | ✅ Shows code | Also shows code |
+| Dashboard / Nap Score | ✅ Full | ✅ Full |
+| Chat with Waldo | ✅ Full | ✅ Full |
+| Constellation / Insights | ✅ Full | ✅ Full |
+| Health Connect (Android live sync) | ❌ Can't (on-device API) | ✅ Only here |
+| Background health sync | ❌ | ✅ Only here (HealthKit/HC) |
+| Push notifications | ❌ | ✅ (future) |
+| Admin user switching | ✅ (5-tap unlock) | ✅ (5-tap unlock) |
+
+---
+
+## CRS v2 Three-Pillar Architecture (Phase G — Design For This)
+
+> CRS v1 (flat 4-component) is live. CRS v2 is the upgrade target. **Design both** — v1 for launch, v2 for the UI evolution.
+
+### v1 (Current): `Nap Score = Sleep(35%) + HRV(25%) + Circadian(25%) + Activity(15%)`
+- Single 0-100 score. 4 component bars underneath.
+
+### v2 (Target): `Nap Score = Recovery(50%) + Autonomic State(35%) + Load(15%)`
+Three meaningful pillars that answer "why" your score is what it is:
+
+| Pillar | Weight | Sub-components | What it answers |
+|--------|--------|---------------|----------------|
+| **Recovery Score** | 50% | Sleep Stage Quality + Respiratory Rate + SpO2 + Wrist Temp | "How well did your body restore itself overnight?" |
+| **Current Autonomic State** | 35% | Morning HRV Z-score + Resting HR trend + Walking HR | "What state is your nervous system in right now?" |
+| **Load Accumulation** | 15% | Energy expenditure + Physical effort + Timezone disruption + Daylight | "How much debt has accumulated?" |
+
+**Design implications:**
+- Dashboard needs 3 pillar cards instead of 4 component bars
+- Each pillar is expandable → shows sub-components
+- Per-pillar intervention routing: "Recovery was fine (94), but your nervous system is depleted (29)" → different recommendation than "Sleep was bad"
+- Timezone disruption is a new signal no competitor shows
+
+---
+
+## Privacy Positioning — Use This Copy (Non-Negotiable)
+
+**Frame:** "Derived insights, not raw data."
+
+**Copy to use everywhere:** "Waldo doesn't store your HRV readings or your sleep staging data. It stores what they mean for you, today."
+
+This is architecturally true — the Cloudflare Durable Object stores "HRV declining" not "HRV was 42ms". Raw health data stays encrypted in Supabase with Row-Level Security. The agent brain only sees summaries.
+
+**"Already on it"** — appears on every Waldo-facing surface. Every loading state, every onboarding screen, every fallback message. Not "Waldo noticed X." Already on it.
+
+---
+
 ## What NOT to Design (Yet)
 
 - Dark mode — Phase 2
 - iPad / tablet — Phase 3
-- Apple Watch app — Phase 3
+- Apple Watch companion app — Phase 3
 - Voice interface — Phase 3
 - Team/enterprise dashboard — Phase 4
 - Animations/micro-interactions — after core screens approved
+- WhatsApp integration UI — wait until Meta Business verification (1-2 weeks)
 
 ---
 

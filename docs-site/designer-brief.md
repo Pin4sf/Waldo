@@ -1,270 +1,695 @@
-# Waldo — designer brief
-
-## What Waldo is
-
-Waldo is the biological intelligence layer for the agentic economy. A personal AI agent (dalmatian mascot) that reads body signals from wearables and proactively acts before the user notices they're stressed, depleted, or about to burn out.
-
-Not a health tracker. Not a productivity tool. The intelligence substrate every agent in your life should be running on.
-
-**Brand:** Waldo (dalmatian). Tagline: "Already on it."
+# Waldo — Designer Brief
+**Version 2.0 — April 2026**
+**For:** UI/UX designers, brand designers, web designers, social media team
 
 ---
 
-## What Waldo knows about you (6 dimensions)
+## READ THIS FIRST
 
-Waldo connects to multiple data sources to build a complete picture of who you are, how you're doing, and what you need — right now and this week.
+Waldo is not a health app. It is not a productivity tool. It is not a wellness dashboard.
 
-### 1. Body (from your wearable)
-What Waldo sees: sleep quality, heart rate variability, stress signals, exercise load, recovery state.
+**Waldo is a personal AI agent that reads your body from the inside out and acts before you even notice something is wrong.**
 
-**The number: Nap Score (CRS)** — 0-100. How ready your brain is right now.
-- 80-100: Peak. Deep work window. Challenge mode.
-- 60-79: Steady. Functional. Routine tasks OK.
-- 40-59: Flagging. One priority only. Protect energy.
-- Below 40: Depleted. Rest. That's it.
+It reads your Apple Watch (or any smartwatch) continuously. It knows when your nervous system is depleted. It messages you — directly, via Telegram or WhatsApp, like a text from a friend — before your stress registers consciously. Every morning it sends you a biological briefing. Over time it learns you: your patterns, your triggers, your peaks, your crashes. Then it starts acting on your behalf.
 
-**Day Strain** — 0-21. How hard your body worked today. Like a fuel gauge in reverse.
-
-**Sleep Debt** — hours owed. Accumulates across 2 weeks. Takes days to repay.
-
-### 2. Schedule (from your calendar)
-What Waldo sees: meetings, gaps, back-to-back density, evening intrusions.
-
-**Meeting Load Score** — 0-15. Cognitive drain from meetings. Back-to-back meetings amplify the score exponentially.
-
-**Focus Time** — hours of quality deep work blocks (≥90 minutes, during your peak energy).
-
-### 3. Communication (from email/Slack)
-What Waldo sees: message volume, response pressure, after-hours activity. Never reads content — metadata only.
-
-**Communication Stress Index** — 0-100. How much reactive communication is draining you.
-
-### 4. Tasks (from your task manager)
-What Waldo sees: what's overdue, what's due today, how fast you're completing work.
-
-**Task Pile-Up** — overdue count. The cognitive weight of things undone.
-
-### 5. Mood (from Spotify)
-What Waldo sees: what you're listening to and when. Audio energy and valence.
-
-**Mood Score** — inferred from listening patterns. Low-energy music in the afternoon tells a story.
-
-### 6. Screen (from RescueTime)
-What Waldo sees: productive vs distracting screen time, late-night digital activity.
-
-**Screen Time Quality** — productive hours / total hours. Late-night phone use correlates directly with poor sleep.
+The mascot is a dalmatian named Waldo. Personality: already on it.
+Tagline: **"Already on it."**
 
 ---
 
-## The master metric: Daily Cognitive Load
+## The Long-Term Vision (Design To This)
 
-All 6 dimensions combine into one number: **how overloaded is this person right now?**
+Waldo is building the **horizontal intelligence layer** — a plug-and-play biological OS that can be adapted to any industry that produces sensor, wearable, or biometric data.
 
-```
-Body strain + Meeting load + Communication pressure + Task overwhelm + Screen fatigue
-```
+**Consumer (now):** Knowledge workers with Apple Watch → Nap Score, Morning Wag, stress alerts
+**Enterprise (next):** NFL teams → Player cognitive readiness dashboards, injury prevention
+**Medical (future):** YN sweatband (CKD detection) → clinical-grade health intelligence layer
+**Platform (endgame):** Waldo as MCP server — a "body API" that any AI agent can query before making decisions on behalf of a human
 
-When Cognitive Load is high and Nap Score is low — Waldo intervenes. When both are balanced — Waldo stays quiet.
-
----
-
-## How Waldo communicates
-
-### Voice
-Short sentences. Already done it. Quiet confidence.
-
-No "optimize." No "journey." No motivational filler.
-
-**Good:** "Rough night — 5.2h. I'd push your first meeting to 10:30."
-**Bad:** "I noticed your heart rate variability has been trending downward..."
-
-### Personality zones (changes with Nap Score)
-| Zone | Nap Score | Voice |
-|------|-----------|-------|
-| **Energized** | 80+ | Upbeat, challenge-oriented. Push toward deep work. |
-| **Steady** | 60-79 | Warm, specific. One thing to watch. |
-| **Flagging** | 40-59 | Honest, protective. One priority. |
-| **Depleted** | <40 | Gentle. Minimal. One sentence. |
-
-### Message types
-| Type | When | Length | Example |
-|------|------|--------|---------|
-| **Morning Wag** | At wake time, daily | 2-3 lines | "78 today. 4 meetings, focus window 9-10:30am. API review first." |
-| **Fetch Alert** | When stress detected | 1-2 lines | "Quick flag: body running hot. Step away for 2 minutes." |
-| **Evening Review** | End of day | 2 lines | "Good day. 3 tasks done, CRS peaked at 82. Bed by 11." |
-| **Nudge** | Specific moment | 1 line | "Post-exercise clarity window. The design doc? Now." |
+The architecture is built for this: 10 plug-and-play data adapters, one intelligence engine.
+When designing, think: **this skin needs to work for a knowledge worker at 7am AND for an NFL coach watching player readiness before kickoff.**
 
 ---
 
-## What the user sees (screens)
+## Brand Identity
 
-### 1. Dashboard (daily view)
-- **Nap Score gauge** — SVG arc, 0-100, colored by zone (green/amber/red)
-- **Day Strain** — 0-21, with HR zone breakdown bar
-- **Sleep Debt** — hours, with direction arrow
-- **Waldo's Morning Wag** — 2-3 line briefing
-- **Spots** — individual observations Waldo made today
-- **Health cards** — sleep, HRV, activity, environment
-- **What Waldo did** — proactive actions taken
+### Name & Mascot
+- Product name: **Waldo**
+- Mascot: **dalmatian dog** — spots, warm, loyal, always watching, always ahead
+- Personality: like a best friend who happens to know your biology
+- NOT: clinical, corporate, coaching, wellness-y
 
-### 2. Timeline (multi-day view)
-- Horizontal scrollable dots, one per day
-- Colored by Nap Score zone (green = peak, amber = moderate, red = low, gray = sparse data)
-- Click any day → loads that day's dashboard
+### Tagline
+**"Already on it."**
+— conveys proactivity, reliability, warmth. Waldo acts before you ask.
 
-### 3. The Constellation (pattern view)
-- Force-directed graph showing all Spots as nodes
-- Connected nodes = related observations
-- Clusters = recurring patterns (Constellations)
-- Dalmatian spot images as nodes
-- Hover to explore, click for details
-- Filter by type (health, behavior, alert, insight) or severity
+### Voice (Read Before Writing Any Copy)
+| DO | DON'T |
+|----|-------|
+| Short sentences. Already done it. | Long explanations. |
+| "Rough night. Push your 9am." | "I've noticed your HRV has been declining..." |
+| Specific and actionable | Vague and encouraging |
+| Warm, like a friend texting | Cold, like a doctor's report |
+| "Waldo spotted something." | "Our AI has detected..." |
 
-### 4. Chat
-- Waldo speaks first (Morning Wag appears automatically)
-- User can ask follow-up questions
-- Waldo answers from the full intelligence profile (not just today's data)
-
-### 5. Onboarding
-- Waldo interviews you (conversational, not a form)
-- Learns: name, role, schedule, stressors, goals, communication preference
-- Takes < 1 minute. Builds a profile that feeds into every response.
-
-### 6. Debug console (demo/developer view)
-- Under the hood: CRS computation breakdown, stress detection, prompt assembly
-- Full system prompt and user message visible (what Claude sees)
-- Token counts, latency, cost per call
-
----
-
-## Product capabilities — what Waldo does
-
-### Proactive (Waldo speaks first, without being asked)
-1. Morning Wag — daily biological + schedule briefing
-2. Pre-meeting energy prep — "Board review in 1hr, take a walk"
-3. Back-to-back circuit breaker — "3 meetings straight, skip the optional one"
-4. Focus block protection — "Someone booking your peak window, suggest later?"
-5. Sleep debt alarm — "4.8h debt. Tonight matters."
-6. Communication overwhelm — "47 messages in 2 hours. Go dark for 45 min."
-7. Pattern alerts — "Your HRV drops every Monday during the 2pm sync"
-8. Burnout warning — "HRV declining 4 weeks straight. Meeting load up 40%."
-9. Post-exercise boost — "HRV jumped 18%. 90-min clarity window. Hard task now."
-10. Evening review — close the loop on the day
-11. Weekend forecast — recovery prediction
-
-### Task intelligence (Waldo plans your work)
-Waldo never blocks a task. Deadlines are real. Waldo adapts HOW you get it done.
-12. Deadline-aware prioritization — urgency × importance × energy fit
-13. Smart sequencing — hardest at peak, momentum starters when depleted
-14. Break-it-down — "25-min chunks with 5-min breaks. Start with what you know."
-15. Overdue triage — "Pick 3 that matter. Defer, delegate, or delete the rest."
-16. Recurring task surfacing — "It's Monday. Workout: Legs. CRS 71. Good to go?"
-17. Deferral intelligence — "Due tomorrow. At 38 today, predicted 68 tomorrow. Hit it fresh?"
-18. Implicit task capture — detects follow-ups from meetings and stale emails
-19. Completion tracking — learns which energy states are productive for you
-
-### Automation (Waldo acts on your behalf)
-20. Meeting suggestions — "Push 8am to 10am, predicted CRS jumps 16 points"
-21. Auto-DND — Slack status during focus blocks or low CRS
-22. Recovery days — light calendar + low CRS = recovery enforced
-23. Communication batching — "Email in 2 blocks, not continuous"
-24. Sleep coaching — "Screen off by 10:30. Phone in other room."
-
-### Learning (Waldo gets smarter over time)
-25. Meeting → stress correlation
-26. Music → mood → next-day CRS
-27. Email after 10pm → sleep efficiency drop
-28. Screen time → recovery correlation
-29. Exercise 3x/week → CRS 12 points higher
-30. Task completion timing vs energy state
-
----
-
-## Waldo brand names
-
-| Technical | Waldo name | What it is |
-|-----------|-----------|-----------|
-| Morning brief | **Morning Wag** | Daily biological briefing |
-| Stress alert | **Fetch Alert** | Proactive intervention |
-| CRS score | **Nap Score** | Daily readiness number |
-| Single observation | **Spot** | "Waldo spotted something" |
-| Background analysis | **The Patrol** | 24/7 continuous analysis |
-| Long-term pattern map | **The Constellation** | Months of Spots connected |
-| Stress detection | **The Sniff** | "Dogs smell what you can't see" |
-| Free tier | **Pup** | Morning Wag + basic Spots |
-| Pro tier | **Pro** | Full Patrol, Fetches, interventions |
-| Team/Family tier | **Pack** | Multiple Waldos, shared Constellations |
-
----
-
-## Design constraints
+**Banned words:** wellness, mindfulness, optimize, hustle, AI-powered, health tracker, health app, unlock your potential, empower, journey, unlock, journey, holistic
+**Never say:** "Waldo AI" — always just "Waldo"
+**Always say:** Nap Score (never CRS in consumer-facing text)
 
 ### Colors
-- Background: #FAFAF8 (warm off-white)
-- Text: #1A1A1A (near black)
-- Accent / CTA: #F97316 (orange) — one per layout
-- Positive/Peak: #D1FAE5 (mint green)
-- Moderate: #FEF3C7 (warm amber)
-- Low/Warning: #FEE2E2 (warm rose)
-- No gradients. No purple. No pure #FFFFFF.
+| Role | Hex | Usage |
+|------|-----|-------|
+| Background | `#FAFAF8` | Warm off-white — all screens, never pure white |
+| Text | `#1A1A1A` | Near-black — primary text |
+| Accent / CTA | `#F97316` | Waldo orange — one per layout maximum |
+| Peak / Positive | `#D1FAE5` | Mint green — Nap Score 80+ |
+| Moderate | `#FEF3C7` | Warm amber — Nap Score 50-79 |
+| Low / Warning | `#FEE2E2` | Warm rose — Nap Score <50 |
+| Muted text | `#9CA3AF` | Secondary labels, timestamps |
+| Border / divider | `#E5E5E3` | Subtle separators |
 
-### Fonts
-- Headlines: Corben (Google Fonts)
-- Body / UI: DM Sans (Google Fonts)
+**Rules:** No gradients. No purple. No pure `#FFFFFF`. No dark mode yet (Phase 2).
 
-### Type rules
-- Sentence case always. Never title case or all caps.
-- Body: 16px, 1.7 line height
-- Headlines: 52px, 1.1 line height
+### Typography
+| Role | Font | Size | Weight |
+|------|------|------|--------|
+| Product wordmark | VCorben (custom) | Variable | Bold |
+| Display headlines | Corben (Google Fonts) | 52px | Regular |
+| UI body | DM Sans (Google Fonts) | 16px | 400/500/600 |
+| Metric numbers | DM Sans | 32-48px | 700 |
+| Captions / labels | DM Sans | 12-13px | 400 |
 
-### Voice
-- Short sentences. Already done it. Quiet confidence.
-- No "optimize", "journey", "wellness", "mindfulness", "hustle", "empower"
-- Always "Waldo". Never "Waldo AI".
+**Rules:** Sentence case always. Never title case or ALL CAPS in UI. Line height 1.7 for body, 1.1 for headlines.
 
-### Assets
-- Waldo.png — wordmark
-- waldo_logo_dark.png — paw print (dark, for light bg)
-- waldo_logo_light.png — paw print (light, for dark bg)
-- Vector-1/2/3.png — dalmatian spots (decorative, used as constellation nodes)
-
----
-
-## The competitive position
-
-```
-                  Bio Data  Schedule  Communication  Agent  Proactive
-Oura/WHOOP         YES       NO        NO             NO     Limited
-RISE               YES       NO        NO             NO     NO
-Reclaim.ai         NO        YES       NO             Partial YES
-Motion             NO        YES       NO             YES    YES
-Sunsama            Manual    YES       NO             NO     NO
-Viva Insights      NO        YES       YES            NO     Reports
-
-Waldo              YES       YES       YES            YES    YES
-```
-
-Nobody combines all five. That's the product.
+### Logo Assets (already exist)
+- `Waldo.png` — wordmark
+- `waldo_logo_dark.png` — paw print on light background
+- `waldo_logo_light.png` — paw print on dark background
+- `Vector-1.png`, `Vector-2.png`, `Vector-3.png` — dalmatian spots (use as decorative nodes in Constellation view)
 
 ---
 
-## Architecture (for technical context)
+## Waldo Moods — The Dalmatian Emotional System
 
-10 adapter interfaces. Each swappable. Agent logic never touches a provider directly.
+Waldo's visual state changes with the user's Nap Score. This is not decoration — it's the product. The dalmatian is a living indicator of how the user is doing.
+
+| Mood | Nap Score | Dalmatian State | Voice |
+|------|-----------|-----------------|-------|
+| **Energized** | 80-100 | Tail up, ears perked, spots bright, animated bounce | Upbeat. Push hard. "Peak window. Big task now." |
+| **Steady** | 65-79 | Relaxed, sitting attentively, tail gently wagging | Warm and specific. "Good baseline. One thing to watch." |
+| **Flagging** | 50-64 | Sitting lower, tail slower, slightly subdued | Honest and protective. "One priority. Protect energy." |
+| **Depleted** | <50 | Curled up, spots faded, tail still | Minimal. Gentle. "Rest. That's it." |
+| **No data** | — | Looking around, curious, head tilted | "Wear your Watch tonight for a full score." |
+| **Stress detected** | — | Ears back, alert, nose forward | Active. "I've spotted something. Take 2 minutes." |
+
+**Design intent:** The dalmatian avatar should live on the dashboard, be visible in the Morning Wag message card, and animate subtly when new data arrives. It is the emotional anchor of the app — users should develop a relationship with it.
+
+---
+
+## What Waldo Currently Computes (Phase B1 — LIVE)
+
+These metrics are computing RIGHT NOW from Apple Watch via HealthKit. Designed and built. **Design these screens first.**
+
+### The Nap Score (CRS — Cognitive Readiness Score)
+The headline number. 0-100. How sharp your brain is right now.
 
 ```
-HealthDataSource  → Apple Watch, Oura, Fitbit, WHOOP
-CalendarProvider  → Google Calendar, Outlook, Apple Calendar
-EmailProvider     → Gmail, Outlook (metadata only, never content)
-TaskProvider      → Todoist, Notion, Linear, Google Tasks, Microsoft To Do
-MusicProvider     → Spotify, YouTube Music, Apple Music
-ScreenTimeProvider→ RescueTime
-WeatherProvider   → Open-Meteo (weather + air quality)
-ChannelAdapter    → Telegram, WhatsApp, Discord, Slack, In-App
-LLMProvider       → Claude Haiku (reasoning engine)
-StorageAdapter    → Encrypted local DB
+Nap Score = (Sleep × 35%) + (HRV × 25%) + (Circadian × 25%) + (Activity × 15%)
 ```
 
-32 metrics computed. 23 capabilities. 375 cross-source correlation possibilities.
+| Range | Zone | Color | Meaning |
+|-------|------|-------|---------|
+| 80-100 | Peak | Mint green `#D1FAE5` | Deep work window. Challenge mode. |
+| 65-79 | Moderate | Warm amber `#FEF3C7` | Steady. Routine tasks fine. |
+| 50-64 | Flagging | Orange `#F97316` (light) | Protect energy. One priority. |
+| 0-49 | Low | Rose `#FEE2E2` | Rest. That's it. |
+| -1 | No data | Gray `#E5E5E3` | Not enough data yet. |
 
-The more sources connected, the exponentially smarter Waldo gets.
+### Sleep Score (35% of Nap Score)
+```
+Starts at 100. Penalties:
+  Duration: <6h = -15/hr, 6-7h = -10/hr, >9.5h = -5
+  Deep sleep: <8% = -20, <13% = -10
+  REM: <20% = -8
+  Efficiency: <85% proportional penalty
+  Bedtime shift: >60min from usual = -10, >120min = -20
+  Sleep debt: -5/hr deficit, capped at -30
+```
+
+Displays: Total hours, deep%, REM%, bedtime, wake time, efficiency.
+
+### HRV Score (25% of Nap Score)
+Computed from **true beat-to-beat RMSSD** (raw IBI via HKHeartbeatSeriesQuery on Apple Watch).
+```
+RMSSD → time-of-day normalized (6 blocks, population ratios: 1.30/1.10/1.00/0.85/0.90/1.05)
+→ compared to YOUR 7-day baseline (EMA, α=0.3)
+  +15% above baseline = score 90
+  Within ±5% = score 70
+  -25% below baseline = score 20
+  Trend bonus: 7d vs 30d improving = +5
+```
+
+HRV data source displayed to user: "IBI (beat-to-beat)" or "SDNN (fallback)" — so they understand quality.
+
+### Circadian Score (25% of Nap Score)
+```
+Wake time vs optimal for your chronotype (early/normal/late)
+  ±30min of ideal = 100
+  ±1hr = 75
+  ±2hr = 40
+  Bedtime consistency (14-day std dev): low variance = bonus
+```
+
+### Activity Score (15% of Nap Score)
+```
+Steps: <3000 = 20, 5000 = 50, 8000 = 75, 10000+ = 90
+Exercise minutes: 0 = -10, 30+ = +10
+Stand hours (Apple Watch): <6 = 0, 8+ = +5
+```
+
+### Day Strain (0-21, WHOOP-style)
+```
+TRIMP: time in each HR zone × zone weight [1.0, 1.5, 2.5, 4.0, 8.0]
+Log-scaled: strain = min(21, log10(TRIMP + 1) × 7)
+  0-4: rest. 4-10: low. 10-14: medium. 14-18: high. 18+: overreaching.
+```
+
+### Sleep Debt (0-20h)
+```
+14-day weighted rolling accumulation:
+  debt += max(0, 7.5h - actual) × recency_weight
+  Repayment at 0.5x rate
+  Direction: accumulating / paying off / stable
+```
+
+### Stress Confidence (0.0-1.0) — triggers Fetch Alerts
+```
+0.35 × HRV_drop + 0.25 × HR_elevation + 0.20 × duration + 0.20 × sedentary
+  ≥0.60 → Fetch Alert fires
+  ≥0.80 → HIGH alert
+  Must sustain 10+ minutes. 2h cooldown. Max 3/day.
+```
+
+### Also computed from Apple Watch today:
+- **Resting HR** (bpm, 7-day trend)
+- **Steps** (daily count + 7-day average)
+- **SpO2** (avg percentage, flagged if <95%)
+- **Respiratory Rate** (breaths/min, flagged if trending up)
+- **Exercise minutes** (vs 30-min daily target)
+- **Wrist temperature** (if Apple Watch Series 8+)
+- **VO2 Max** (if available, ml/kg/min)
+- **Active Energy Burned** (kcal)
+- **Flights climbed** (floors)
+- **Daylight exposure** (minutes)
+
+---
+
+## What Waldo Will Compute (Phase 2 — Design These Screens Too)
+
+These need to be designed before they're built. Designers should scaffold all Phase 2 screens so we can build without design bottlenecks.
+
+### Schedule Dimension (from Calendar)
+| Metric | Range | What it means |
+|--------|-------|---------------|
+| **Meeting Load Score** | 0-15+ | Cognitive drain from meetings. Back-to-back amplifies exponentially. |
+| **Focus Time** | 0-8h | Uninterrupted blocks ≥90min during your peak energy window |
+| **Back-to-Back Count** | 0-10 | Meetings with <5min gap |
+| **Boundary Violations** | 0-10 | Evening/early morning meetings |
+| **Schedule Density** | 0-100% | Booked / total workday |
+
+### Communication Dimension (from Email/Slack — metadata only, never content)
+| Metric | Range | What it means |
+|--------|-------|---------------|
+| **Communication Stress Index** | 0-100 | Volume + pressure + after-hours activity combined |
+| **Response Pressure** | 0-1.0 | Unanswered messages >2h / total |
+| **After-Hours Ratio** | 0-1.0 | Messages outside 8am-7pm |
+| **Volume Spike** | 0.5-3x | Today vs 30-day average |
+
+### Tasks Dimension (from task manager)
+| Metric | Range | What it means |
+|--------|-------|---------------|
+| **Task Pile-Up** | 0-50 | Overdue count. The cognitive weight of undone things. |
+| **Completion Velocity** | 0-2.0 | Tasks done / created per day |
+| **Procrastination Index** | 0-30 days | Avg days from creation to completion |
+| **Urgency Queue** | 0-10 | Due within 24h |
+| **Task-Energy Match** | 0-100% | Hard tasks during CRS peak / total hard tasks |
+
+### Mood & Screen Dimension (from Spotify + RescueTime)
+| Metric | Range | What it means |
+|--------|-------|---------------|
+| **Mood Score** | 0-100 | Inferred from Spotify audio valence × energy |
+| **Screen Time Quality** | 0-100% | Productive hours / total screen hours |
+| **Late-Night Digital** | 0-3h | Screen/music after 10pm (sleep correlation) |
+| **Focus Session Count** | 0-10 | Uninterrupted 25min+ blocks |
+
+### Combined Master Metrics
+| Metric | Range | What it means |
+|--------|-------|---------------|
+| **Daily Cognitive Load** | 0-100 | How overloaded is this person RIGHT NOW (combines all 6 dimensions) |
+| **Burnout Trajectory Score** | -1 to +1 | 30-day rolling trend. >0.6 = heading for burnout. |
+| **Waldo Intelligence Score** | 0-100 | How much context Waldo has. More sources = smarter. |
+
+---
+
+## What Waldo Will Compute (Phase 3 — Know These Exist)
+
+- **Resilience Score** — 14-day HRV stability. How bounce-back-able are you?
+- **Recovery-Load Balance** — WHOOP-style: recovery available vs strain demanded
+- **Predicted Tomorrow Score** — ML-based CRS prediction for deferral intelligence
+- **Cross-source correlations** — Waldo learns YOUR patterns: "Your HRV crashes every time you email after 10pm"
+- **Waldo Intelligence Score (full)** — With 10 sources connected: 375 unique 2/3/4-way correlations, ~80-100 meaningful behavioral patterns
+
+---
+
+## The App Screens (Mobile — Design Priority Order)
+
+### DESIGN IMMEDIATELY (Phase B1 — built, needs polished UI)
+
+**Screen 1: Dashboard (Today)**
+The main screen. Opens every morning.
+
+Required elements:
+- **Nap Score gauge** — large SVG arc (270°), 0-100, zone-colored. The hero of every screen.
+- **Waldo Mood avatar** — dalmatian state based on current zone. Lives next to/below the gauge.
+- **4 component cards** in 2×2 grid: Sleep / HRV / Circadian / Activity. Each shows score + mini bar.
+- **Day Strain bar** — 0-21, horizontal, zone-colored.
+- **Sleep Debt** — "2.4h owed" with trend arrow.
+- **Data freshness** — "Updated 4 min ago" in muted text.
+- **What Waldo spotted today** — 1-3 "Spot" chips (individual observations, like dalmatian spots).
+- **Morning Wag card** — Waldo's daily message. 2-3 lines. Dalmatian avatar beside it.
+- **Refresh button** — secondary, bottom. "Update now."
+- **Medical disclaimer** — "Not a medical device" in 11px muted text.
+
+States to design:
+- First use / no data (Waldo tilting head: "Wear your Watch tonight")
+- Loading state (smooth, not spinner — branded)
+- Partial data (some components gray/unavailable)
+- Peak state (80+, green, Waldo tail wagging)
+- Depleted state (<50, rose, Waldo curled)
+
+**Screen 2: Onboarding (3 steps)**
+Step 1: Connect wearable + grant HealthKit permissions
+Step 2: Link messaging channel (Telegram / WhatsApp) via 6-digit code
+Step 3: Quick profile (name, role, typical wake time)
+
+Tone: Conversational, not a form. Waldo is "meeting you" for the first time.
+Progress: Subtle. Don't make it feel like a medical intake form.
+
+**Screen 3: Permissions gate**
+If HealthKit not granted: Waldo is waiting, looking at you expectantly.
+CTA: "Let Waldo in" — not "Grant permissions."
+
+---
+
+### DESIGN NEXT (Phase C — coming soon, scaffold now)
+
+**Screen 4: History / Timeline**
+- Horizontal scrollable day strip at top — colored dots, one per day (green/amber/rose/gray)
+- Click any day → loads that day's full dashboard (same as today but historical)
+- "7 days" / "30 days" / "90 days" filter
+
+**Screen 5: Sleep Detail**
+Expanded sleep view for a specific night:
+- Sleep stage chart (horizontal stacked bar over time: Core/Deep/REM/Awake/InBed)
+- Key stats: total hours, deep %, REM %, efficiency, bedtime, wake time
+- Comparison to your 30-day average
+- Sleep debt trend chart (7 days)
+
+**Screen 6: HRV Detail**
+- RMSSD trend chart (30 days)
+- Today's reading vs 7-day baseline
+- Time-of-day distribution
+- Data source label: "Beat-to-beat" or "SDNN"
+
+**Screen 7: Activity Detail**
+- Steps chart (7 days)
+- Day Strain chart (7 days)
+- HR zone breakdown bar (today)
+- Exercise sessions list
+
+**Screen 8: Stress Events Log**
+- Timeline of Fetch Alerts
+- Each event: time, stress confidence score, Waldo's message, user response
+- Pattern: "Your last 3 high-stress events were on Tuesdays between 2-4pm"
+
+---
+
+### DESIGN FOR PHASE D (Agent + Messaging — design now so we can build fast)
+
+**Screen 9: Chat / Conversation**
+- Waldo speaks first (Morning Wag appears automatically at top)
+- Message thread below
+- User input bar at bottom
+- Waldo messages have avatar. User messages are right-aligned.
+- Feedback: thumbs up / thumbs down on each Waldo message (critical for learning)
+- Occasional inline data visualizations in chat (mini Nap Score gauge in message)
+- Status: "Waldo is checking your data..." while computing
+
+**Screen 10: Notification / Fetch Alert (in-app)**
+Full-screen alert card when stress detected:
+- Waldo alert avatar (ears back, alert)
+- "Waldo spotted something" header
+- 1-2 lines: what was detected, what to do
+- CTA: "Got it" or "Tell me more"
+- Time and confidence level in small text
+
+**Screen 11: Settings**
+- Profile (name, role, timezone, wake time)
+- Connected wearable (device name, last sync)
+- Messaging channel (Telegram/WhatsApp, linked/unlinked)
+- Notification preferences
+- Data & privacy (export, delete account)
+- About / version
+
+---
+
+### DESIGN FOR PHASE 2 (Scaffold These Now)
+
+**Screen 12: The Constellation**
+The most visually distinctive screen. Pattern discovery over months.
+
+- Force-directed graph. Nodes = individual Spots (observations). Edges = correlations.
+- Node colors: health (blue), behavior (orange), alert (rose), insight (mint)
+- Node sizes: larger = higher confidence / more occurrences
+- Dalmatian spot images used as node backgrounds
+- Clusters = named Constellations (e.g., "Monday Syndrome", "Pre-deadline HRV dip")
+- Hover/tap a node → see the observation + date
+- Tap a cluster → see the full pattern + what Waldo does about it
+- Filter bar: type / severity / time range
+
+**Screen 13: Phase 2 Dashboard additions**
+Additional cards appear as sources connect:
+- Meeting Load Score card
+- Focus Time card
+- Communication Stress Index card
+- Task Pile-Up card
+- "Connect more sources" card (empty states for unconnected adapters)
+
+**Screen 14: Connect Sources**
+Adapter connection hub. Each source: logo, description, "Connect" button.
+Status: connected (green check) / not connected (gray). Data preview on hover.
+
+Phase 2 sources: Google Calendar, Gmail, Todoist/Notion/Linear, Spotify, RescueTime.
+
+---
+
+## The Website (Design These Too)
+
+### Homepage / Landing Page
+
+Hero:
+- **Headline:** "Your AI knows what you need to do. Waldo knows if you can actually do it."
+- **Subhead:** "A personal agent that reads your Apple Watch and tells you each morning how to make the most of your day."
+- **CTA:** "Get early access" → email capture / waitlist
+- **Dalmatian animation** — Waldo tail wagging, spots visible, approachable
+- **Social proof:** "Validated on 856 days of real biometric data"
+
+Above the fold: no screenshots yet — hero copy + waitlist CTA only.
+
+Sections:
+1. **The Problem** — "Your wearable knows everything. Your AI knows nothing."
+2. **The Nap Score** — animated gauge explaining 4 zones
+3. **Morning Wag demo** — show example messages (iPhone mockup + Telegram screenshot)
+4. **How it works** — 5-step visual: Watch → CRS → Stress → Message → Learns
+5. **What Waldo watches** — 6 dimensions of intelligence (expandable cards)
+6. **Competitive table** — "No agent has biology. No health app has agency."
+7. **Pricing** — Pup / Pro / Pack
+8. **The vision** — "Today: your Apple Watch. Tomorrow: every sensor in any industry."
+9. **Waitlist CTA** — early access, email capture
+
+### Pricing Page
+
+| Tier | Name | Price | What you get |
+|------|------|-------|-------------|
+| Free | **Pup** | Rs 0 | Morning Wag + basic Spots + Nap Score |
+| Pro | **Pro** | Rs 399/mo (~$4.34) | Full Patrol, Fetch Alerts, Constellations, all dimensions |
+| Team | **Pack** | Rs 999/mo/seat | Multiple Waldos, shared dashboards, team cognitive view |
+
+Callout: "Break-even at 50 Pro subscribers. Comfortable profitability at 200."
+
+### Enterprise / Verticals Page (Design this too — for NFL/YN conversations)
+
+- Header: "Waldo's intelligence layer. Your industry's data."
+- Use case cards: Sports performance / Clinical wearables / Remote workforce / Aerospace
+- "The same intelligence. Plugged into your sensor ecosystem."
+- Contact form for enterprise inquiries
+
+---
+
+## Design System Components to Build
+
+### Data Visualization
+- **Nap Score Gauge** — SVG arc, animated fill, zone-colored, number in center
+- **Component score bar** — horizontal bar, color by score, 0-100
+- **Sleep stage chart** — horizontal stacked timeline bar
+- **Trend sparkline** — 7-day or 30-day line, micro-sized for cards
+- **Day Strain bar** — 0-21, segmented by zone
+- **Constellation graph** — force-directed, interactive (Phase 2)
+- **Sleep debt indicator** — hours owed + direction arrow
+- **HRV trend chart** — 30-day with baseline comparison band
+
+### UI Components
+- **Waldo Mood avatar** — 6 states (see Waldo Moods section above)
+- **Spot chip** — small pill, icon + text, colored by type
+- **Morning Wag card** — avatar + message + timestamp + feedback buttons
+- **Fetch Alert card** — alert state, full-width, high contrast
+- **Metric card** (2×2 grid item) — emoji + score + bar + label + "no data" state
+- **Source connection card** — logo + status + connect button
+- **Day strip dot** — colored circle, 20px, for timeline
+- **Score number** — large, bold, zone-colored
+- **Data freshness label** — muted, small, "Updated X ago"
+
+### States to Design For Every Screen
+- Loading (data fetching)
+- First use / empty (no data yet)
+- Partial data (some metrics unavailable)
+- Error (sync failed, watch disconnected)
+- Peak state (Nap Score 80+)
+- Depleted state (<50)
+- Offline (no connection, showing cached data)
+
+---
+
+## Architecture — For Designer Context (Non-Technical)
+
+Waldo is built on 10 plug-and-play data connectors. Each connector = one domain of your life. You connect the ones you want. Waldo gets exponentially smarter with each one.
+
+```
+Your Apple Watch    → Body intelligence (live, Phase B1)
+Your Calendar       → Schedule intelligence (Phase 2)
+Your Email          → Communication pressure (Phase 2, headers only — never reads content)
+Your Task Manager   → Work queue intelligence (Phase 2)
+Your Music App      → Mood inference (Phase 2)
+Screen Time app     → Digital hygiene (Phase 2)
+Weather / AQ        → Environmental context (live)
+Messaging (Telegram)→ How Waldo talks to you (live)
+Claude AI           → The brain that reasons over all of it
+Encrypted storage   → Everything stays on your phone first
+```
+
+**For designers:** The "Connect Sources" screen is a core part of the onboarding journey. Empty states when a source isn't connected should feel like Waldo is curious and waiting, not like the app is broken.
+
+---
+
+## What Makes Waldo Different From Every Competitor
+
+```
+                    Body  Proactive  Messaging  Multi-device  Price
+Oura/WHOOP           ✓     Limited     ✗           ✗           $17-30
+RISE                 ✓     ✗           ✗           ✗           $7
+Reclaim.ai           ✗     ✓           ✗           N/A         $10
+Lindy                ✗     ✓           ✓           N/A         $50
+Nori (YC, live now)  ✓     Morning only ✗          Multi        TBD
+
+Waldo                ✓        ✓         ✓            ✓          Free/$4
+```
+
+The quadrant of **proactive + channel-delivered + scientifically grounded + device-agnostic + evolving memory** is still empty. That's the design language: confident, specific, already done.
+
+---
+
+## Immediate Design Priorities
+
+**Week 1 — Unblock development:**
+1. Dashboard screen (polished — we have a functional prototype, needs visual design)
+2. Onboarding flow (3 screens: wearable → channel → profile)
+3. Nap Score gauge component (this is the hero of the product)
+4. Waldo Mood avatar system (6 states, dalmatian illustrations)
+5. App icon + splash screen
+
+**Week 2 — Website:**
+6. Landing page (hero + waitlist CTA + 5 sections)
+7. "How it works" visual (5-step flow diagram)
+8. Competitive comparison table
+
+**Week 3 — Pre-launch:**
+9. History/timeline screen
+10. Sleep detail + HRV detail screens
+11. Settings screen
+12. Pricing page
+
+**Phase 2 prep (scaffold in Figma, don't finalize):**
+13. Constellation graph screen
+14. Chat/conversation screen
+15. Connect sources hub
+16. Phase 2 dashboard with all 6 dimension cards
+
+---
+
+---
+
+## Web Console — The Primary Product Surface (April 2026 Update)
+
+> **IMPORTANT:** The web console (`waldo-sigma.vercel.app`) is now the primary way users onboard, connect integrations, upload health data, view their dashboard, and chat with Waldo. **Design the web console first.** The mobile app comes after — and it should mirror what the web console does.
+
+### Why Web Console First
+
+1. No App Store approval needed. No $99 Apple Developer account. No EAS builds.
+2. iOS users can't install our native app yet — the web console IS their Waldo experience.
+3. Android users upload health data and connect Google via web, then use the APK for live wearable sync.
+4. Investors, designers, friends can see a working demo at a URL. No install friction.
+
+### Web Console User Journey (Design This Flow)
+
+```
+1. ARRIVE → Landing page / waitlist (if not signed up yet)
+     ↓
+2. SIGN UP → Name, timezone, wearable type → user created
+     ↓
+3. SETUP SCREEN ("Your Waldo is ready")
+   ├── Step 1: Connect Google Workspace → OAuth popup → auto-detects completion ✓
+   ├── Step 2: Link Telegram → 6-digit code → auto-detects when linked ✓
+   ├── Step 3 (iOS): Upload Apple Health XML → drag-and-drop → batched upload with progress
+   └── Both optional — "Open my dashboard →" always visible
+     ↓
+4. DASHBOARD → Full Nap Score view, Morning Wag, health stats, spots, CRS components
+     ↓
+5. TABS: Today | History/Timeline | Chat | Constellation | Profile
+```
+
+### What the Web Console Shows Today (Built, Working)
+
+| Tab | Content | Data Source |
+|-----|---------|-------------|
+| **Today** | Nap Score gauge + CRS component bars + Morning Wag card + health stat grid + adjustment cards + spot carousel + date picker with colored dot strip | Supabase: `crs_scores`, `health_snapshots`, `day_activity`, `spots`, `master_metrics`, `calendar_metrics` |
+| **Chat** | Conversational thread + quick-reply suggestions + thread pills + sending indicator | Supabase: `conversation_history` + `invoke-agent` Edge Function (Claude Haiku) |
+| **Insights** | 30-day Nap Score bar chart + weekly pattern summary + confirmed patterns + spots grid | Supabase: `crs_scores`, `patterns`, `spots` |
+| **Profile** | User identity + integration status with sync/connect buttons + core memory tags + agent activity log with cost + Waldo's schedule + sign out + 5-tap admin mode | Supabase: `users`, `oauth_tokens`, `sync_log`, `core_memory`, `agent_logs` |
+
+### New Features to Design (From April 2026 Research)
+
+**1. Apple Health Upload Panel** (Built, needs visual polish)
+- Lives in Integrations tab on Profile
+- Drag-and-drop zone for `export.xml` file
+- Progress bar with batch status: "Uploading batch 2/3 (30 days)…"
+- Success state: "85 days imported. Nap Score range: 30–89."
+- Instructions: "How to export from your iPhone" (4-step visual guide)
+
+**2. Pre-Activity Spot** (New trigger type — Phase E)
+- Calendar-aware: fires 30 min before high-stakes meetings
+- Shows as a card on Dashboard: "Board call in 35 min. Running lower than usual today."
+- Uses CRS + sleep debt + calendar event metadata
+- Design: same card format as Morning Wag but with orange accent border
+
+**3. Follow-up Reply Threading on Proactive Messages**
+- Every Morning Wag and Fetch Alert should have "Tell me more" / "What should I do?" buttons
+- Clicking opens an inline chat thread contextual to that specific message
+- Not just 👍/👎 feedback — actual conversational follow-up
+
+**4. User-Configurable Routines** (Phase G+)
+- Users write a natural language prompt + set a cadence
+- "Every Sunday evening, tell me my recovery outlook for next week"
+- Shows as a "My Routines" section in Profile or a dedicated Routines tab
+- Each routine delivery has a chat follow-up button
+
+**5. "Connected as [email]" on Integration Cards**
+- Google integration now captures the email via OAuth userinfo
+- Show: "Connected as arkpatil2717@gmail.com" instead of just "Connected"
+- Each integration card: status dot (green/amber/gray) + label + last sync time + records synced
+
+### Web Console vs Mobile App — What Goes Where
+
+| Feature | Web Console | Mobile App |
+|---------|-------------|------------|
+| Sign up / onboarding | ✅ Primary | ✅ Alternative |
+| Connect Google OAuth | ✅ Primary (opens browser) | Redirects to web |
+| Connect Spotify OAuth | ✅ Primary | Redirects to web |
+| Upload Apple Health XML | ✅ Only here (iOS users) | N/A (iOS uses HealthKit native) |
+| Link Telegram | ✅ Shows code | Also shows code |
+| Dashboard / Nap Score | ✅ Full | ✅ Full |
+| Chat with Waldo | ✅ Full | ✅ Full |
+| Constellation / Insights | ✅ Full | ✅ Full |
+| Health Connect (Android live sync) | ❌ Can't (on-device API) | ✅ Only here |
+| Background health sync | ❌ | ✅ Only here (HealthKit/HC) |
+| Push notifications | ❌ | ✅ (future) |
+| Admin user switching | ✅ (5-tap unlock) | ✅ (5-tap unlock) |
+
+---
+
+## CRS v2 Three-Pillar Architecture (Phase G — Design For This)
+
+> CRS v1 (flat 4-component) is live. CRS v2 is the upgrade target. **Design both** — v1 for launch, v2 for the UI evolution.
+
+### v1 (Current): `Nap Score = Sleep(35%) + HRV(25%) + Circadian(25%) + Activity(15%)`
+- Single 0-100 score. 4 component bars underneath.
+
+### v2 (Target): `Nap Score = Recovery(50%) + Autonomic State(35%) + Load(15%)`
+Three meaningful pillars that answer "why" your score is what it is:
+
+| Pillar | Weight | Sub-components | What it answers |
+|--------|--------|---------------|----------------|
+| **Recovery Score** | 50% | Sleep Stage Quality + Respiratory Rate + SpO2 + Wrist Temp | "How well did your body restore itself overnight?" |
+| **Current Autonomic State** | 35% | Morning HRV Z-score + Resting HR trend + Walking HR | "What state is your nervous system in right now?" |
+| **Load Accumulation** | 15% | Energy expenditure + Physical effort + Timezone disruption + Daylight | "How much debt has accumulated?" |
+
+**Design implications:**
+- Dashboard needs 3 pillar cards instead of 4 component bars
+- Each pillar is expandable → shows sub-components
+- Per-pillar intervention routing: "Recovery was fine (94), but your nervous system is depleted (29)" → different recommendation than "Sleep was bad"
+- Timezone disruption is a new signal no competitor shows
+
+---
+
+## Privacy Positioning — Use This Copy (Non-Negotiable)
+
+**Frame:** "Derived insights, not raw data."
+
+**Copy to use everywhere:** "Waldo doesn't store your HRV readings or your sleep staging data. It stores what they mean for you, today."
+
+This is architecturally true — the Cloudflare Durable Object stores "HRV declining" not "HRV was 42ms". Raw health data stays encrypted in Supabase with Row-Level Security. The agent brain only sees summaries.
+
+**"Already on it"** — appears on every Waldo-facing surface. Every loading state, every onboarding screen, every fallback message. Not "Waldo noticed X." Already on it.
+
+---
+
+## What NOT to Design (Yet)
+
+- Dark mode — Phase 2
+- iPad / tablet — Phase 3
+- Apple Watch companion app — Phase 3
+- Voice interface — Phase 3
+- Team/enterprise dashboard — Phase 4
+- Animations/micro-interactions — after core screens approved
+- WhatsApp integration UI — wait until Meta Business verification (1-2 weeks)
+
+---
+
+## Files to Reference
+
+| File | What it contains |
+|------|-----------------|
+| `Docs/WALDO_NORTHSTAR.md` | Vision, problem, why we win |
+| `Docs/WALDO_ONEPAGER.md` | Investor/pitch summary |
+| `Docs/WALDO_ADAPTER_ECOSYSTEM.md` | All 32 metrics with exact formulas |
+| `Docs/WALDO_AGENT_INTELLIGENCE.md` | Agent personality, Waldo Moods, message types |
+| `Docs/MVP_SCOPE.md` | Exact MVP definition, what's IN/OUT |
+| `waldo-app/src/screens/DashboardScreen.tsx` | Current functional dashboard (NativeWind) |
+| `waldo-app/src/components/CrsGauge.tsx` | Current SVG gauge implementation |
+| `waldo-app/src/components/ComponentCard.tsx` | Current component score cards |
+
+---
+
+## Questions? Ask Shivansh.
+
+**The one design principle above all:**
+Waldo acts. It doesn't report. Every screen should feel like something already happened — not like you're checking a number.
