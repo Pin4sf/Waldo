@@ -88,9 +88,6 @@ function parseAppleHealthXml(
   onProgress: (pct: number, days: number) => void,
 ): Map<string, DailyBucket> {
   const daily = new Map<string, DailyBucket>();
-  const CHUNK = 500_000;
-  let pos = 0;
-  let processed = 0;
 
   function getOrCreate(date: string): DailyBucket {
     if (!daily.has(date)) {
@@ -104,89 +101,107 @@ function parseAppleHealthXml(
   }
 
   function dateKey(iso: string): string {
-    // "2026-01-15 08:30:00 +0000" → "2026-01-15"
+    // "2026-01-15 08:30:00 +0530" → "2026-01-15"
     return iso.slice(0, 10);
   }
 
-  while (pos < xml.length) {
-    const chunk = xml.slice(pos, pos + CHUNK);
-    const tagRegex = /<Record\s[^>]*\/>/g;
-    let match: RegExpExecArray | null;
-    while ((match = tagRegex.exec(chunk)) !== null) {
-      const tag = match[0];
-      const type = extractAttr(tag, 'type') as AppleRecordType;
-      const startDate = extractAttr(tag, 'startDate');
-      const endDate   = extractAttr(tag, 'endDate');
-      const value     = extractAttr(tag, 'value');
-      const date = dateKey(startDate);
-      if (!date || date.length < 10) continue;
-      const bucket = getOrCreate(date);
+  // Use a single-pass scan for <Record tags. Matches BOTH self-closing <Record .../>
+  // AND opening <Record ...> (multi-line records with nested metadata like HRV beats).
+  // We only need attributes from the opening tag, not the nested content.
+  const tagRegex = /<Record\s[^>]*?(?:\/?>)/g;
+  let match: RegExpExecArray | null;
+  let recordCount = 0;
+  const totalLen = xml.length;
 
-      switch (type) {
-        case 'HKQuantityTypeIdentifierHeartRate': {
-          const bpm = parseFloat(value);
-          if (bpm > 20 && bpm < 250) bucket.hrReadings.push(bpm);
-          break;
-        }
-        case 'HKQuantityTypeIdentifierHeartRateVariabilitySDNN': {
-          const sdnn = parseFloat(value);
-          if (sdnn > 1 && sdnn < 300) bucket.sdnnReadings.push(sdnn);
-          break;
-        }
-        case 'HKQuantityTypeIdentifierRestingHeartRate': {
-          const rhr = parseFloat(value);
-          if (rhr > 20 && rhr < 200) bucket.restingHr = rhr;
-          break;
-        }
-        case 'HKQuantityTypeIdentifierStepCount': {
-          const steps = parseInt(value);
-          if (steps > 0 && steps < 100_000) bucket.steps += steps;
-          break;
-        }
-        case 'HKQuantityTypeIdentifierOxygenSaturation': {
-          const spo2 = parseFloat(value) * (value.includes('.') && parseFloat(value) < 1.5 ? 100 : 1);
-          if (spo2 > 70 && spo2 <= 100) bucket.spo2.push(spo2);
-          break;
-        }
-        case 'HKQuantityTypeIdentifierAppleExerciseTime': {
-          const mins = parseFloat(value);
-          if (mins > 0) bucket.exerciseMin += mins;
-          break;
-        }
-        case 'HKQuantityTypeIdentifierActiveEnergyBurned': {
-          const cal = parseFloat(value);
-          if (cal > 0) bucket.activeEnergy += cal;
-          break;
-        }
-        case 'HKCategoryTypeIdentifierSleepAnalysis': {
-          const stageRaw = value;
-          const stage = SLEEP_STAGE_MAP[stageRaw];
-          if (!stage) break;
-          // Calculate duration in minutes
-          const start = new Date(startDate.replace(' ', 'T').replace(/(\+\d{4})$/, 'Z'));
-          const end   = new Date(endDate.replace(' ', 'T').replace(/(\+\d{4})$/, 'Z'));
-          if (isNaN(start.getTime()) || isNaN(end.getTime())) break;
-          const mins = (end.getTime() - start.getTime()) / 60000;
-          if (mins <= 0 || mins > 1440) break;
-          // Attribute sleep to the morning date (wake date)
-          const sleepDate = dateKey(endDate);
-          const sleepBucket = getOrCreate(sleepDate);
-          const s = sleepBucket.sleepMinutes;
-          if (stage === 'deep') s.deep += mins;
-          else if (stage === 'rem') s.rem += mins;
-          else if (stage === 'core') s.core += mins;
-          else if (stage === 'awake') s.awake += mins;
-          else if (stage === 'inBed') s.inBed += mins;
-          break;
-        }
-      }
+  while ((match = tagRegex.exec(xml)) !== null) {
+    const tag = match[0];
+    recordCount++;
+
+    // Progress update every 5000 records
+    if (recordCount % 5000 === 0) {
+      onProgress(Math.min(78, Math.round((match.index / totalLen) * 78)), daily.size);
     }
 
-    processed += CHUNK;
-    pos += CHUNK;
-    onProgress(Math.min(80, Math.round((processed / xml.length) * 80)), daily.size);
+    const type = extractAttr(tag, 'type');
+    if (!type) continue;
+
+    const startDate = extractAttr(tag, 'startDate');
+    const endDate   = extractAttr(tag, 'endDate');
+    const value     = extractAttr(tag, 'value');
+    const date      = dateKey(startDate);
+    if (!date || date.length < 10) continue;
+
+    switch (type) {
+      case 'HKQuantityTypeIdentifierHeartRate': {
+        const bpm = parseFloat(value);
+        if (bpm > 20 && bpm < 250) getOrCreate(date).hrReadings.push(bpm);
+        break;
+      }
+      case 'HKQuantityTypeIdentifierHeartRateVariabilitySDNN': {
+        const sdnn = parseFloat(value);
+        if (sdnn > 1 && sdnn < 300) getOrCreate(date).sdnnReadings.push(sdnn);
+        break;
+      }
+      case 'HKQuantityTypeIdentifierRestingHeartRate': {
+        const rhr = parseFloat(value);
+        if (rhr > 20 && rhr < 200) getOrCreate(date).restingHr = rhr;
+        break;
+      }
+      case 'HKQuantityTypeIdentifierStepCount': {
+        const steps = parseInt(value);
+        if (steps > 0 && steps < 100_000) getOrCreate(date).steps += steps;
+        break;
+      }
+      case 'HKQuantityTypeIdentifierOxygenSaturation': {
+        const raw = parseFloat(value);
+        // Apple exports SpO2 as either 0.0-1.0 (fraction) or 70-100 (percentage)
+        const spo2 = raw <= 1.0 ? raw * 100 : raw;
+        if (spo2 > 70 && spo2 <= 100) getOrCreate(date).spo2.push(spo2);
+        break;
+      }
+      case 'HKQuantityTypeIdentifierAppleExerciseTime': {
+        const mins = parseFloat(value);
+        if (mins > 0 && mins < 1440) getOrCreate(date).exerciseMin += mins;
+        break;
+      }
+      case 'HKQuantityTypeIdentifierActiveEnergyBurned': {
+        const cal = parseFloat(value);
+        if (cal > 0) getOrCreate(date).activeEnergy += cal;
+        break;
+      }
+      case 'HKCategoryTypeIdentifierSleepAnalysis': {
+        // Sleep stage is in the 'value' attribute
+        const stage = SLEEP_STAGE_MAP[value];
+        if (!stage) break;
+        // Parse Apple Health date format: "2026-01-15 23:30:00 +0530"
+        // Convert to parseable ISO: replace space with T, fix timezone offset
+        const parseAppleDate = (d: string): Date => {
+          // Handle both "2026-01-15 23:30:00 +0530" and "2026-01-15T23:30:00+05:30"
+          const normalized = d
+            .replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s*([+-]\d{4})$/, '$1T$2$3')
+            .replace(/([+-]\d{2})(\d{2})$/, '$1:$2'); // +0530 → +05:30
+          return new Date(normalized);
+        };
+        const start = parseAppleDate(startDate);
+        const end   = parseAppleDate(endDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) break;
+        const mins = (end.getTime() - start.getTime()) / 60000;
+        if (mins <= 0 || mins > 1440) break;
+        // Attribute sleep to the morning date (wake date)
+        const sleepDate = dateKey(endDate);
+        const sleepBucket = getOrCreate(sleepDate);
+        const s = sleepBucket.sleepMinutes;
+        if (stage === 'deep') s.deep += mins;
+        else if (stage === 'rem') s.rem += mins;
+        else if (stage === 'core') s.core += mins;
+        else if (stage === 'awake') s.awake += mins;
+        else if (stage === 'inBed') s.inBed += mins;
+        break;
+      }
+    }
   }
 
+  onProgress(80, daily.size);
   return daily;
 }
 
@@ -393,9 +408,15 @@ export function HealthUploadPanel({ userId, adminKey, onImported }: Props) {
       return;
     }
 
-    // Accept XML or ZIP (ZIP requires user to unzip first — see instructions)
-    if (!file.name.endsWith('.xml') && !file.name.endsWith('.zip')) {
-      setError('Please upload the export.xml file (or a .zip Apple Health export).');
+    if (!adminKey) {
+      setError('Admin key not set. Open browser console and run: localStorage.setItem("waldo_admin_key", "YOUR_KEY")');
+      return;
+    }
+
+    // Accept XML or ZIP
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.xml') && !name.endsWith('.zip')) {
+      setError('Please upload the export.xml file from your Apple Health export.');
       return;
     }
 
@@ -504,7 +525,17 @@ export function HealthUploadPanel({ userId, adminKey, onImported }: Props) {
       onImported?.(sum);
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      // Provide actionable error messages
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        setError('Network error — the upload request could not reach the server. Check your internet connection and try again. If the file is very large (>200MB), try a smaller export.');
+      } else if (msg.includes('401') || msg.includes('Unauthorized')) {
+        setError('Authentication failed. Set the admin key: open browser console → localStorage.setItem("waldo_admin_key", "YOUR_KEY")');
+      } else if (msg.includes('413') || msg.includes('too large')) {
+        setError('File too large for a single upload. This should not happen with batching — please report this bug.');
+      } else {
+        setError(msg);
+      }
       setState('error');
     }
   }, [userId, adminKey, onImported]);

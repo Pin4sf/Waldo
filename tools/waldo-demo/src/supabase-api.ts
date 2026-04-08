@@ -454,17 +454,23 @@ export async function fetchSpotifyStatus(userId: string): Promise<{ connected: b
 }
 
 /** Manually trigger a sync for a provider. */
-export async function triggerSync(provider: 'google_calendar' | 'gmail' | 'google_tasks', userId: string): Promise<void> {
+export async function triggerSync(provider: 'google_calendar' | 'gmail' | 'google_tasks' | 'spotify', userId: string): Promise<void> {
   const fnMap: Record<string, string> = {
     google_calendar: 'sync-google-calendar',
     gmail: 'sync-gmail',
     google_tasks: 'sync-tasks',
+    spotify: 'sync-spotify',
   };
-  await fetch(`${SUPABASE_FN_URL}/${fnMap[provider]}`, {
+  const fn = fnMap[provider];
+  if (!fn) return;
+  await fetch(`${SUPABASE_FN_URL}/${fn}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
     body: JSON.stringify({ user_id: userId }),
-  });
+  }).catch(() => {});
 }
 
 // ─── Conversation History ────────────────────────────────────────
