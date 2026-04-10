@@ -21,7 +21,7 @@
 | 3-layer email validation (format + disposable + DNS MX) | ✅ | Blocks fake/throwaway emails |
 | Duplicate handling (silent success on re-submit) | ✅ | Supabase unique constraint → 23505 → success |
 | Navbar: all links disabled with Waldo-voice tooltips | ✅ | Page dims to 40% on nav hover |
-| Waitlist confirmation email in Waldo's voice | ⬜ | Build next — Resend or Supabase edge function |
+| Waitlist confirmation email in Waldo's voice | 🔄 | Loops — integration in progress (see §Email Infrastructure) |
 | "Where's Waldo?" social teasers on X/Instagram | ⬜ | 3 posts/week, cryptic, no product shown |
 | Founder posts — 5–7/week, no product mentions (wks 1–2) | ⬜ | Social content, not code |
 | 50 hand-picked early access invites sent | ⬜ | |
@@ -76,6 +76,41 @@
 | "A Good Week" UGC format | ⬜ | |
 | Integration partnerships (Oura, WHOOP, Garmin) | ⬜ | |
 | Profession-specific connector waves continue | ⬜ | |
+
+---
+
+## Email Infrastructure — Loops
+
+**Platform:** [Loops](https://loops.so) — single platform for all email: transactional, sequences, and broadcasts.
+
+**Why Loops over Resend / Mailchimp / Brevo:**
+- Handles transactional (confirmation) + marketing (campaigns) + automation (sequences) in one place
+- Designer and non-technical team members can send campaigns directly — no code required
+- Native Supabase integration (webhook sync or direct API)
+- Event-driven: fire `waitlist_signup` → Loop sequence runs automatically forever
+- Native Stripe integration for Phase 2 lifecycle emails (upgrade, payment failed, churn)
+- Future: Loops MCP via Composio → Waldo agent can send emails as part of agent loops
+- Free tier: 1,000 contacts, 4,000 sends/month (covers Phase 0 entirely)
+
+**Three email types in use:**
+
+| Type | How triggered | Who manages |
+|---|---|---|
+| Transactional | API call from `submit-email.ts` after Supabase insert | Developer (set up once) |
+| Loop (sequence) | `waitlist_signup` event → Loop Builder | Developer sets up, runs automatically |
+| Campaign (broadcast) | Loops dashboard → send to segment | Anyone on the team |
+
+**Phase 0 sequence (built once in Loop Builder, runs for every signup):**
+- Day 0: Confirmation — "you're in." (Waldo voice, warm, brief)
+- Day 3: Teaser — "something's coming. waldo's already watching."
+- Week 2: Signal — "first people just got access. here's what happened."
+
+**Segments used:**
+- `waitlist` — everyone who signed up on heywaldo.in
+- `early_access` — first 50 hand-picked users (Phase 0)
+- `pro` — paying users (Phase 3+)
+
+**Supabase export:** All existing waitlist emails → CSV export → bulk import to Loops once account is set up.
 
 ---
 
