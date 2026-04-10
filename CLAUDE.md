@@ -41,6 +41,8 @@ Read these BEFORE doing anything:
 
 10. **`Docs/WALDO_SCALING_INFRASTRUCTURE.md`** — Cloudflare Durable Objects architecture, Dynamic Workers, Code Mode, multi-user cost model, migration path.
 11. **`Docs/WALDO_AGENT_UPGRADE_REPORT.md`** — Session 4: 18 upgrades from Claude Code reverse engineering + 2026 landscape, 5-tier memory architecture, competitive implications.
+12. **`Docs/WALDO_EMAIL_INFRASTRUCTURE.md`** — **Loops as the email platform.** Transactional + event sequences + campaigns. Stripe lifecycle integration. **Loops MCP via Composio for Phase D+ agent email delivery.** Waldo agent enriches Loops contacts with biological data for personalised emails. Full event catalogue, segment strategy, implementation checklist.
+13. **`Docs/WALDO_ROLLOUT_STRATEGY.md`** — Phase 0-4 distribution strategy. Email sequence content plan. UGC strategy. Channel strategy. The "Waldo did a thing" moment.
 
 **These override everything in `Docs/archive/`.**
 
@@ -191,6 +193,33 @@ Deep research session: reverse-engineered Claude Code's 1,905-file TypeScript co
 - Memory poisoning gap: DO's `provision` handler needs a startup diff against known-good memory state before Phase H (beta).
 
 **Competitive urgency:** Nori (YC, 2 exits) is live on App Store. Prana (YC W26) is building. ChatGPT Health has 230M weekly health users. **Ship Phase D.**
+
+## Session 9 Research: Hermes Agent + Full Vision + Connector Ecosystem (April 8-9, 2026)
+
+**Hermes Agent reverse-engineering (15th agent system) + MemPalace (16th):**
+Nous Research's open-source agent (38K+ stars, MIT). Key adoptions for Waldo:
+- **Dreaming Mode** — comprehensive nightly intelligence cycle (consolidate → promote → pre-compute → evolve → deep mine → self-improve). Full spec in `docs-site/agent-intelligence.md` Section 5. Phase D starts with consolidation; Phase G adds evolution; Phase 3+ adds GEPA self-improvement.
+- **Memory context fencing** — `<memory-context>` tags prevent model from treating recalled memory as user instructions. Ship in Phase D.
+- **FTS5 cross-session search** — SQLite FTS5 on episodes table for keyword-based recall. Cheaper than pgvector for exact queries.
+- **Structured context compression** — Goal/Progress/Decisions/Next Steps template for compacting long sessions.
+- **Skills as agentskills.io standard** — markdown skill files with effectiveness tracking. Enables Phase 4 marketplace.
+- **GEPA evolutionary self-improvement** (ICLR 2026 Oral) — reads execution traces, proposes targeted mutations, evaluates against golden tests. $2-10 per run. Applied to behavioral params only (identity stays immutable).
+- **Approval buttons on messaging** — native inline buttons for L2 autonomy on Telegram/Slack.
+- **Voice memo transcription** — faster-whisper for Telegram voice input.
+- **MemPalace** (28.5K stars, MIT) — spatial memory via Method of Loci. 96.6% recall on LongMemEval at 170-token wake-up cost. Adoptions: typed memory halls (facts/events/discoveries/preferences/advice) for memory_blocks, 170-token wake-up budget, cross-domain tunnels for Constellation analysis, temporal fact invalidation with valid_from/valid_to/superseded_by.
+- Upgrade report expanded to 30 items. See `docs-site/upgrade-report.md`.
+
+**Full Vision Brainstorm:**
+- `Docs/WALDO_FULL_VISION_BRAINSTORM.md` — 9 parts + research appendix. 7 life domains, 15 demographics, 67 micro-automations, communication framework, competitive moat, new capability ideas.
+- Key finding: "The ceiling isn't health. The ceiling is LIFE." + emotional JTBD > functional JTBD + social permission job is Waldo's hidden superpower.
+- Universal tagline: "Waldo knows how you're really doing."
+
+**Connector Ecosystem:**
+- `Docs/WALDO_CONNECTOR_ECOSYSTEM.md` — 213+ tools across 27 categories. 196 with APIs, 47 with MCP servers.
+- A2A protocol is LIVE (v1.0, March 2026, 150+ orgs). Waldo can publish an Agent Card.
+- Open Wearables SDK has React Native support (v0.4, March 2026, MIT).
+- Zapier MCP server = 8,000+ apps through one integration.
+- APIAgent (Agoda, OSS) converts any REST API → MCP server with zero code.
 
 ## Product Vision — Non-Negotiable Frames (April 2026)
 
