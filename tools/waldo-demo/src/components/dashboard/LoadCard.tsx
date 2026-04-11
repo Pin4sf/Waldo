@@ -11,15 +11,6 @@ interface LoadCardProps {
   data: DayResponse;
 }
 
-type TimeRange = 'today' | '7d' | '30d' | '3m' | '12m';
-
-const TIME_TABS: { id: TimeRange; label: string; disabled?: boolean }[] = [
-  { id: 'today', label: 'Today' },
-  { id: '7d', label: '7 Days' },
-  { id: '30d', label: '30 Days' },
-  { id: '3m', label: '3 Months', disabled: true },
-  { id: '12m', label: '12 Months', disabled: true },
-];
 
 function formatHours(minutes: number): string {
   const h = Math.floor(minutes / 60);
@@ -35,7 +26,6 @@ function barWidthPct(minutes: number, maxMinutes: number): number {
 
 export function LoadCard({ data }: LoadCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const [timeRange, setTimeRange] = useState<TimeRange>('today');
   if (!data) return null;
   const { strain, crs } = data;
 
@@ -183,20 +173,6 @@ export function LoadCard({ data }: LoadCardProps) {
           color: '#9a9a96', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0, marginTop: -4,
         }}
       >×</button>
-
-      {/* Tabs */}
-      <div className="time-tabs-figma">
-        {TIME_TABS.map(tab => (
-          <button
-            key={tab.id}
-            className={`time-tab-figma${timeRange === tab.id ? ' active' : ''}`}
-            onClick={() => !tab.disabled && setTimeRange(tab.id)}
-            disabled={tab.disabled}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
 
       {/* Strain summary legend (expanded) */}
       <div className="dash-legend-panel" style={{ marginBottom: 10 }}>

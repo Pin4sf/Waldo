@@ -727,3 +727,39 @@
 .dash-right .dash-card:nth-child(1) { animation-delay: 0.05s; }
 .dash-right .dash-card:nth-child(2) { animation-delay: 0.12s; }
 .dash-right .dash-card:nth-child(3) { animation-delay: 0.19s; }
+
+/* ─── Drill-down clickable component rows ─────────────────── */
+
+.component-row-clickable {
+  position: relative;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  transition: background 0.15s;
+}
+.component-row-clickable:hover {
+  background: rgba(251, 148, 63, 0.06);
+}
+.drill-arrow {
+  font-size: 16px;
+  color: #9a9a96;
+  font-weight: 300;
+  margin-left: 4px;
+  transition: transform 0.15s, color 0.15s;
+}
+.component-row-clickable:hover .drill-arrow {
+  transform: translateX(2px);
+  color: #fb943f;
+}
+
+/* ─── Card highlight on drill-down scroll ─────────────────── */
+
+@keyframes cardHighlight {
+  0% { box-shadow: 0 0 0 2px rgba(251, 148, 63, 0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 148, 63, 0); }
+}
+.card-highlight > .dash-card,
+.card-highlight.dash-card {
+  animation: cardHighlight 1.2s ease-out forwards;
+}

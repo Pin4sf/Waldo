@@ -10,17 +10,8 @@ import type { DayResponse } from '../../types.js';
 
 interface FormCardProps {
   data: DayResponse;
+  onDrillDown?: (cardId: string) => void;
 }
-
-type TimeRange = 'today' | '7d' | '30d' | '3m' | '12m';
-
-const TIME_TABS: { id: TimeRange; label: string; disabled?: boolean }[] = [
-  { id: 'today', label: 'Today' },
-  { id: '7d', label: '7 Days' },
-  { id: '30d', label: '30 Days' },
-  { id: '3m', label: '3 Months', disabled: true },
-  { id: '12m', label: '12 Months', disabled: true },
-];
 
 function componentStatus(score: number): string {
   if (score >= 80) return 'strong';
@@ -121,8 +112,7 @@ function CrsDayChart({ score }: { score: number }) {
   );
 }
 
-export function FormCard({ data }: FormCardProps) {
-  const [timeRange, setTimeRange] = useState<TimeRange>('today');
+export function FormCard({ data, onDrillDown }: FormCardProps) {
   const [expanded, setExpanded] = useState(false);
   const crs = data?.crs;
   if (!crs) return null;
@@ -179,20 +169,6 @@ export function FormCard({ data }: FormCardProps) {
         ×
       </button>
 
-      {/* Tabs */}
-      <div className="time-tabs-figma">
-        {TIME_TABS.map(tab => (
-          <button
-            key={tab.id}
-            className={`time-tab-figma${timeRange === tab.id ? ' active' : ''}`}
-            onClick={() => !tab.disabled && setTimeRange(tab.id)}
-            disabled={tab.disabled}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       {/* Large radial gauge */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
         <RadialGauge score={crs.score} zone={zone} size={280} showLabels />
@@ -219,26 +195,35 @@ export function FormCard({ data }: FormCardProps) {
         </span>
       </div>
 
-      {/* Component breakdown (Figma legend panel) */}
+      {/* Component breakdown — click to drill down */}
       <div className="component-bars">
-        {components.map((c, i) => (
-          <div key={c.name} className="component-row">
-            <div className="component-label">
-              <span className="component-label-name">{c.name}</span>
-              <span className="component-label-status">{c.status}</span>
-            </div>
-            <div className="component-value">
-              <span className="component-score">{c.score}</span>
-              <div className="component-bar-track">
-                <div className="component-bar-fill" style={{ width: `${c.score}%` }} />
+        {components.map((c) => {
+          const cardId = c.name === 'Sleep' ? 'sleep-score' : c.name === 'HRV' ? 'hrv' : c.name === 'Circadian' ? 'circadian' : 'motion';
+          return (
+            <div
+              key={c.name}
+              className="component-row component-row-clickable"
+              onClick={() => onDrillDown?.(cardId)}
+              style={{ cursor: onDrillDown ? 'pointer' : undefined }}
+            >
+              <div className="component-label">
+                <span className="component-label-name">{c.name}</span>
+                <span className="component-label-status">{c.status}</span>
               </div>
+              <div className="component-value">
+                <span className="component-score">{c.score}</span>
+                <div className="component-bar-track">
+                  <div className="component-bar-fill" style={{ width: `${c.score}%` }} />
+                </div>
+              </div>
+              {onDrillDown && <span className="drill-arrow">›</span>}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* CRS day chart */}
-      {timeRange === 'today' && <CrsDayChart score={crs.score} />}
+      <CrsDayChart score={crs.score} />
 
       {/* Insight */}
       <div style={{
