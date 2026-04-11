@@ -85,20 +85,27 @@ interface Spot {
 }
 
 async function generateSpots(supabase: SupabaseClient, userId: string): Promise<number> {
-  const { data: crsData } = await supabase
-    .from('crs_scores')
-    .select('date, score, zone')
-    .eq('user_id', userId)
-    .gte('score', 0)
-    .order('date', { ascending: true });
-
-  const { data: healthData } = await supabase
-    .from('health_snapshots')
-    .select('date, hrv_rmssd, resting_hr, sleep_duration_hours, sleep_efficiency, steps, exercise_minutes')
-    .eq('user_id', userId)
-    .order('date', { ascending: true });
+  // Load ALL data dimensions for cross-domain spot generation
+  const [
+    { data: crsData }, { data: healthData },
+    { data: calData }, { data: emailData },
+    { data: taskData }, { data: moodData },
+  ] = await Promise.all([
+    supabase.from('crs_scores').select('date, score, zone').eq('user_id', userId).gte('score', 0).order('date', { ascending: true }),
+    supabase.from('health_snapshots').select('date, hrv_rmssd, resting_hr, sleep_duration_hours, sleep_efficiency, steps, exercise_minutes').eq('user_id', userId).order('date', { ascending: true }),
+    supabase.from('calendar_metrics').select('date, meeting_load_score, event_count, back_to_back_count, boundary_violations, total_meeting_minutes').eq('user_id', userId).order('date'),
+    supabase.from('email_metrics').select('date, total_emails, after_hours_count, after_hours_ratio, sent_count').eq('user_id', userId).order('date'),
+    supabase.from('task_metrics').select('date, pending_count, overdue_count, completed_today').eq('user_id', userId).order('date'),
+    supabase.from('mood_metrics').select('date, dominant_mood, avg_energy, avg_valence, late_night_listening, listening_minutes').eq('user_id', userId).order('date'),
+  ]);
 
   if (!crsData || !healthData || crsData.length < 3) return 0;
+
+  // Build lookup maps for cross-domain joins
+  const calMap = new Map((calData ?? []).map((c: any) => [c.date, c]));
+  const emailMap = new Map((emailData ?? []).map((e: any) => [e.date, e]));
+  const taskMap = new Map((taskData ?? []).map((t: any) => [t.date, t]));
+  const moodMap = new Map((moodData ?? []).map((m: any) => [m.date, m]));
 
   const spots: Spot[] = [];
   const crsMap = new Map(crsData.map((c: any) => [c.date, c]));
@@ -225,6 +232,128 @@ async function generateSpots(supabase: SupabaseClient, userId: string): Promise<
     }
   }
 
+  // ─── CROSS-DOMAIN SPOTS ─────────────────────────────────────────
+
+  // Calendar × Health: heavy meeting days → next-day health impact
+  if ((calData ?? []).length >= 3) {
+    const avgMeetingLoad = (calData ?? []).reduce((s: number, c: any) => s + (c.meeting_load_score ?? 0), 0) / calData!.length;
+
+    for (const cal of (calData ?? [])) {
+      // Heavy meeting day
+      if (cal.meeting_load_score > 8) {
+        spots.push({
+          date: cal.date, type: 'schedule', severity: 'warning',
+          title: `Heavy meeting load (${cal.meeting_load_score.toFixed(1)}/15)`,
+          detail: `${cal.event_count} meetings, ${cal.total_meeting_minutes}min total. Above your avg of ${avgMeetingLoad.toFixed(1)}.`,
+        });
+      }
+      // Back-to-back meetings
+      if (cal.back_to_back_count >= 2) {
+        spots.push({
+          date: cal.date, type: 'schedule', severity: 'warning',
+          title: `${cal.back_to_back_count} back-to-back meetings`,
+          detail: `No recovery gaps between meetings — cognitive load compounds`,
+        });
+      }
+      // Boundary violations (meetings outside 7am-7pm)
+      if (cal.boundary_violations > 0) {
+        spots.push({
+          date: cal.date, type: 'schedule', severity: 'info',
+          title: `${cal.boundary_violations} meetings outside core hours`,
+          detail: `Boundary violations affect recovery and sleep onset`,
+        });
+      }
+
+      // Meeting load → next-day CRS correlation
+      const nextDate = new Date(new Date(cal.date + 'T12:00:00Z').getTime() + 86400000).toISOString().slice(0, 10);
+      const nextCrs = crsMap.get(nextDate);
+      if (nextCrs && cal.meeting_load_score > avgMeetingLoad + 3 && nextCrs.score < avgCrs - 10) {
+        spots.push({
+          date: cal.date, type: 'correlation', severity: 'warning',
+          title: `Heavy meetings → low score next day`,
+          detail: `Meeting load ${cal.meeting_load_score.toFixed(1)} on ${cal.date} → CRS ${nextCrs.score} on ${nextDate}. Pattern suggests meetings drain recovery.`,
+        });
+      }
+    }
+  }
+
+  // Email × Health: after-hours email → sleep impact
+  if ((emailData ?? []).length >= 3) {
+    const avgEmails = (emailData ?? []).reduce((s: number, e: any) => s + (e.total_emails ?? 0), 0) / emailData!.length;
+
+    for (const email of (emailData ?? [])) {
+      // High after-hours ratio
+      if (email.after_hours_ratio > 0.4) {
+        spots.push({
+          date: email.date, type: 'communication', severity: 'warning',
+          title: `${Math.round(email.after_hours_ratio * 100)}% emails after hours`,
+          detail: `${email.after_hours_count} of ${email.total_emails} emails outside working hours — late digital load`,
+        });
+      }
+      // Volume spike
+      if (email.total_emails > avgEmails * 1.5 && avgEmails > 5) {
+        spots.push({
+          date: email.date, type: 'communication', severity: 'info',
+          title: `Email volume spike (${email.total_emails} vs avg ${Math.round(avgEmails)})`,
+          detail: `${Math.round((email.total_emails / avgEmails) * 100)}% of your normal volume`,
+        });
+      }
+
+      // After-hours email → next-day sleep impact
+      if (email.after_hours_ratio > 0.5) {
+        const nextDate = new Date(new Date(email.date + 'T12:00:00Z').getTime() + 86400000).toISOString().slice(0, 10);
+        const nextHealth = healthMap.get(nextDate) as any;
+        if (nextHealth?.sleep_duration_hours && nextHealth.sleep_duration_hours < avgSleep - 1) {
+          spots.push({
+            date: email.date, type: 'correlation', severity: 'warning',
+            title: `Late emails → short sleep`,
+            detail: `${Math.round(email.after_hours_ratio * 100)}% after-hours email on ${email.date} → ${nextHealth.sleep_duration_hours.toFixed(1)}h sleep (${(avgSleep - nextHealth.sleep_duration_hours).toFixed(1)}h below avg)`,
+          });
+        }
+      }
+    }
+  }
+
+  // Task × Health: overdue tasks + low CRS = burnout signal
+  for (const task of (taskData ?? [])) {
+    if (task.overdue_count >= 3) {
+      spots.push({
+        date: task.date, type: 'tasks', severity: 'warning',
+        title: `${task.overdue_count} overdue tasks`,
+        detail: `Task pile-up — ${task.pending_count} pending total`,
+      });
+    }
+    const dayCrs = crsMap.get(task.date);
+    if (task.overdue_count >= 2 && dayCrs && dayCrs.score < 50) {
+      spots.push({
+        date: task.date, type: 'correlation', severity: 'warning',
+        title: `Task overload + low energy`,
+        detail: `${task.overdue_count} overdue tasks on a day with CRS ${dayCrs.score}. Prioritize or defer.`,
+      });
+    }
+  }
+
+  // Mood × Health: music mood correlations
+  for (const mood of (moodData ?? [])) {
+    if (mood.late_night_listening) {
+      spots.push({
+        date: mood.date, type: 'behavior', severity: 'info',
+        title: `Late-night listening detected`,
+        detail: `Music activity after 11pm — may delay sleep onset`,
+      });
+    }
+    if (mood.dominant_mood === 'melancholic' || mood.dominant_mood === 'intense') {
+      const dayCrs = crsMap.get(mood.date);
+      if (dayCrs && dayCrs.score < 50) {
+        spots.push({
+          date: mood.date, type: 'correlation', severity: 'info',
+          title: `${mood.dominant_mood} music + low Form`,
+          detail: `Music mood aligns with CRS ${dayCrs.score} — body and mind in sync`,
+        });
+      }
+    }
+  }
+
   // Sleep-CRS correlation spot
   const sleepCrsPairs = crsData
     .map((c: any) => ({ score: c.score, sleep: (healthMap.get(c.date) as any)?.sleep_duration_hours }))
@@ -246,9 +375,50 @@ async function generateSpots(supabase: SupabaseClient, userId: string): Promise<
     }
   }
 
-  // Store spots (delete existing historical spots first, then insert)
+  // Aggregate: meeting load vs CRS (if enough data)
+  if ((calData ?? []).length >= 5) {
+    const heavyMeetingDays = (calData ?? []).filter((c: any) => c.meeting_load_score >= 6);
+    const lightMeetingDays = (calData ?? []).filter((c: any) => c.meeting_load_score < 4);
+    const heavyCrs = heavyMeetingDays.map((c: any) => crsMap.get(c.date)?.score).filter(Boolean) as number[];
+    const lightCrs = lightMeetingDays.map((c: any) => crsMap.get(c.date)?.score).filter(Boolean) as number[];
+    if (heavyCrs.length >= 2 && lightCrs.length >= 2) {
+      const heavyAvg = heavyCrs.reduce((a, b) => a + b, 0) / heavyCrs.length;
+      const lightAvg = lightCrs.reduce((a, b) => a + b, 0) / lightCrs.length;
+      if (Math.abs(lightAvg - heavyAvg) > 8) {
+        spots.push({
+          date: crsData[crsData.length - 1]!.date, type: 'correlation', severity: 'info',
+          title: `Meeting load affects your Form: light days → ${lightAvg.toFixed(0)} avg, heavy → ${heavyAvg.toFixed(0)} avg`,
+          detail: `${Math.abs(lightAvg - heavyAvg).toFixed(0)} point difference across ${heavyCrs.length + lightCrs.length} measured days`,
+        });
+      }
+    }
+  }
+
+  // Aggregate: after-hours email vs next-day sleep (if enough data)
+  if ((emailData ?? []).length >= 5) {
+    const highAH = (emailData ?? []).filter((e: any) => e.after_hours_ratio > 0.4);
+    const lowAH = (emailData ?? []).filter((e: any) => e.after_hours_ratio <= 0.2);
+    const getNextSleep = (date: string) => {
+      const next = new Date(new Date(date + 'T12:00:00Z').getTime() + 86400000).toISOString().slice(0, 10);
+      return (healthMap.get(next) as any)?.sleep_duration_hours;
+    };
+    const highAHSleep = highAH.map((e: any) => getNextSleep(e.date)).filter(Boolean) as number[];
+    const lowAHSleep = lowAH.map((e: any) => getNextSleep(e.date)).filter(Boolean) as number[];
+    if (highAHSleep.length >= 2 && lowAHSleep.length >= 2) {
+      const highAvg = highAHSleep.reduce((a, b) => a + b, 0) / highAHSleep.length;
+      const lowAvg = lowAHSleep.reduce((a, b) => a + b, 0) / lowAHSleep.length;
+      if (lowAvg - highAvg > 0.5) {
+        spots.push({
+          date: crsData[crsData.length - 1]!.date, type: 'correlation', severity: 'warning',
+          title: `After-hours email costs you ${(lowAvg - highAvg).toFixed(1)}h of sleep`,
+          detail: `High after-hours email nights → ${highAvg.toFixed(1)}h sleep. Low email nights → ${lowAvg.toFixed(1)}h sleep.`,
+        });
+      }
+    }
+  }
+
+  // Store spots (delete existing + re-insert for this user)
   if (spots.length > 0) {
-    // Tag as historical
     const spotRows = spots.map(s => ({
       user_id: userId,
       date: s.date,
@@ -256,14 +426,15 @@ async function generateSpots(supabase: SupabaseClient, userId: string): Promise<
       severity: s.severity,
       title: s.title,
       detail: s.detail,
-      source: 'historical_analysis',
+      signals: [],
     }));
 
-    // Delete previous historical spots to avoid duplicates on re-run
-    await supabase.from('spots').delete().eq('user_id', userId).eq('source', 'historical_analysis');
+    // Delete previous spots for this user to avoid duplicates on re-run
+    await supabase.from('spots').delete().eq('user_id', userId);
     // Insert in batches
     for (let i = 0; i < spotRows.length; i += 100) {
-      await supabase.from('spots').insert(spotRows.slice(i, i + 100));
+      const { error } = await supabase.from('spots').insert(spotRows.slice(i, i + 100));
+      if (error) log('error', 'spots_insert_failed', { batch: Math.floor(i / 100), error: error.message });
     }
   }
 
