@@ -208,6 +208,31 @@ Log-scaled: strain = min(21, log10(TRIMP + 1) × 7)
 
 These need to be designed before they're built. Designers should scaffold all Phase 2 screens so we can build without design bottlenecks.
 
+### Meeting Intelligence Dimension (from live meeting participation — Phase 2)
+
+Waldo joins your calls (Google Meet, Zoom, Teams) and captures context in real time.
+
+| Feature | What it gives Waldo |
+|---------|-------------------|
+| **Live transcription** | Real-time transcript with speaker identification |
+| **Auto meeting notes** | Structured summary: decisions, action items, open questions |
+| **Action item extraction** | Automatically creates tasks from conversation ("John will review by Thursday") |
+| **Meeting → stress correlation** | Cross-references biometric state DURING the call with what was discussed |
+| **Pre-meeting prep** | Before recurring meetings: last meeting's action items + what's changed + current readiness |
+| **Post-meeting recovery tracking** | How long your HRV takes to recover after specific meetings |
+| **Conversation → Constellation** | Topics and stress triggers become data for long-term pattern discovery |
+
+**Two modes:**
+- **Visible:** Waldo joins as a meeting participant (others see it)
+- **Silent:** Captures audio from user's device only — invisible to others
+
+**Design screens needed:**
+- Meeting notes view (after meeting: structured summary card with transcript expandable)
+- Meeting → health correlation card on dashboard ("This meeting costs you 25% HRV every week")
+- Pre-meeting prep card (shown 15 min before recurring meetings)
+- Meeting mode selector in settings (visible/silent per meeting or global)
+- Action items extracted → shown in Tasks tab
+
 ### Schedule Dimension (from Calendar)
 | Metric | Range | What it means |
 |--------|-------|---------------|

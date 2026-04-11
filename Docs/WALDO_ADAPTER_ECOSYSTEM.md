@@ -79,6 +79,52 @@ Plus: Circadian Score, Activity Score, Resilience (14-day stability), Recovery-L
 
 ---
 
+## Dimension 1B: Meeting Intelligence (MeetingAdapter — Phase 2)
+
+### Providers
+| Provider | Mechanism | Cost | Signals |
+|----------|-----------|------|---------|
+| Recall.ai API | Cloud bot joins via meeting URL | $0.02-0.04/min | Audio, transcript, speaker ID, screen share, chat |
+| Local audio capture | System audio on user's device | Free (Whisper transcription) | Audio, transcript (no speaker ID without diarization) |
+| Google Meet Media API | Native API (restricted access) | Free | Audio, video, participant events |
+| Zoom Meeting SDK | VM-based bot | Free (SDK) + compute | Audio streams, speaker ID |
+| Meeting BaaS MCP | MCP server for meeting bots | Varies | Transcript, speaker ID, recording |
+
+### Architecture Decision
+**Phase 2 MVP:** Local system audio capture (Granola model) — invisible to other participants, no cloud VM costs, works with ANY meeting platform. Transcription via faster-whisper (local, free) or Deepgram API ($0.0043/min).
+
+**Phase 2+:** Recall.ai API for visible meeting bot — full speaker diarization, chat capture, screen share context. Per-meeting cost: ~$0.60 for a 30-min meeting.
+
+### Capabilities
+| Capability | What it gives Waldo | Phase |
+|-----------|-------------------|-------|
+| **Live transcription** | Real-time text of what's said | Phase 2 |
+| **Speaker identification** | Who said what (diarization) | Phase 2 (Recall.ai) |
+| **Automatic meeting notes** | Structured summary: decisions, action items, open questions | Phase 2 |
+| **Action item extraction** | "John will review by Thursday" → task created | Phase 2 |
+| **Meeting → biometric correlation** | Cross-reference HRV/HR DURING the call with transcript topics | Phase 2 |
+| **Pre-meeting prep** | Surface: last meeting's action items, what changed, current CRS | Phase 2 |
+| **Post-meeting recovery tracking** | How long HRV takes to recover after specific meeting types | Phase 2 |
+| **Conversation → Constellation patterns** | Stress triggers, topic correlations feed long-term pattern map | Phase 2+ |
+
+### 5 Meeting Metrics
+| Metric | Range | What it means |
+|--------|-------|---------------|
+| **Meeting Cognitive Cost** | 0-100 | Biometric drain per meeting (HRV delta × duration × participant count) |
+| **Speaking Ratio** | 0-100% | How much you talked vs listened (high ratio + low CRS = overextension) |
+| **Action Item Load** | 0-20 | Tasks extracted from this meeting — cognitive commitment made |
+| **Recovery Time** | 0-60 min | How long your HRV takes to return to baseline after this meeting |
+| **Meeting Stress Trigger Score** | 0-1.0 | Correlation between this meeting type and physiological stress response over time |
+
+### Privacy Rules (Non-Negotiable)
+- **Silent mode default** — local audio capture, invisible to other participants
+- **Visible mode opt-in** — user explicitly enables bot-joins-call
+- **Transcripts never stored raw** — only structured summaries and extracted action items persist
+- **Other participants' names** — stored as identifiers for speaker diarization, never shared externally
+- **Meeting content** — treated same as email: metadata and structure only, never indexed for advertising or shared with third parties
+
+---
+
 ## Dimension 2: Schedule (CalendarProvider)
 
 ### Providers

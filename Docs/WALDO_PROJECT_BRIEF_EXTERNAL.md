@@ -94,7 +94,30 @@ Waldo connects to your task manager and understands your workload:
 - **Completion tracking** — learns which energy states produce your best output
 - **Deferral intelligence** — uses predicted tomorrow readiness to suggest when to tackle hard tasks
 
-### VI. Mood & Lifestyle Awareness
+### VI. Meeting Intelligence — Waldo Joins Your Calls
+
+Waldo sits in your meetings and captures everything — so you can be fully present instead of taking notes:
+
+- **Live meeting transcription** — real-time transcript with speaker identification. Works with Google Meet, Zoom, and Microsoft Teams.
+- **Automatic meeting notes** — structured summary generated after every meeting: key decisions, action items, who said what, open questions
+- **Action item extraction** — "John will review the deck by Thursday" → automatically creates a task in your task manager
+- **Meeting → stress correlation** — Waldo cross-references your biometric state during the meeting with what was discussed. "Your HRV dropped 22% during the budget conversation. That topic consistently stresses you."
+- **Pre-meeting prep** — before recurring meetings, Waldo surfaces: last meeting's action items, what's changed since, your current readiness level
+- **Post-meeting recovery tracking** — monitors your HRV and stress after meetings to learn which meetings drain you most
+- **Meeting load intelligence** — combines transcript analysis with calendar metadata to understand not just HOW MANY meetings, but which ones are cognitively expensive
+- **Conversation insights for the Constellation** — topics, decisions, and stress triggers from meetings become data points that connect to health patterns over weeks and months
+
+**How it works for the user:** Waldo joins your scheduled calls automatically (or you invite it). It listens, transcribes, and summarizes. After the meeting, the notes appear in your dashboard and the intelligence feeds into your Morning Wag: "Yesterday's 3pm strategy session was your biggest stress trigger this week — your HRV dropped 25% and didn't recover until after dinner."
+
+**Privacy:** Waldo can operate in two modes:
+- **Visible mode** — joins as a participant (other attendees see "Waldo" in the call)
+- **Silent mode** — captures audio locally from your device only. No one else knows. No bot in the meeting.
+
+Users choose their preference per meeting or globally.
+
+---
+
+### VII. Mood & Lifestyle Awareness
 
 Waldo infers mood from music listening patterns and screen habits:
 
@@ -214,6 +237,9 @@ Apple Watch · Samsung Galaxy Watch · Fitbit · WHOOP · Oura Ring · Google Fi
 ### Work & Productivity
 Google Calendar · Outlook · Apple Calendar · Google Tasks · Todoist · Notion · Linear · Microsoft To Do
 
+### Meetings
+Google Meet · Zoom · Microsoft Teams — live transcription, speaker identification, automatic notes, action item extraction
+
 ### Communication
 Gmail · Outlook (metadata only — Waldo **never reads email content**)
 
@@ -278,15 +304,17 @@ Every AI agent being built today knows what you need to do. **Waldo knows if you
 
 ## What Makes Waldo Different
 
-| | Health apps (WHOOP, Oura) | Productivity agents (Lindy, Reclaim) | Waldo |
-|---|---|---|---|
-| Reads your body | ✅ | ❌ | ✅ |
-| Proactively messages you | Limited (in-app only) | ✅ | ✅ |
-| Works on any smartwatch | ❌ (device-locked) | N/A | ✅ |
-| Understands your schedule | ❌ | ✅ | ✅ |
-| Learns your personal patterns | Basic | Basic | ✅ (deep, multi-source) |
-| Acts before you ask | ❌ | Partially | ✅ |
-| Price | $17–30/mo | $10–50/mo | Free tier + $4/mo Pro |
+| | Health apps (WHOOP, Oura) | Productivity agents (Lindy, Reclaim) | Meeting AI (Otter, Fireflies) | Waldo |
+|---|---|---|---|---|
+| Reads your body | ✅ | ❌ | ❌ | ✅ |
+| Proactively messages you | Limited (in-app) | ✅ | ❌ | ✅ |
+| Joins your meetings | ❌ | ❌ | ✅ | ✅ |
+| Connects meetings to biology | ❌ | ❌ | ❌ | ✅ |
+| Works on any smartwatch | ❌ (locked) | N/A | N/A | ✅ |
+| Understands your schedule | ❌ | ✅ | Calendar only | ✅ |
+| Learns your patterns | Basic | Basic | Conversation only | ✅ (all sources) |
+| Acts before you ask | ❌ | Partially | ❌ | ✅ |
+| Price | $17–30/mo | $10–50/mo | $10–20/mo | Free + $4/mo Pro |
 
 **The empty quadrant:** Proactive + channel-delivered + biologically grounded + device-agnostic + evolving memory. No one else is there.
 

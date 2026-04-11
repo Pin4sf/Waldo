@@ -130,7 +130,8 @@ Adapter Layer (implementations swap freely)
   ├── EmailProvider       → Gmail | Outlook (Graph) | Mock — metadata only, never content
   ├── TaskProvider        → Todoist | Notion | Linear | Google Tasks | Microsoft To Do | Mock
   ├── MusicProvider       → Spotify | YouTube Music | Apple Music | Mock
-  └── ScreenTimeProvider  → RescueTime | Mock
+  ├── ScreenTimeProvider  → RescueTime | Mock
+  └── MeetingAdapter      → Local audio capture (Phase 2 MVP) | Recall.ai (Phase 2+) | Meeting BaaS MCP | Mock
 ```
 
 Rules:

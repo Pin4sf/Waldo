@@ -1,315 +1,299 @@
-# Adapter ecosystem
+# Waldo adapter ecosystem — technical specification
 
-Waldo uses **10 adapter interfaces** across **6 dimensions** of a person's life. Every external integration goes through an adapter — agent logic never references a specific provider. Adding a new integration = implement the interface. No changes to CRS, prompt builder, or agent reasoning.
+## Overview
 
-## The 10 adapters
+Waldo uses 10 adapter interfaces across 6 dimensions of a person's life. Every external integration goes through an adapter — agent logic never references a specific provider. Adding a new integration = implement the interface. No changes to CRS, prompt builder, or agent reasoning.
 
-```mermaid
-graph LR
-    subgraph User["User's Life"]
-        direction TB
-        BODY["🫀 Body"]
-        SCHED["📅 Schedule"]
-        COMM["💬 Communication"]
-        TASK["✅ Tasks"]
-        MOOD["🎵 Mood"]
-        SCREEN["📱 Screen"]
-    end
-
-    subgraph Adapters["Adapter Layer"]
-        direction TB
-        HDS["HealthDataSource"]
-        CAL["CalendarProvider"]
-        EMAIL["EmailProvider"]
-        TP["TaskProvider"]
-        MP["MusicProvider"]
-        STP["ScreenTimeProvider"]
-        WP["WeatherProvider"]
-        SA["StorageAdapter"]
-        LLM["LLMProvider"]
-        CH["ChannelAdapter"]
-    end
-
-    subgraph Providers["Implementations"]
-        direction TB
-        P1["Apple Watch · Oura · Fitbit · WHOOP"]
-        P2["Google Calendar · Outlook · Apple Calendar"]
-        P3["Gmail · Outlook — metadata only"]
-        P4["Todoist · Notion · Linear · Google Tasks"]
-        P5["Spotify · YouTube Music · Apple Music"]
-        P6["RescueTime"]
-        P7["Open-Meteo weather + AQI"]
-        P8["op-sqlite + SQLCipher"]
-        P9["Claude Haiku · multi-model"]
-        P10["Telegram · WhatsApp · Discord · Slack"]
-    end
-
-    BODY --> HDS --> P1
-    SCHED --> CAL --> P2
-    COMM --> EMAIL --> P3
-    TASK --> TP --> P4
-    MOOD --> MP --> P5
-    SCREEN --> STP --> P6
-    HDS -.-> WP --> P7
-    HDS -.-> SA --> P8
-    HDS -.-> LLM --> P9
-    HDS -.-> CH --> P10
-
-    style User fill:#fef3c7,stroke:#f59e0b
-    style Adapters fill:#e0f2fe,stroke:#0ea5e9
-    style Providers fill:#f0fdf4,stroke:#22c55e
+```
+User's Life
+  ├── Body         → HealthDataSource     → Apple Watch, Oura, Fitbit, WHOOP
+  ├── Schedule     → CalendarProvider     → Google Calendar, Outlook, Apple Calendar
+  ├── Communication→ EmailProvider        → Gmail, Outlook (metadata only)
+  ├── Tasks        → TaskProvider         → Todoist, Notion, Linear, Google Tasks
+  ├── Mood         → MusicProvider        → Spotify, YouTube Music, Apple Music
+  ├── Screen       → ScreenTimeProvider   → RescueTime
+  ├── Environment  → WeatherProvider      → Open-Meteo (weather + AQI)
+  ├── Storage      → StorageAdapter       → op-sqlite + SQLCipher
+  ├── AI           → LLMProvider          → Claude Haiku, multi-model
+  └── Delivery     → ChannelAdapter       → Telegram, WhatsApp, Discord, Slack, In-App
 ```
 
-## 32 metrics across 6 dimensions
+---
 
-```mermaid
-mindmap
-  root((Waldo<br/>Intelligence))
-    Body
-      CRS 0-100
-      Sleep Score
-      HRV Score
-      Circadian Score
-      Activity Score
-      Day Strain 0-21
-      Sleep Debt hours
-      Stress Confidence
-      Resilience
-      Recovery-Load Balance
-    Schedule
-      Meeting Load Score
-      Focus Time Score
-      Back-to-Back Count
-      Boundary Violations
-      Schedule Density
-    Communication
-      Communication Stress Index
-      Response Pressure
-      After-Hours Ratio
-      Volume Spike
-      Thread Depth
-    Tasks
-      Task Pile-Up
-      Completion Velocity
-      Procrastination Index
-      Urgency Queue
-      Task-Energy Match
-    Mood and Screen
-      Mood Score
-      Screen Time Quality
-      Late-Night Digital
-      Focus Sessions
-    Combined
-      Daily Cognitive Load
-      Burnout Trajectory
-      Intelligence Score
-```
+## Dimension 1: Body (HealthDataSource)
 
-## How metrics flow into the agent
+### Providers
+| Provider | API | Cost | Signals |
+|----------|-----|------|---------|
+| Apple Watch (HealthKit) | Native | Free | HR, HRV (beat-to-beat RMSSD), sleep stages, SpO2, steps, wrist temp, VO2Max |
+| Health Connect (Android) | Native | Free | HR, HRV (no Samsung), sleep, steps, SpO2 |
+| Oura | REST API | Free | Sleep, nightly HRV, readiness, HR, temp |
+| Fitbit | Web API | Free | HR, sleep-only RMSSD, sleep stages, SpO2 |
+| WHOOP | API | Free | Recovery, strain, daily RMSSD, sleep, respiratory |
 
-```mermaid
-flowchart TB
-    subgraph Sources["Data Sources"]
-        AW["Apple Watch"]
-        GC["Google Calendar"]
-        GM["Gmail"]
-        TD["Todoist"]
-        SP["Spotify"]
-        RT["RescueTime"]
-    end
+### 10 Metrics
 
-    subgraph Compute["Computation Layer"]
-        CRS["CRS Engine<br/>Sleep×0.35 + HRV×0.25<br/>+ Circadian×0.25 + Activity×0.15"]
-        STRAIN["Strain Engine<br/>TRIMP → 0-21"]
-        DEBT["Sleep Debt<br/>14-day weighted"]
-        STRESS["Stress Detector<br/>4-signal confidence"]
-        MLS["Meeting Load Score<br/>duration × adjacency × attendees"]
-        CSI["Comm Stress Index<br/>volume + pressure + after-hours"]
-        TASKS["Task Pressure<br/>pile-up + velocity + urgency"]
-        MOOD["Mood Inference<br/>Spotify valence + energy"]
-        DCL["Daily Cognitive Load<br/>= MLS + CSI + Tasks + Debt"]
-        BTS["Burnout Trajectory<br/>30-day rolling slopes"]
-    end
-
-    subgraph Intelligence["Intelligence Layer"]
-        PATTERNS["Pattern Detector<br/>375 cross-source correlations"]
-        SPOTS["Spots Engine<br/>1,498+ observations"]
-        PROFILE["User Intelligence<br/>routines, habits, baselines"]
-    end
-
-    subgraph Agent["Agent"]
-        PROMPT["Prompt Builder<br/>11 sections, ~2,100 chars"]
-        SOUL["Soul File<br/>5 zones × 3 modes"]
-        CLAUDE["Claude Haiku"]
-    end
-
-    subgraph Output["Waldo Output"]
-        MW["Morning Wag"]
-        FA["Fetch Alert"]
-        NUDGE["Smart Nudge"]
-        AUTO["Automation"]
-    end
-
-    AW --> CRS & STRAIN & DEBT & STRESS
-    GC --> MLS
-    GM --> CSI
-    TD --> TASKS
-    SP --> MOOD
-    RT --> DCL
-
-    CRS & STRAIN & DEBT & STRESS & MLS & CSI & TASKS & MOOD --> PATTERNS
-    CRS & STRAIN & DEBT & STRESS & MLS & CSI --> SPOTS
-    PATTERNS & SPOTS --> PROFILE
-
-    CRS & MLS & CSI & TASKS & MOOD & DCL & BTS --> PROMPT
-    PROFILE & PATTERNS --> PROMPT
-    SOUL --> CLAUDE
-    PROMPT --> CLAUDE
-
-    CLAUDE --> MW & FA & NUDGE & AUTO
-
-    style Sources fill:#eef2ff,stroke:#6366f1
-    style Compute fill:#f0fdf4,stroke:#22c55e
-    style Intelligence fill:#fef3c7,stroke:#f59e0b
-    style Agent fill:#fce7f3,stroke:#ec4899
-    style Output fill:#e0f2fe,stroke:#0ea5e9
-```
-
-## Key formulas
-
-### CRS (Cognitive Readiness Score)
+**CRS (Cognitive Readiness Score)** — 0-100
 ```
 CRS = (Sleep × 0.35) + (HRV × 0.25) + (Circadian × 0.25) + (Activity × 0.15)
-Range: 0-100. Zones: Peak (80+), Moderate (50-79), Low (<50)
 ```
 
-### Day Strain (cardiovascular load)
+**Sleep Score** — 0-100
 ```
-TRIMP = Σ (zone_minutes × zone_weight)
-Weights: [1.0, 1.5, 2.5, 4.0, 8.0] for zones 1-5
-Strain = min(21, log10(TRIMP + 1) × 7)
-```
-
-### Stress Confidence
-```
-Confidence = 0.35×(HRV drop) + 0.25×(HR elevation) + 0.20×(duration) + 0.20×(sedentary)
-Threshold: ≥0.60 fires Fetch Alert. 2h cooldown. Max 3/day.
+Start at 100. Subtract:
+  <6h: -15/hour. 6-7h: -10/hour. >9.5h: -5
+  Deep <8%: -20. <13%: -10. REM <20%: -8
+  Efficiency <85%: proportional. Bedtime shift >60min: -10. >120min: -20
+  Sleep debt (7d rolling): -5/hour deficit, max -30
 ```
 
-### Meeting Load Score
+**HRV Score** — 0-100
 ```
-Per meeting: (duration/30min) × adjacency × attendees × time_factor
-adjacency: 1.0 (>15min gap), 1.4 (5-15min), 1.8 (back-to-back)
-Daily MLS = Σ all meetings
-```
-
-### Daily Cognitive Load
-```
-DCL = normalize(MLS)×0.25 + normalize(CSI)×0.25 + normalize(TaskPileUp)×0.20 + normalize(SleepDebt)×0.30
+RMSSD computed from raw beats → time-of-day normalized (6-block ratios)
+→ compared to 7-day EMA baseline (alpha=0.3)
+  >+15% above baseline → 90. Within ±5% → 70. <-25% → 20
+  Trend bonus: 7d vs 30d improving → +5
 ```
 
-### Burnout Trajectory (30-day)
+**Day Strain** — 0-21
 ```
-BTS = HRV_slope×0.35 + sleep_debt_trend×0.25 + after_hours_trend×0.20 + MLS_trend×0.20
-> 0.6 = burnout trajectory
+TRIMP: time in each HR zone × weight [1.0, 1.5, 2.5, 4.0, 8.0]
+Log-scaled: strain = min(21, log10(trimp + 1) × 7)
+  0-4: rest. 4-10: low. 10-14: medium. 14-18: high. 18+: overreaching
 ```
+
+**Sleep Debt** — 0-20h
+```
+14-day weighted rolling: debt += max(0, 7.5h - actual) × recency_weight
+Repayment at 0.5x rate. Direction: accumulating / paying off / stable
+```
+
+**Stress Confidence** — 0.0-1.0
+```
+0.35 × HRV_drop + 0.25 × HR_elevation + 0.20 × duration + 0.20 × sedentary
+  ≥0.60: Fetch Alert fires. ≥0.80: HIGH alert. <0.40: ignore
+  2h cooldown. Max 3/day. Must sustain 10+ minutes.
+```
+
+Plus: Circadian Score, Activity Score, Resilience (14-day stability), Recovery-Load Balance.
+
+---
+
+## Dimension 1B: Meeting Intelligence (MeetingAdapter — Phase 2)
+
+### Providers
+| Provider | Mechanism | Cost | Signals |
+|----------|-----------|------|---------|
+| Recall.ai API | Cloud bot joins via meeting URL | $0.02-0.04/min | Audio, transcript, speaker ID, screen share, chat |
+| Local audio capture | System audio on user's device | Free (Whisper transcription) | Audio, transcript (no speaker ID without diarization) |
+| Google Meet Media API | Native API (restricted access) | Free | Audio, video, participant events |
+| Zoom Meeting SDK | VM-based bot | Free (SDK) + compute | Audio streams, speaker ID |
+| Meeting BaaS MCP | MCP server for meeting bots | Varies | Transcript, speaker ID, recording |
+
+### Architecture Decision
+**Phase 2 MVP:** Local system audio capture (Granola model) — invisible to other participants, no cloud VM costs, works with ANY meeting platform. Transcription via faster-whisper (local, free) or Deepgram API ($0.0043/min).
+
+**Phase 2+:** Recall.ai API for visible meeting bot — full speaker diarization, chat capture, screen share context. Per-meeting cost: ~$0.60 for a 30-min meeting.
+
+### Capabilities
+| Capability | What it gives Waldo | Phase |
+|-----------|-------------------|-------|
+| **Live transcription** | Real-time text of what's said | Phase 2 |
+| **Speaker identification** | Who said what (diarization) | Phase 2 (Recall.ai) |
+| **Automatic meeting notes** | Structured summary: decisions, action items, open questions | Phase 2 |
+| **Action item extraction** | "John will review by Thursday" → task created | Phase 2 |
+| **Meeting → biometric correlation** | Cross-reference HRV/HR DURING the call with transcript topics | Phase 2 |
+| **Pre-meeting prep** | Surface: last meeting's action items, what changed, current CRS | Phase 2 |
+| **Post-meeting recovery tracking** | How long HRV takes to recover after specific meeting types | Phase 2 |
+| **Conversation → Constellation patterns** | Stress triggers, topic correlations feed long-term pattern map | Phase 2+ |
+
+### 5 Meeting Metrics
+| Metric | Range | What it means |
+|--------|-------|---------------|
+| **Meeting Cognitive Cost** | 0-100 | Biometric drain per meeting (HRV delta × duration × participant count) |
+| **Speaking Ratio** | 0-100% | How much you talked vs listened (high ratio + low CRS = overextension) |
+| **Action Item Load** | 0-20 | Tasks extracted from this meeting — cognitive commitment made |
+| **Recovery Time** | 0-60 min | How long your HRV takes to return to baseline after this meeting |
+| **Meeting Stress Trigger Score** | 0-1.0 | Correlation between this meeting type and physiological stress response over time |
+
+### Privacy Rules (Non-Negotiable)
+- **Silent mode default** — local audio capture, invisible to other participants
+- **Visible mode opt-in** — user explicitly enables bot-joins-call
+- **Transcripts never stored raw** — only structured summaries and extracted action items persist
+- **Other participants' names** — stored as identifiers for speaker diarization, never shared externally
+- **Meeting content** — treated same as email: metadata and structure only, never indexed for advertising or shared with third parties
+
+---
+
+## Dimension 2: Schedule (CalendarProvider)
+
+### Providers
+| Provider | API | Cost | Data format |
+|----------|-----|------|------------|
+| Google Calendar | REST API / Takeout .ics | Free (1M req/day) | Events with attendees, recurrence, duration |
+| Microsoft Outlook | Graph API | Free | Same + Teams integration |
+| Apple Calendar | EventKit (iOS) | Free | Native on-device |
+
+### 5 Metrics
+
+**Meeting Load Score (MLS)** — 0-15+
+```
+Per meeting: (duration/30min) × adjacency_factor × attendee_factor × time_factor
+  adjacency: 1.0 (>15min gap), 1.4 (5-15min), 1.8 (back-to-back)
+  attendees: 1.0 + 0.05 × max(count - 3, 0)
+  time: 0.8 (morning peak), 1.0 (midday), 1.2 (post-lunch)
+Daily MLS = sum of all meetings
+  0-3: light. 3-6: moderate. 6-10: heavy. 10+: overloaded
+```
+
+**Focus Time Score** — 0-8h
+```
+Scan for gaps ≥90 minutes. Score each:
+  duration_base × circadian_alignment × preceding_gap_quality
+  circadian: 1.3 (peak), 1.0 (neutral), 0.7 (trough)
+  gap_quality: 1.0 (>15min transition), 0.7 (<5min after meeting)
+```
+
+Plus: Back-to-Back Count, Boundary Violations, Schedule Density.
+
+---
+
+## Dimension 3: Communication (EmailProvider)
+
+### Providers
+| Provider | API | Cost | Privacy |
+|----------|-----|------|---------|
+| Gmail | REST API / Takeout .mbox | Free | Headers only, never body content |
+| Microsoft Outlook | Graph API | Free | Headers only |
+
+### 5 Metrics
+
+**Communication Stress Index (CSI)** — 0-100
+```
+volume_deviation × 0.3 + response_pressure × 0.3
+  + after_hours_ratio × 0.2 + thread_fragmentation × 0.2
+```
+
+**Response Pressure** — 0-1.0: unanswered >2h / total inbox
+**After-Hours Ratio** — 0-1.0: messages outside 8am-7pm / total
+**Volume Spike** — 0.5-3x: today / 30-day average
+**Thread Depth** — 1-20: avg replies per conversation
+
+---
+
+## Dimension 4: Tasks (TaskProvider)
+
+### Providers
+| Provider | API | Cost |
+|----------|-----|------|
+| Google Tasks | REST API / Takeout JSON | Free |
+| Todoist | REST + Sync API | Free |
+| Notion | REST API | Free |
+| Linear | GraphQL API | Free |
+| Microsoft To Do | Graph API | Free |
+
+### 5 Metrics
+
+**Task Pile-Up** — overdue count (0-50)
+**Completion Velocity** — completed / created per day (0-2.0)
+**Procrastination Index** — avg days creation → completion (0-30)
+**Urgency Queue** — due within 24h count (0-10)
+**Task-Energy Match** — hard tasks during CRS peak / total hard tasks (0-100%)
+
+---
+
+## Dimension 5: Mood & Screen (MusicProvider + ScreenTimeProvider)
+
+### Providers
+| Provider | API | Cost |
+|----------|-----|------|
+| Spotify | Web API (OAuth) | Free |
+| YouTube Music | Takeout JSON | Free |
+| RescueTime | REST API | Free |
+
+### 4 Metrics
+
+**Mood Score** — 0-100: Spotify audio valence × energy weighted
+**Screen Time Quality** — 0-100%: productive / total screen hours
+**Late-Night Digital** — 0-3h: screen/music after 10pm
+**Focus Session Count** — 0-10: uninterrupted 25min+ blocks
+
+---
+
+## Dimension 6: Combined (Master Metrics)
+
+**Daily Cognitive Load** — 0-100
+```
+normalize(MLS) × 0.25 + normalize(CSI) × 0.25
+  + normalize(Task Pile-Up) × 0.20 + normalize(Sleep Debt impact) × 0.30
+The single "how overloaded is this person" number.
+```
+
+**Burnout Trajectory Score** — -1 to +1
+```
+30-day rolling slopes:
+  HRV_baseline_slope × 0.35 + sleep_debt_trend × 0.25
+  + after_hours_trend × 0.20 + MLS_trend × 0.20
+  > 0.6 = burnout trajectory. < -0.3 = recovering.
+```
+
+**Waldo Intelligence Score** — 0-100
+```
+(connected_sources / 10) × (metric_coverage) × (pattern_confidence)
+More sources = exponentially more cross-correlations.
+C(10,2)=45 pairs, C(10,3)=120 triples. Total: 375 unique correlations.
+```
+
+---
+
+## 23 Agent capabilities
+
+### Proactive (Waldo speaks first) — 11
+1. Enhanced Morning Wag (health + schedule + tasks)
+2. Pre-meeting energy prep
+3. Back-to-back circuit breaker
+4. Focus block protection
+5. Sleep debt alarm
+6. Communication overwhelm alert
+7. Weekly pattern breaker (e.g., Monday syndrome)
+8. Burnout trajectory warning (30-day)
+9. Post-exercise cognitive boost window
+10. Evening review (all dimensions)
+11. Weekend recovery forecast
+
+### Task intelligence (Waldo plans your work) — 8
+Waldo never blocks tasks. Adapts HOW, not WHETHER. Deadlines are real.
+12. Deadline-aware prioritization (urgency × importance × energy_fit)
+13. Smart sequencing (hardest at peak, momentum starters when depleted)
+14. Break-it-down (25-min chunks with micro-resets for low-CRS + deadline)
+15. Overdue triage ("pick 3, defer the rest")
+16. Recurring task surfacing from day-of-week patterns
+17. Deferral intelligence with predicted tomorrow CRS
+18. Implicit task capture (calendar follow-ups, stale email threads)
+19. Completion tracking (learns productive energy states per user)
+
+### Automation (Waldo acts) — 5
+20. Meeting rescheduling suggestions
+21. Auto-DND on Slack during focus/low-CRS
+22. Recovery day enforcement
+23. Communication batching
+24. Sleep optimization (screen time nudge)
+
+### Learning (Waldo gets smarter) — 6
+25. Meeting → stress correlation
+26. Music → mood → CRS link
+27. Coding time vs cognitive state
+28. Email → sleep causation
+22. Screen time → recovery correlation
+23. Task completion timing patterns
+
+---
 
 ## Cross-source correlation math
 
-```
-10 data sources
-C(10,2) = 45 two-source pairs
-C(10,3) = 120 three-source triples
-C(10,4) = 210 four-source combos
-Total: 375 unique correlations
+10 data sources. 375 unique 2/3/4-way combinations. Each produces Spots, Patterns, Nudges, or Automations.
 
-Each produces: Spot, Pattern, Nudge, or Automation
-Theoretical: 375 × 4 = 1,500 unique agent behaviors
-Practical: ~80-100 meaningful behaviors
-```
+Theoretical capability space: **1,500 unique agent behaviors.**
+Practical meaningful behaviors: **~80-100.**
 
 Every new data source multiplies intelligence exponentially, not linearly.
-
-## 23 agent capabilities
-
-### Proactive (11)
-| # | Capability | Data sources needed |
-|---|-----------|-------------------|
-| 1 | Enhanced Morning Wag | Health + Calendar + Tasks |
-| 2 | Pre-meeting energy prep | Health + Calendar |
-| 3 | Back-to-back circuit breaker | Health + Calendar |
-| 4 | Focus block protection | Calendar + Health |
-| 5 | Sleep debt alarm | Health |
-| 6 | Communication overwhelm | Email/Slack + Health |
-| 7 | Weekly pattern breaker | Health + Calendar (pattern) |
-| 8 | Burnout trajectory warning | Health + Calendar + Email (30-day) |
-| 9 | Post-exercise cognitive boost | Health + Tasks |
-| 10 | Evening review | All sources |
-| 11 | Weekend recovery forecast | Health + Calendar |
-
-### Task intelligence (8) — adapts HOW, never blocks WHAT
-> Waldo never says "don't do this task." Deadlines are real. Waldo helps get it done.
-
-| # | Capability | What Waldo does |
-|---|-----------|----------------|
-| 12 | Deadline-aware prioritization | Ranks by urgency×0.4 + importance×0.3 + energy_fit×0.3. Due-today always surfaces. |
-| 13 | Smart sequencing | Hardest first during peak, admin during trough, momentum starter when depleted |
-| 14 | Break-it-down | Low CRS + deadline → "25-min chunks with 5-min breaks. Start with the section you know." |
-| 15 | Overdue triage | >10 overdue → "Pick 3 that matter. Defer, delegate, or delete the rest." |
-| 16 | Recurring surfacing | Day-of-week match → "It's Monday. Workout: Legs. CRS 71. Good to go?" |
-| 17 | Deferral intelligence | Due tomorrow + low today + predicted recovery → "Push through now or hit it fresh?" |
-| 18 | Implicit capture | Detects follow-ups from calendar events, stale email threads, patterns |
-| 19 | Completion tracking | Learns which energy states are productive for this user over time |
-
-### Automation (5)
-| # | Capability | What Waldo does |
-|---|-----------|----------------|
-| 20 | Meeting rescheduling | "Push 8am to 10am — predicted CRS jumps 52 → 68" |
-| 21 | Auto-DND | Sets Slack status during focus/low-CRS |
-| 22 | Recovery day enforcement | Marks light-calendar + low-CRS days |
-| 23 | Communication batching | Suggests email blocks, not continuous |
-| 24 | Sleep optimization | Screen time nudge based on data |
-
-### Task nudge examples
-
-| Situation | CRS | What Waldo says |
-|-----------|-----|----------------|
-| Deadline today, good energy | 82 | "82 and the deadline is today. Knock it out before noon." |
-| Deadline today, low energy | 45 | "45 but this is due today. Three 25-min chunks. Start with what you know. Good enough beats perfect." |
-| Deadline tomorrow, depleted | 38 | "Due tomorrow. You're at 38 today, predicted 68 tomorrow morning. Push through or hit it fresh?" |
-| 13 tasks overdue | 65 | "13 overdue. That number is the problem. Pick 3 that matter. Defer the rest." |
-| No momentum, low energy | 35 | "Start with one thing. Reply to one message. Then see how you feel." |
-| Peak + task completed | 82 | "You cleared that during your peak window. That's the pattern — hard stuff before noon." |
-| Recurring task detected | 71 | "It's Monday. Your list says 'Workout: Legs'. CRS 71. Good to go?" |
-
-### Learning (6)
-| # | Pattern | Cross-source insight |
-|---|---------|---------------------|
-| 25 | Meeting → stress | "Monday 2pm sync drops your HRV 25%" |
-| 26 | Music → mood → CRS | "Low-energy playlists after 3pm → CRS <60 next day" |
-| 27 | Coding time vs state | "You commit at 10pm but CRS says that's decline" |
-| 28 | Email → sleep | "Emails after 10pm → sleep efficiency drops 8%" |
-| 29 | Screen → recovery | "<2h recreational screen → CRS 9 points higher" |
-| 30 | Task timing | "72% of completions during CRS 70+" |
-
-## Competitive position
-
-```mermaid
-quadrantChart
-    title Agent capability vs biological awareness
-    x-axis Low biological awareness --> High biological awareness
-    y-axis Low agent capability --> High agent capability
-    quadrant-1 The goal
-    quadrant-2 Smart but body-blind
-    quadrant-3 Neither
-    quadrant-4 Aware but passive
-    Waldo Phase 2: [0.85, 0.80]
-    Waldo MVP: [0.75, 0.45]
-    Motion: [0.15, 0.75]
-    Reclaim: [0.10, 0.60]
-    WHOOP: [0.80, 0.15]
-    Oura: [0.70, 0.10]
-    RISE: [0.55, 0.05]
-    Sunsama: [0.20, 0.30]
-    Lifestack: [0.60, 0.25]
-```
