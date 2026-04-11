@@ -21,7 +21,7 @@
 | 3-layer email validation (format + disposable + DNS MX) | ✅ | Blocks fake/throwaway emails |
 | Duplicate handling (silent success on re-submit) | ✅ | Supabase unique constraint → 23505 → success |
 | Navbar: all links disabled with Waldo-voice tooltips | ✅ | Page dims to 40% on nav hover |
-| Waitlist confirmation email in Waldo's voice | 🔄 | Loops — integration in progress (see §Email Infrastructure) |
+| Waitlist confirmation email in Waldo's voice | ✅ | Loops — waitlist_signup event → confirmation email. heywaldo.in sender domain verified. |
 | "Where's Waldo?" social teasers on X/Instagram | ⬜ | 3 posts/week, cryptic, no product shown |
 | Founder posts — 5–7/week, no product mentions (wks 1–2) | ⬜ | Social content, not code |
 | 50 hand-picked early access invites sent | ⬜ | |
