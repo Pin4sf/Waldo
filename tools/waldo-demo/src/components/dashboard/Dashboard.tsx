@@ -261,21 +261,34 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
     } finally { setIsChatting(false); }
   }, [chatInput, isChatting, selectedDate, today, userId]);
 
-  // ─── Build intelligence (generate spots/patterns from historical data) ──
+  // ─── Build intelligence + bootstrap (full pipeline) ─────────────
   const handleBuildIntelligence = useCallback(async () => {
     if (buildingIntel) return;
     setBuildingIntel(true);
     setBuildResult(null);
     try {
-      const result = await cloud.triggerBuildIntelligence(userId);
-      setBuildResult(result);
+      // Step 1: Generate spots/baselines from health data
+      const biResult = await cloud.triggerBuildIntelligence(userId);
+
+      // Step 2: Run bootstrap — full historical analysis → workspace files
+      const bootstrapResult = await cloud.triggerBootstrap(userId);
+
+      setBuildResult({
+        spots_generated: biResult.spots_generated ?? 0,
+        baselines_computed: biResult.baselines_computed ?? 0,
+        patterns_promoted: biResult.patterns_promoted ?? 0,
+        message: `Intelligence built. ${bootstrapResult.files_written?.length ?? 0} workspace files created. ${bootstrapResult.data_summary ? `Sources: ${(bootstrapResult.data_summary as any).connected_sources?.join(', ') ?? 'health'}` : ''}`,
+      });
+
       // Reload spots + patterns after building
-      const [newSpots, newPatterns] = await Promise.all([
+      const [newSpots, newPatterns, newLearning] = await Promise.all([
         cloud.fetchSpots(userId, 90),
         cloud.fetchPatterns(userId),
+        cloud.fetchLearningTimeline(userId),
       ]);
       setSpots(newSpots ?? []);
       setPatterns(newPatterns ?? []);
+      setIntelligenceScore(newLearning?.intelligenceScore ?? 0);
     } catch (err) {
       setBuildResult({ spots_generated: 0, baselines_computed: 0, patterns_promoted: 0, message: '', error: String(err) });
     } finally { setBuildingIntel(false); }

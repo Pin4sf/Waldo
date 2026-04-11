@@ -130,6 +130,20 @@ const WRITE_TOOLS: Tool[] = [
   },
 ];
 
+const WORKSPACE_TOOLS: Tool[] = [
+  {
+    name: 'read_workspace',
+    description: 'Read a file from Waldo\'s persistent workspace. Available files: patterns.md (detected patterns), constellation.md (cross-domain connections), baselines.md (current baselines). Use when the user asks about patterns, trends, or historical context.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', description: 'Workspace file to read: patterns.md, constellation.md, baselines.md, profile.md' },
+      },
+      required: ['file'],
+    },
+  },
+];
+
 // ─── Per-trigger tool permissions ────────────────────────────────
 
 export function getToolsForTrigger(triggerType: TriggerMode): Tool[] {
@@ -145,7 +159,7 @@ export function getToolsForTrigger(triggerType: TriggerMode): Tool[] {
     case 'onboarding':
       return [...readNames(['read_memory']), ...WRITE_TOOLS];
     default: // conversational
-      return [...READ_TOOLS, ...WRITE_TOOLS];
+      return [...READ_TOOLS, ...WRITE_TOOLS, ...WORKSPACE_TOOLS];
   }
 }
 
@@ -342,6 +356,20 @@ export async function executeTool(
       void syncMemoryToSupabase(userId, key, safe, env);
 
       return `Remembered: ${key} = ${safe.slice(0, 50)}`;
+    }
+
+    case 'read_workspace': {
+      const file = String(input?.file ?? '');
+      if (!file) return 'Specify a file to read: patterns.md, constellation.md, baselines.md, profile.md';
+      const allowed = ['patterns.md', 'constellation.md', 'baselines.md', 'profile.md', 'today.md'];
+      if (!allowed.includes(file)) return `File not accessible. Available: ${allowed.join(', ')}`;
+      try {
+        const { readWorkspaceFile } = await import('./workspace.js');
+        const content = await readWorkspaceFile((env as any).WALDO_WORKSPACE as R2Bucket, userId, file);
+        return content ?? `File ${file} not found. Bootstrap may not have run yet.`;
+      } catch {
+        return `Workspace not available. Bootstrap may not have run yet.`;
+      }
     }
 
     default:

@@ -229,6 +229,8 @@ export class WaldoAgent extends DurableObject<Env> {
       if (request.method === 'POST' && path === 'provision') return this.handleProvision(request);
       if (request.method === 'POST' && path === 'chat') return this.handleChat(request);
       if (request.method === 'POST' && path === 'trigger') return this.handleTrigger(request);
+      if (request.method === 'POST' && path === 'workspace') return this.handleWorkspaceWrite(request);
+      if (request.method === 'GET' && path.startsWith('workspace/')) return this.handleWorkspaceRead(path.replace('workspace/', ''));
       if (request.method === 'GET' && path === 'status') return this.handleStatus();
       if (request.method === 'DELETE' && path === 'reset') return this.handleReset(request);
       return json({ error: 'Not found' }, 404);
@@ -416,9 +418,16 @@ export class WaldoAgent extends DurableObject<Env> {
       };
     }
 
-    // 3. Build system prompt (soul + zone + mode + profile + memory)
+    // 3. Load workspace context from R2 (profile + baselines + today)
+    let workspaceContext = '';
+    try {
+      const { loadWorkspaceContext } = await import('./workspace.js');
+      workspaceContext = await loadWorkspaceContext(this.env.WALDO_WORKSPACE, userId);
+    } catch { /* R2 not available or not bootstrapped yet — fallback to SQLite memory */ }
+
+    // 4. Build system prompt (soul + zone + mode + workspace + memory fallback)
     const system = buildSystemPrompt(triggerType, getZone(crsScore), name, {
-      memory, profileMemory: profileMem, recentDiaries,
+      memory, profileMemory: profileMem, recentDiaries, workspaceContext,
     });
 
     // 4. Build initial user message with narrative context + memory fencing
@@ -581,6 +590,38 @@ export class WaldoAgent extends DurableObject<Env> {
       const data = await res.json() as Array<{ confidence: number }>;
       return data[0]?.confidence ?? 0;
     } catch { return 0; }
+  }
+
+  // ─── Workspace: R2 file read/write ─────────────────────────────
+
+  private async handleWorkspaceWrite(request: Request): Promise<Response> {
+    const body = await request.json().catch(() => null) as { file?: string; content?: string } | null;
+    if (!body?.file || body.content == null) return json({ error: 'file and content required' }, 400);
+
+    const userId = this.userId;
+    if (!userId) return json({ error: 'DO not provisioned' }, 400);
+
+    try {
+      const { writeWorkspaceFile } = await import('./workspace.js');
+      await writeWorkspaceFile(this.env.WALDO_WORKSPACE, userId, body.file, body.content);
+      return json({ ok: true, file: body.file, size: body.content.length });
+    } catch (err) {
+      return json({ error: `R2 write failed: ${err instanceof Error ? err.message : String(err)}` }, 500);
+    }
+  }
+
+  private async handleWorkspaceRead(file: string): Promise<Response> {
+    const userId = this.userId;
+    if (!userId) return json({ error: 'DO not provisioned' }, 400);
+
+    try {
+      const { readWorkspaceFile } = await import('./workspace.js');
+      const content = await readWorkspaceFile(this.env.WALDO_WORKSPACE, userId, file);
+      if (content === null) return json({ error: 'File not found', file }, 404);
+      return json({ file, content, size: content.length });
+    } catch (err) {
+      return json({ error: `R2 read failed: ${err instanceof Error ? err.message : String(err)}` }, 500);
+    }
   }
 
   // ─── Status: current DO state ──────────────────────────────────
@@ -823,14 +864,19 @@ function buildSystemPrompt(
     memory?: Record<string, string>;
     profileMemory?: Record<string, string>;
     recentDiaries?: string[];
+    workspaceContext?: string;  // Pre-loaded from R2 workspace files
   },
 ): string {
   const zoneModifier = ZONE_MODIFIERS[zone] ?? '';
   const modeTemplate = MODE_TEMPLATES[mode] ?? '';
 
-  // Health baselines from memory
+  // Workspace context from R2 (profile.md + baselines.md + today.md)
+  // This replaces the inline health baselines when available — it's richer and pre-computed
+  const workspace = opts?.workspaceContext ?? '';
+
+  // Health baselines from SQLite memory (fallback when workspace not yet bootstrapped)
   const healthKeys = ['hrv_baseline', 'sleep_avg_7d', 'resting_hr_baseline', 'chronotype', 'sleep_debt', 'last_weekly_summary'];
-  const healthContext = Object.entries(opts?.memory ?? {})
+  const healthContext = workspace ? '' : Object.entries(opts?.memory ?? {})
     .filter(([k]) => healthKeys.includes(k))
     .map(([k, v]) => `${k}: ${v}`)
     .join('\n');
@@ -855,6 +901,7 @@ function buildSystemPrompt(
     `\nCurrent zone: ${zone}\n${zoneModifier}`,
     `\nMode: ${mode}\n${modeTemplate}`,
     `\n\nUser: ${name}`,
+    workspace       ? '\n\n' + workspace : '',
     healthContext   ? '\n\nHealth baselines:\n' + healthContext : '',
     profileContext  ? '\n\nWho they are:\n' + profileContext   : '',
     diaryContext,

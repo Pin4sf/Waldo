@@ -13,10 +13,11 @@ class_name = "WaldoAgent"
 tag = "v1"
 new_sqlite_classes = ["WaldoAgent"]
 
-# R2 for episodic archive (episodes > 90 days) — Phase E
-# [[r2_buckets]]
-# binding = "WALDO_EPISODES"
-# bucket_name = "waldo-episodes"
+# R2 workspace — persistent file system for agent intelligence
+# Each user gets a namespace: {user_id}/profile.md, {user_id}/baselines.md, etc.
+[[r2_buckets]]
+binding = "WALDO_WORKSPACE"
+bucket_name = "waldo-workspace"
 
 [vars]
 SUPABASE_URL = "https://ogjgbudoedwxebxfgxpa.supabase.co"

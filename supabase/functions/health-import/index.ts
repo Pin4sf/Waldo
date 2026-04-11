@@ -315,16 +315,22 @@ Deno.serve(async (req: Request) => {
     ...spotsResult.errors,
   ];
 
-  // ─── Trigger intelligence build (fire-and-forget) ───────────
-  // Immediately compute baselines, spots, patterns, user intelligence from the uploaded data.
-  // Don't wait for nightly jobs — the user should see intelligence right away.
+  // ─── Trigger intelligence pipeline (fire-and-forget) ─────────
+  // 1. build-intelligence: baselines, spots, patterns (pure computation)
+  // 2. bootstrap: full historical analysis → workspace files in R2 (one LLM call)
+  const svcHeaders = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+  };
   fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/build-intelligence`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-    },
+    method: 'POST', headers: svcHeaders,
     body: JSON.stringify({ user_id: userId, source: 'health_import' }),
+  }).then(() => {
+    // After spots are generated, run bootstrap to produce workspace files
+    fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/bootstrap`, {
+      method: 'POST', headers: svcHeaders,
+      body: JSON.stringify({ user_id: userId, source: 'health_import_bootstrap' }),
+    }).catch(() => {});
   }).catch(() => {});
 
   log('info', 'import_complete', {

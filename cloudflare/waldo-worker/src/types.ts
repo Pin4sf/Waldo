@@ -2,6 +2,9 @@
 export interface Env {
   WALDO_AGENT: DurableObjectNamespace;
 
+  // R2 workspace — persistent file system for agent intelligence
+  WALDO_WORKSPACE: R2Bucket;
+
   // Secrets (set via wrangler secret put)
   ANTHROPIC_API_KEY: string;
   SUPABASE_SERVICE_ROLE_KEY: string;

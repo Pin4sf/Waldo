@@ -654,6 +654,23 @@ export async function fetchAgentLogs(
   }));
 }
 
+/** Trigger bootstrap — one-time historical intelligence analysis. Produces workspace files. */
+export async function triggerBootstrap(userId: string): Promise<{
+  status: string;
+  files_written: string[];
+  spots_generated: number;
+  data_summary: Record<string, unknown>;
+  latency_ms: number;
+  error?: string;
+}> {
+  const res = await fetch(`${SUPABASE_FN_URL}/bootstrap`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+    body: JSON.stringify({ user_id: userId, source: 'dashboard_trigger' }),
+  });
+  return res.json();
+}
+
 /** Trigger build-intelligence pipeline to generate spots, baselines, patterns from historical data. */
 export async function triggerBuildIntelligence(userId: string): Promise<{
   spots_generated: number;
