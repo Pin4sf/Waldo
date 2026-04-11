@@ -86,6 +86,8 @@ export interface DayResponse {
   };
   restingHR: number | null;
   wristTemp: number | null;
+  spO2: number | null;              // surfaced only when <95% in BodyReadings card
+  respiratoryRate: number | null;   // 7-day sparkline in BodyReadings card
   avgNoiseDb: number | null;
   daylightMinutes: number;
   weather: { temperatureF: number; humidity: number; source: string } | null;

@@ -172,6 +172,7 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
     { data: crs }, { data: health }, { data: stress },
     { data: calMetrics }, { data: emailMetrics }, { data: taskMetrics },
     { data: masterMetrics }, { data: activity }, { data: patterns },
+    { data: waldoActionsRaw },
   ] = await Promise.all([
     supabase.from('crs_scores').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('health_snapshots').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
@@ -182,6 +183,8 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
     supabase.from('master_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('day_activity').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('patterns').select('*').eq('user_id', userId),
+    supabase.from('waldo_actions').select('time, action, reason, type, trace_id')
+      .eq('user_id', userId).eq('date', date).order('created_at', { ascending: true }),
   ]);
 
   const stressEvents = (stress ?? []).map((s: any) => ({
@@ -225,8 +228,12 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       workouts: health?.workouts ?? [], standHours: health?.stand_hours ?? 0,
       activeEnergy: health?.active_energy ?? 0,
     },
-    restingHR: health?.resting_hr ?? null, wristTemp: health?.wrist_temp ?? null,
-    avgNoiseDb: health?.avg_noise_db ?? null, daylightMinutes: health?.daylight_minutes ?? null,
+    restingHR: health?.resting_hr ?? null,
+    wristTemp: health?.wrist_temp ?? null,
+    spO2: health?.spo2 ?? null,
+    respiratoryRate: health?.respiratory_rate ?? null,
+    avgNoiseDb: health?.avg_noise_db ?? null,
+    daylightMinutes: health?.daylight_minutes ?? null,
     weather: health?.weather ?? null, aqi: health?.aqi ?? null,
     aqiLabel: health?.aqi_label ?? null, pm25: health?.pm25 ?? null,
     sleepDebt: masterMetrics?.sleep_debt ?? null,
@@ -279,7 +286,10 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       id: p.id, type: p.type, confidence: p.confidence,
       summary: p.summary, evidenceCount: p.evidence_count,
     })),
-    waldoActions: activity?.actions_json ?? [],
+    waldoActions: (waldoActionsRaw ?? []).map((a: any) => ({
+      time: a.time, action: a.action, reason: a.reason,
+      type: a.type as 'proactive' | 'reactive' | 'learning',
+    })),
     dayActivity: activity ? {
       date: activity.date ?? date, headline: activity.headline ?? '',
       morningWag: activity.morning_wag ?? null, spots: activity.spots_json ?? [],

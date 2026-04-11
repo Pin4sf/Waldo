@@ -134,7 +134,7 @@ async function updateBaselinesForUser(
 
   const { data: rows, error } = await supabase
     .from('health_snapshots')
-    .select('date, hrv_rmssd, resting_hr, sleep_duration_hours, sleep_bedtime, sleep_wake_time, steps')
+    .select('date, hrv_rmssd, resting_hr, sleep_duration_hours, sleep_bedtime, sleep_wake_time, steps, active_energy')
     .eq('user_id', userId)
     .gte('date', cutoff30)
     .order('date', { ascending: true });
@@ -154,6 +154,15 @@ async function updateBaselinesForUser(
   const hrv30 = rows.map(r => r.hrv_rmssd).filter((v): v is number => v != null);
   const hrvEma7d = computeEMA(hrv7);
   const hrvSma30d = computeSMA(hrv30);
+
+  // 30-day standard deviation for Z-score CASS computation (HRVS spec formula)
+  let hrvSd30d: number | null = null;
+  if (hrv30.length >= 2) {
+    const mean = hrv30.reduce((s, v) => s + v, 0) / hrv30.length;
+    const variance = hrv30.reduce((s, v) => s + (v - mean) ** 2, 0) / hrv30.length;
+    hrvSd30d = Math.round(Math.sqrt(variance) * 10) / 10;
+  }
+
   let hrvTrend: 'up' | 'down' | 'stable' = 'stable';
   if (hrvEma7d != null && hrvSma30d != null) {
     const diff = hrvEma7d - hrvSma30d;
@@ -199,6 +208,10 @@ async function updateBaselinesForUser(
   const steps7 = rows.slice(-7).map(r => r.steps).filter((v): v is number => v != null);
   const stepsAvg7d = computeSMA(steps7);
 
+  // 30-day active energy average — used by EES in ILAS (spec: Energy_baseline = 30d_avg × 2)
+  const energy30 = rows.map(r => r.active_energy).filter((v): v is number => v != null && v > 0);
+  const energyAvg30d = computeSMA(energy30);
+
   // ─── Chronotype (14-day, only update if enough data) ──────
   let chronotype: 'early' | 'normal' | 'late' | null = null;
   if (avgBedtimeMin != null && avgWakeMin != null && bedtimeMins.length >= 7) {
@@ -213,7 +226,9 @@ async function updateBaselinesForUser(
 
   if (hrvEma7d != null) memEntries['hrv_baseline'] = `${Math.round(hrvEma7d)}ms`;
   if (hrvSma30d != null) memEntries['hrv_baseline_30d'] = `${Math.round(hrvSma30d)}ms`;
+  if (hrvSd30d != null) memEntries['hrv_sd_30d'] = `${hrvSd30d}ms`; // for Z-score CASS
   if (hrv30.length >= 3) memEntries['hrv_trend'] = hrvTrend;
+  if (energyAvg30d != null) memEntries['active_energy_30d'] = `${Math.round(energyAvg30d)}kcal`; // for EES
   if (sleepAvg7d != null) memEntries['sleep_avg_7d'] = `${sleepAvg7d}h`;
   if (sleepDebt > 0) memEntries['sleep_debt'] = `${sleepDebt}h`;
   if (avgBedtimeMin != null) memEntries['avg_bedtime'] = minutesToHHMM(avgBedtimeMin);

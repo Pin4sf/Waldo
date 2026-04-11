@@ -185,12 +185,23 @@ async function executeTool(name: string, input: any, userId: string, targetDate:
         : supabase.from('crs_scores').select('*').eq('user_id', userId).gte('score', 0).order('date', { ascending: false }).limit(1).single();
       const { data } = await query;
       if (!data) return 'No CRS data available for this date.';
-      return JSON.stringify({
+      const result: Record<string, unknown> = {
         date: data.date, score: data.score, zone: data.zone, confidence: data.confidence,
-        sleep: data.sleep_json?.score, hrv: data.hrv_json?.score,
-        circadian: data.circadian_json?.score, activity: data.activity_json?.score,
+        components: {
+          sleep: data.sleep_json?.score, hrv: data.hrv_json?.score,
+          circadian: data.circadian_json?.score, activity: data.activity_json?.score,
+        },
         summary: data.summary,
-      });
+      };
+      // Pillar breakdown (populated after CRS engine re-seed)
+      if (data.pillars_json) {
+        result.pillars = data.pillars_json; // { recovery, cass, ilas }
+      }
+      if (data.pillar_drag_json) {
+        result.primary_drag = data.pillar_drag_json.primary;
+        result.drag_detail = data.pillar_drag_json;
+      }
+      return JSON.stringify(result);
     }
 
     case 'get_health': {
@@ -695,6 +706,30 @@ Deno.serve(async (req: Request) => {
       latency_ms: latencyMs, delivery_status: 'sent',
       llm_fallback_level: 1, estimated_cost_usd: costUsd,
     }));
+
+    // ─── Log to waldo_actions (The Patrol feed) ──────────────
+    try {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+      const actionMap: Record<string, string> = {
+        morning_wag: 'Sent The Brief',
+        evening_review: 'Sent The Close',
+        fetch_alert: 'Fired The Fetch — stress elevated',
+        conversational: 'Responded to chat',
+        onboarding: 'Completed onboarding setup',
+      };
+      const actionText = actionMap[triggerType] ?? `Ran ${triggerType}`;
+      const actionType = triggerType === 'conversational' ? 'reactive' : 'proactive';
+      const reasonText = toolsCalled.length > 0
+        ? `Used ${toolsCalled.slice(0, 3).join(', ')}${toolsCalled.length > 3 ? ` +${toolsCalled.length - 3} more` : ''}`
+        : `${zone ?? 'unknown'} zone · Form ${Math.round(score ?? 0)}`;
+      savePromises.push(supabase.from('waldo_actions').insert({
+        user_id: userId, date: targetDate, time: timeStr,
+        action: actionText, reason: reasonText,
+        type: actionType, trace_id: traceId,
+      }));
+    } catch { /* non-critical — don't block delivery */ }
+
     await Promise.all(savePromises);
 
     return new Response(JSON.stringify({
