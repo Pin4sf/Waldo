@@ -85,7 +85,7 @@ async function syncUserGmail(
       const r = await googleFetch(
         `${GMAIL_API}/users/me/messages/${id}`,
         token,
-        { format: 'metadata', metadataHeaders: '', fields: 'internalDate,labelIds' },
+        { format: 'metadata', fields: 'internalDate,labelIds' },
       );
       if (!r.ok) return;
 
