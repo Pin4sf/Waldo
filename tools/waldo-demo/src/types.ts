@@ -288,6 +288,18 @@ export interface AgentLogEntry {
  * to replace seeded-random fake historical charts with real data.
  * All arrays are ordered oldest→newest. Null entries mean no data for that day.
  */
+/** A pending proposal from Waldo — shown in TheHandoff card */
+export interface WaldoProposal {
+  id: string;
+  type: 'calendar_block' | 'calendar_move' | 'task_create' | 'task_defer';
+  title: string;
+  description: string | null;
+  impact: string | null;
+  status: 'pending' | 'executing' | 'executed' | 'partial' | 'failed' | 'rejected' | 'expired';
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface HealthHistory {
   hrv30d: (number | null)[];       // 30-day HRV avg — for HRVCard baseline chart
   rhr7d: (number | null)[];        // 7-day resting HR — for RestingHRCard sparkline

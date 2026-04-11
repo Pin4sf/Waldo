@@ -28,7 +28,7 @@ import { IntegrationsPanel } from '../IntegrationsPanel.js';
 import { ConversationHistory } from '../ConversationHistory.js';
 import { ConstellationView } from '../ConstellationView.js';
 import * as cloud from '../../supabase-api.js';
-import type { DateEntry, DayResponse, WaldoResponse, SpotData, PatternData, SyncStatus } from '../../types.js';
+import type { DateEntry, DayResponse, WaldoResponse, SpotData, PatternData, SyncStatus, WaldoProposal } from '../../types.js';
 
 type SidebarView = 'home' | 'chat' | 'connectors' | 'fetches' | 'constellations' | 'chats';
 type TimeRange = 'today' | '7d' | '30d' | '3m' | '12m';
@@ -313,6 +313,7 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
   const [buildingIntel, setBuildingIntel] = useState(false);
   const [buildResult, setBuildResult] = useState<{ spots_generated: number; baselines_computed: number; patterns_promoted: number; message: string; error?: string } | null>(null);
   const [syncStatuses, setSyncStatuses] = useState<SyncStatus[]>([]);
+  const [pendingProposal, setPendingProposal] = useState<WaldoProposal | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -327,12 +328,14 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
       cloud.fetchConversationHistory(userId, 10),
       cloud.fetchSummary(userId),
       cloud.fetchSyncStatus(userId),
-    ]).then(([dates, spotsData, patternsData, learning, history, summary, syncs]) => {
+      cloud.fetchProposals(userId),
+    ]).then(([dates, spotsData, patternsData, learning, history, summary, syncs, proposal]) => {
       setAllDates(dates ?? []);
       setSpots(spotsData ?? []);
       setPatterns(patternsData ?? []);
       setIntelligenceScore(learning?.intelligenceScore ?? 0);
       setSyncStatuses(syncs ?? []);
+      if (proposal) setPendingProposal(proposal as WaldoProposal);
 
       // Intelligence summary from user_intelligence or summary
       const uiSummary = (summary as any)?.userIntelligence;
@@ -415,6 +418,16 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
   }, [chatInput, isChatting, selectedDate, today, userId]);
 
   // ─── Build intelligence + bootstrap (full pipeline) ─────────────
+  const handleApproveProposal = useCallback(async (proposalId: string) => {
+    await cloud.resolveProposal(proposalId, 'approve');
+    setPendingProposal(null);
+  }, []);
+
+  const handleRejectProposal = useCallback(async (proposalId: string) => {
+    await cloud.resolveProposal(proposalId, 'reject');
+    setPendingProposal(null);
+  }, []);
+
   const handleBuildIntelligence = useCallback(async () => {
     if (buildingIntel) return;
     setBuildingIntel(true);
@@ -609,8 +622,12 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
             {/* The Close — evening wind-down (after 7pm) */}
             {dayData && <TheClose data={dayData} />}
 
-            {/* The Handoff — approval card (ghost until backend supports it) */}
-            <TheHandoff status="none" />
+            {/* The Handoff — live when Waldo has a pending proposal */}
+            <TheHandoff
+              proposal={pendingProposal}
+              onApprove={handleApproveProposal}
+              onReject={handleRejectProposal}
+            />
 
             {/* Spots feed — what Waldo noticed */}
             {intelligenceFeed.length > 0 && (

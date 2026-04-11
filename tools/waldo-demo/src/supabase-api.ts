@@ -712,3 +712,37 @@ export async function triggerBuildIntelligence(userId: string): Promise<{
   });
   return res.json();
 }
+
+// ─── Proposals (The Adjustment / TheHandoff) ─────────────────────
+
+/** Fetch pending proposals for the user — shown in TheHandoff card. */
+export async function fetchProposals(userId = DEFAULT_USER_ID) {
+  const { data, error } = await supabase
+    .from('waldo_proposals')
+    .select('id, type, title, description, impact, status, expires_at, created_at')
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) return null;
+  const p = data?.[0];
+  if (!p) return null;
+  return {
+    id: p.id, type: p.type, title: p.title,
+    description: p.description ?? null, impact: p.impact ?? null,
+    status: p.status, expiresAt: p.expires_at, createdAt: p.created_at,
+  };
+}
+
+/** Approve or reject a proposal — calls execute-proposal Edge Function. */
+export async function resolveProposal(
+  proposalId: string,
+  action: 'approve' | 'reject',
+): Promise<{ status: string; executed?: number; errors?: string[] }> {
+  const res = await fetch(`${SUPABASE_FN_URL}/execute-proposal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+    body: JSON.stringify({ proposal_id: proposalId, action }),
+  });
+  return res.json();
+}
