@@ -14,6 +14,7 @@ import { AgentLogsPanel } from './components/AgentLogsPanel.js';
 import { AddUserModal } from './components/AddUserModal.js';
 import { LandingPage } from './components/LandingPage.js';
 import { PersonalSetup } from './components/PersonalSetup.js';
+import { Dashboard } from './components/dashboard/Dashboard.js';
 import * as cloud from './supabase-api.js';
 import type { DateEntry, DayResponse, WaldoResponse, WaldoError, MessageMode, SummaryResponse, UserProfile } from './types.js';
 
@@ -177,77 +178,12 @@ export function App() {
 
   // ─── Personal dashboard (non-admin user view) ─────────────────
   if (appView === 'personal' && loggedInUserId) {
-    const userId = loggedInUserId;
     return (
-      <div className="app">
-        {/* Personal header */}
-        <header className="header">
-          <div className="header-brand">
-            <img src="/logo.svg" alt="" style={{ width: 28, height: 28 }} />
-            <img src="/horizontal-stack.svg" alt="Waldo" style={{ height: 22 }} />
-          </div>
-          <div className="header-meta" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#F97316', display: 'inline-block', marginRight: 6 }} />
-              {loggedInName}
-            </span>
-            <button
-              className="btn btn-ghost"
-              onClick={() => setShowConstellation(true)}
-              style={{ fontSize: 12 }}
-            >
-              Constellation
-            </button>
-            <button
-              onClick={signOut}
-              style={{ fontSize: 12, color: 'var(--text-dim)', background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              Sign out
-            </button>
-          </div>
-        </header>
-
-        {showConstellation && <ConstellationView onClose={() => setShowConstellation(false)} />}
-
-        {/* Personal tabs */}
-        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', padding: '0 20px', background: 'var(--bg)' }}>
-          {(['today', 'history', 'integrations', 'profile'] as ConsoleTab[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setConsoleTab(tab)}
-              style={{
-                fontSize: 13, padding: '10px 16px', fontWeight: consoleTab === tab ? 600 : 400,
-                color: consoleTab === tab ? 'var(--accent)' : 'var(--text-muted)',
-                background: 'none', border: 'none', cursor: 'pointer',
-                borderBottom: consoleTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
-                marginBottom: -1, textTransform: 'capitalize',
-              }}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Personal content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-          {consoleTab === 'today' && (
-            <div style={{ maxWidth: 600, margin: '0 auto' }}>
-              <IntegrationsPanel userId={userId} />
-            </div>
-          )}
-          {consoleTab === 'history' && <ConversationHistory userId={userId} />}
-          {consoleTab === 'integrations' && (
-            <div style={{ maxWidth: 600, margin: '0 auto' }}>
-              <IntegrationsPanel userId={userId} />
-            </div>
-          )}
-          {consoleTab === 'profile' && (
-            <div style={{ maxWidth: 600, margin: '0 auto' }}>
-              <UserProfilePanel userId={userId} onUserSelect={() => {}} allUsers={[]} />
-            </div>
-          )}
-        </div>
-      </div>
+      <Dashboard
+        userId={loggedInUserId}
+        userName={loggedInName}
+        onSignOut={signOut}
+      />
     );
   }
 

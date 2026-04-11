@@ -653,3 +653,21 @@ export async function fetchAgentLogs(
     createdAt: l.created_at,
   }));
 }
+
+/** Trigger build-intelligence pipeline to generate spots, baselines, patterns from historical data. */
+export async function triggerBuildIntelligence(userId: string): Promise<{
+  spots_generated: number;
+  baselines_computed: number;
+  patterns_promoted: number;
+  user_intelligence_built: boolean;
+  latency_ms: number;
+  message: string;
+  error?: string;
+}> {
+  const res = await fetch(`${SUPABASE_FN_URL}/build-intelligence`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+    body: JSON.stringify({ user_id: userId, source: 'dashboard_trigger' }),
+  });
+  return res.json();
+}

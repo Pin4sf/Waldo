@@ -5,8 +5,11 @@
  * Fonts: Corben (headlines) + DM Sans (body) — loaded via /typefaces/
  */
 import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL ?? 'https://ogjgbudoedwxebxfgxpa.supabase.co';
+const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9namdidWRvZWR3eGVieGZneHBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDg0NTgsImV4cCI6MjA5MDUyNDQ1OH0.z2AZE7K8d1irAx3Jm7jziC0MZj3azZgzgGtb9T2LNvc';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const TIMEZONES = [
   { value: 'Asia/Kolkata', label: 'India (IST)' },
@@ -58,7 +61,8 @@ export function LandingPage({ onLogin }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adminKey, setAdminKey] = useState('');
-  const [returnUserId, setReturnUserId] = useState('');
+  const [returnInput, setReturnInput] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
 
   // Auto-restore from localStorage
   useEffect(() => {
@@ -97,12 +101,50 @@ export function LandingPage({ onLogin }: Props) {
     onLogin(data.user_id, name.trim(), false);
   }
 
-  function handleReturn() {
-    const id = returnUserId.trim();
-    if (!id) { setError('Paste your user ID'); return; }
-    const savedName = localStorage.getItem('waldo_user_name') ?? 'User';
-    localStorage.setItem('waldo_user_id', id);
-    onLogin(id, savedName, false);
+  async function handleReturn() {
+    const input = returnInput.trim();
+    if (!input) { setError('Enter your name or email'); return; }
+    setLookupLoading(true); setError(null);
+
+    // If it looks like a UUID, use directly
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) {
+      const { data: user } = await supabase.from('users').select('id, name').eq('id', input).maybeSingle();
+      setLookupLoading(false);
+      if (!user) { setError('User not found with that ID'); return; }
+      localStorage.setItem('waldo_user_id', user.id);
+      localStorage.setItem('waldo_user_name', user.name);
+      onLogin(user.id, user.name, false);
+      return;
+    }
+
+    // Try lookup by name (case-insensitive)
+    const { data: byName } = await supabase
+      .from('users').select('id, name').ilike('name', input).eq('active', true).limit(1).maybeSingle();
+
+    if (byName) {
+      setLookupLoading(false);
+      localStorage.setItem('waldo_user_id', byName.id);
+      localStorage.setItem('waldo_user_name', byName.name);
+      onLogin(byName.id, byName.name, false);
+      return;
+    }
+
+    // Try lookup by Google email in oauth_tokens
+    const { data: byEmail } = await supabase
+      .from('oauth_tokens').select('user_id, google_email, users!inner(name, active)')
+      .eq('provider', 'google').ilike('google_email', input).limit(1).maybeSingle();
+
+    if (byEmail) {
+      const userName = (byEmail.users as any)?.name ?? 'User';
+      setLookupLoading(false);
+      localStorage.setItem('waldo_user_id', byEmail.user_id);
+      localStorage.setItem('waldo_user_name', userName);
+      onLogin(byEmail.user_id, userName, false);
+      return;
+    }
+
+    setLookupLoading(false);
+    setError('No user found. Try your name, email, or create a new account.');
   }
 
   function handleAdminLogin() {
@@ -230,10 +272,18 @@ export function LandingPage({ onLogin }: Props) {
           )}
 
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: 20, marginTop: savedId ? 0 : 16 }}>
-            <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>Or enter your user ID:</p>
-            <input value={returnUserId} onChange={e => setReturnUserId(e.target.value)} placeholder="Paste user ID" style={{ ...inputStyle, marginBottom: 10 }} />
+            <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>Or find your account:</p>
+            <input
+              value={returnInput}
+              onChange={e => setReturnInput(e.target.value)}
+              placeholder="Your name or email"
+              style={{ ...inputStyle, marginBottom: 10 }}
+              onKeyDown={e => e.key === 'Enter' && handleReturn()}
+            />
             {error && <div style={errorBox}>{error}</div>}
-            <button onClick={handleReturn} style={ghostBtn}>Continue →</button>
+            <button onClick={handleReturn} disabled={lookupLoading} style={{ ...ghostBtn, opacity: lookupLoading ? 0.5 : 1 }}>
+              {lookupLoading ? 'Looking up...' : 'Continue →'}
+            </button>
           </div>
 
           <button onClick={() => setMode('welcome')} style={backLink}>← Back</button>

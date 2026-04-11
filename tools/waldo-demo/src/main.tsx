@@ -3,6 +3,7 @@ import type { ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
 import './styles.css';
+import './components/dashboard/dashboard.css';
 
 // Error boundary to prevent white screen crashes
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {

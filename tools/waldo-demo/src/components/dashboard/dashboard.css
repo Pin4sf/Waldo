@@ -1,0 +1,480 @@
+/* ══════════════════════════════════════════════════════════
+   Dashboard — 3-column layout matching Figma designs
+   ══════════════════════════════════════════════════════════ */
+
+/* ─── Layout ─────────────────────────────────────────────── */
+
+.dashboard {
+  display: grid;
+  grid-template-columns: 220px 1fr 380px;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+@media (max-width: 1024px) {
+  .dashboard {
+    grid-template-columns: 56px 1fr 340px;
+  }
+  .sidebar-item span:not(.sidebar-icon) { display: none; }
+  .sidebar-brand .sidebar-logo { font-size: 16px; }
+  .sidebar-user > div { display: none; }
+  .sidebar-recents { display: none; }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .dash-sidebar { display: none; }
+  .dash-right { display: none; }
+}
+
+/* ─── Sidebar ────────────────────────────────────────────── */
+
+.dash-sidebar {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  padding: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sidebar-brand {
+  padding: 20px 20px 16px;
+  cursor: pointer;
+}
+
+.sidebar-logo {
+  font-family: var(--font-headline);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.sidebar-item:hover {
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.sidebar-item.active {
+  background: var(--bg-surface);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.sidebar-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  margin-top: 8px;
+}
+
+.sidebar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #E74C3C;
+  flex-shrink: 0;
+}
+
+.sidebar-username {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.sidebar-recents {
+  padding: 8px 20px;
+}
+
+.sidebar-recents-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.sidebar-recent-item {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.sidebar-recent-item:hover {
+  color: var(--text);
+}
+
+/* ─── Center Column ──────────────────────────────────────── */
+
+.dash-center {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.dash-center-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 40px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ─── Right Column ───────────────────────────────────────── */
+
+.dash-right {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-right-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.dash-empty-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 24px;
+}
+
+/* ─── Time Range Tabs ────────────────────────────────────── */
+
+.time-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+
+.time-tab {
+  flex: 1;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.time-tab:hover:not(:disabled) {
+  color: var(--text-muted);
+}
+
+.time-tab.active {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.time-tab:disabled:not(.active) {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+/* ─── Dashboard Cards ────────────────────────────────────── */
+
+.dash-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  animation: cardIn 0.35s ease both;
+}
+
+.zone-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+
+.dash-card-title {
+  font-family: var(--font-headline);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--text);
+  margin: 8px 0 6px;
+  line-height: 1.2;
+}
+
+.dash-card-narrative {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.dash-card-meta {
+  font-size: 12px;
+  color: var(--accent);
+  font-style: italic;
+  display: block;
+  margin-top: 6px;
+}
+
+/* ─── Component Bars (Form card) ─────────────────────────── */
+
+.component-bars {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.component-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.component-label {
+  font-size: 13px;
+  flex: 1;
+}
+
+.component-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.component-score {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  width: 24px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.component-bar-track {
+  width: 100px;
+  height: 6px;
+  background: var(--bg-surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.component-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Morning Wag ────────────────────────────────────────── */
+
+.morning-wag-card {
+  background: var(--bg-surface);
+  padding: 32px;
+}
+
+.morning-wag-text {
+  margin-top: 0;
+}
+
+.morning-wag-paragraph {
+  font-family: var(--font-headline);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.morning-wag-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.morning-wag-footer {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text-dim);
+  margin-top: 24px;
+  line-height: 1.6;
+}
+
+/* ─── Fetch Cards ────────────────────────────────────────── */
+
+.fetch-card {
+  padding: 20px 24px;
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+}
+
+/* ─── Chat ───────────────────────────────────────────────── */
+
+.dash-chat-input-bar {
+  display: flex;
+  gap: 8px;
+  padding: 16px 40px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.dash-chat-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 14px;
+  background: var(--bg-surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.dash-chat-input:focus {
+  border-color: var(--accent);
+}
+
+.dash-chat-input::placeholder {
+  color: var(--text-dim);
+}
+
+.dash-chat-messages {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dash-chat-bubble {
+  max-width: 85%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 1.6;
+  animation: messageIn 0.3s ease both;
+}
+
+.dash-chat-bubble.user {
+  align-self: flex-end;
+  background: var(--text);
+  color: var(--bg);
+  border-bottom-right-radius: 4px;
+}
+
+.dash-chat-bubble.waldo {
+  align-self: flex-start;
+  background: var(--bg-surface);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+
+/* ─── Date Mini-Timeline ─────────────────────────────────── */
+
+.date-timeline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px 0;
+}
+
+.date-timeline::-webkit-scrollbar { display: none; }
+
+.date-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+  min-width: 18px;
+  transition: transform 0.15s ease;
+}
+
+.date-dot:hover { transform: scale(1.2); }
+.date-dot.selected { transform: scale(1.3); }
+
+.date-dot-circle {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+  border: 2px solid transparent;
+}
+
+.date-dot.selected .date-dot-circle {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--text);
+}
+
+.date-dot-label {
+  font-size: 9px;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ─── Stagger for right column cards ─────────────────────── */
+
+.dash-right .dash-card:nth-child(1) { animation-delay: 0.05s; }
+.dash-right .dash-card:nth-child(2) { animation-delay: 0.12s; }
+.dash-right .dash-card:nth-child(3) { animation-delay: 0.19s; }

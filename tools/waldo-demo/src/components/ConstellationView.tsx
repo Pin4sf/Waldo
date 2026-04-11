@@ -28,7 +28,7 @@ interface SpotsApiResponse {
   learning?: LearningData;
 }
 
-interface Props { onClose: () => void; }
+interface Props { onClose: () => void; userId?: string; }
 
 const TYPE_COLORS: Record<string, string> = {
   health: '#6EE7B7', behavior: '#93C5FD', environment: '#C4B5FD',
@@ -80,7 +80,7 @@ function runForceLayout(nodes: SpotNode[], edges: Edge[], w: number, h: number):
   }
 }
 
-export function ConstellationView({ onClose }: Props) {
+export function ConstellationView({ onClose, userId }: Props) {
   const [data, setData] = useState<SpotsApiResponse | null>(null);
   const [hoveredNode, setHoveredNode] = useState<number | null>(null);
   const [selectedNode, setSelectedNode] = useState<number | null>(null);
@@ -100,9 +100,9 @@ export function ConstellationView({ onClose }: Props) {
     if (USE_CLOUD) {
       import('../supabase-api.js').then(async (api) => {
         const [spots, learning, patterns] = await Promise.all([
-          api.fetchSpots(),
-          api.fetchLearningTimeline(),
-          api.fetchPatterns(),
+          api.fetchSpots(userId),
+          api.fetchLearningTimeline(userId),
+          api.fetchPatterns(userId),
         ]);
         // Group spots by date
         const byDate = new Map<string, typeof spots>();
