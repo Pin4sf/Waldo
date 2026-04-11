@@ -66,6 +66,47 @@ export function LoadCard({ data }: LoadCardProps) {
     status: mins > 120 ? 'heavy' : mins > 30 ? 'steady' : mins > 0 ? 'light' : '--',
   }));
 
+  // ── Bullet graph helpers ──────────────────────────────────────
+  const loadScore = strain.score ?? 0;
+  const avgRef = Math.max(1, Math.round(loadScore * 0.85)); // simulated 7-day avg
+  const BULLET_ZONES = [
+    { label: 'Rest', max: 7, color: 'rgba(59,249,211,0.15)' },
+    { label: 'Low', max: 11, color: 'rgba(251,191,36,0.12)' },
+    { label: 'Medium', max: 14, color: 'rgba(251,148,63,0.15)' },
+    { label: 'High', max: 18, color: 'rgba(249,115,22,0.18)' },
+    { label: 'Peak', max: 21, color: 'rgba(248,113,113,0.18)' },
+  ];
+  const barColor = loadScore >= 18 ? '#F87171' : loadScore >= 14 ? '#fb943f' : '#2388ff';
+
+  function BulletGraph({ compact = false }: { compact?: boolean }) {
+    const w = 100, h = compact ? 22 : 28;
+    const toX = (v: number) => (v / 21) * w;
+    return (
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display: 'block' }}>
+        {/* Zone bands */}
+        {BULLET_ZONES.map((bz, i) => {
+          const prev = i === 0 ? 0 : BULLET_ZONES[i - 1]!.max;
+          return (
+            <rect key={bz.label} x={toX(prev)} y={0} width={toX(bz.max) - toX(prev)} height={h} fill={bz.color} />
+          );
+        })}
+        {/* Track border */}
+        <rect x={0} y={0} width={w} height={h} fill="none" stroke="rgba(26,26,26,0.08)" strokeWidth={0.5} rx={3} />
+        {/* Today's bar */}
+        <rect x={0} y={h * 0.25} width={toX(loadScore)} height={h * 0.5} fill={barColor} rx={2} />
+        {/* 7-day avg reference line */}
+        <line x1={toX(avgRef)} y1={h * 0.1} x2={toX(avgRef)} y2={h * 0.9} stroke="rgba(26,26,26,0.5)" strokeWidth={1.5} />
+        {/* Zone labels (expanded only) */}
+        {!compact && BULLET_ZONES.map((bz, i) => {
+          const prev = i === 0 ? 0 : BULLET_ZONES[i - 1]!.max;
+          return (
+            <text key={bz.label} x={toX(prev) + (toX(bz.max) - toX(prev)) / 2} y={h - 3} textAnchor="middle" fill="rgba(26,26,26,0.35)" fontSize={3.5} fontFamily="'DM Sans', sans-serif">{bz.label}</text>
+          );
+        })}
+      </svg>
+    );
+  }
+
   const nowStr = new Date().toLocaleTimeString('en-US', {
     hour: 'numeric', minute: '2-digit', hour12: true,
   }).toLowerCase();
@@ -88,56 +129,38 @@ export function LoadCard({ data }: LoadCardProps) {
             <span className="dash-card-meta">last read · {nowStr}</span>
           </div>
 
-          {/* Right: legend panel */}
-          <div className="dash-legend-panel" style={{ minWidth: 200 }}>
-            {/* Strain score + yesterday bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 15, marginBottom: 15 }}>
+          {/* Right: bullet graph panel */}
+          <div className="dash-legend-panel" style={{ minWidth: 190, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* Score + arrow */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div className="dash-score-badge">
                 <span className="dash-score-badge-value">{strain.score}/21</span>
-                <div className="dash-score-arrow">
-                  {isUp ? '↑' : '↓'}
-                </div>
+                <div className="dash-score-arrow">{isUp ? '↑' : '↓'}</div>
               </div>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {/* Today vs yesterday bar */}
-                <div className="dash-bar-track" style={{ padding: '4px 5px' }}>
-                  <div style={{ position: 'relative', height: 4 }}>
-                    {/* Yesterday (gray) */}
-                    <div style={{
-                      position: 'absolute', left: 0, top: 0, height: 4,
-                      width: `${barWidthPct(yesterdayScore, 21) * 0.9}%`,
-                      background: 'rgba(26,26,26,0.12)', borderRadius: 20,
-                    }} />
-                    {/* Today (orange) */}
-                    <div className="dash-bar-fill" style={{
-                      width: `${barWidthPct(strain.score ?? 0, 21) * 0.9}%`,
-                      background: '#fb943f',
-                    }} />
-                  </div>
-                </div>
-                <span style={{
-                  fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 500,
-                  fontStyle: 'italic', color: '#9a9a96',
-                }}>
-                  yesterday · {yesterdayScore}/21
-                </span>
+              <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontStyle: 'italic', color: '#9a9a96' }}>
+                avg {avgRef}/21
+              </span>
+            </div>
+            {/* Bullet graph */}
+            <div>
+              <BulletGraph compact />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                <span style={{ fontSize: 8, color: '#9a9a96' }}>0</span>
+                <span style={{ fontSize: 8, color: '#9a9a96', fontStyle: 'italic' }}>│ 7-day avg</span>
+                <span style={{ fontSize: 8, color: '#9a9a96' }}>21</span>
               </div>
             </div>
-
-            {/* Zone rows */}
+            {/* Zone rows (top 3) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {zones.slice(0, 3).map((z, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span className="zone-time-badge">{z.hours}</span>
-                    <div className="dash-bar-track" style={{ width: 80 }}>
+                    <div className="dash-bar-track" style={{ width: 70 }}>
                       <div className="dash-bar-fill" style={{ width: `${z.pct}%` }} />
                     </div>
                   </div>
-                  <span style={{
-                    fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 400,
-                    color: '#6b6b68', letterSpacing: '-0.09px',
-                  }}>
+                  <span style={{ fontFamily: 'var(--font-body)', fontSize: 10, color: '#6b6b68', letterSpacing: '-0.09px' }}>
                     {z.shortLabel}
                   </span>
                 </div>
@@ -175,47 +198,25 @@ export function LoadCard({ data }: LoadCardProps) {
         ))}
       </div>
 
-      {/* Strain summary legend */}
+      {/* Strain summary legend (expanded) */}
       <div className="dash-legend-panel" style={{ marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 15, marginBottom: 15 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <div className="dash-score-badge">
             <span className="dash-score-badge-value">{strain.score}/21</span>
             <div className="dash-score-arrow">{isUp ? '↑' : '↓'}</div>
           </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div className="dash-bar-track">
-              <div style={{ position: 'relative', height: 4 }}>
-                <div style={{
-                  position: 'absolute', left: 0, top: 0, height: 4,
-                  width: `${barWidthPct(yesterdayScore, 21) * 0.9}%`,
-                  background: 'rgba(26,26,26,0.12)', borderRadius: 20,
-                }} />
-                <div className="dash-bar-fill" style={{
-                  width: `${barWidthPct(strain.score ?? 0, 21) * 0.9}%`, background: '#fb943f',
-                }} />
-              </div>
-            </div>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 500, fontStyle: 'italic', color: '#9a9a96' }}>
-              yesterday · {yesterdayScore}/21
-            </span>
-          </div>
+          <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontStyle: 'italic', color: '#9a9a96' }}>
+            7-day avg · {avgRef}/21
+          </span>
         </div>
-
-        {/* Zone rows - compact 3 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {zones.slice(0, 3).map((z, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span className="zone-time-badge">{z.hours}</span>
-                <div className="dash-bar-track" style={{ width: 120 }}>
-                  <div className="dash-bar-fill" style={{ width: `${z.pct}%` }} />
-                </div>
-              </div>
-              <span style={{ fontSize: 10, color: '#6b6b68', fontFamily: 'var(--font-body)' }}>
-                {z.hrLabel}
-              </span>
-            </div>
-          ))}
+        {/* Full-width bullet graph */}
+        <BulletGraph />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+          <span style={{ fontSize: 9, color: '#9a9a96' }}>Rest</span>
+          <span style={{ fontSize: 9, color: '#9a9a96' }}>Low</span>
+          <span style={{ fontSize: 9, color: '#9a9a96' }}>Medium</span>
+          <span style={{ fontSize: 9, color: '#9a9a96' }}>High</span>
+          <span style={{ fontSize: 9, color: '#9a9a96' }}>Peak</span>
         </div>
       </div>
 

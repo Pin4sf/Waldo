@@ -17,6 +17,7 @@ import { StackCard, SignalPressureCard, TaskPileUpCard, TodaysWeightCard } from 
 import { FormCard } from './FormCard.js';
 import { SleepCard } from './SleepCard.js';
 import { LoadCard } from './LoadCard.js';
+import { HRVCard, CircadianCard, MotionCard, SleepDebtCard, RestingHRCard, SleepScoreCard } from './Tier2Cards.js';
 import { FetchCard, spotsToFetchEvents } from './FetchCard.js';
 import type { FetchEvent } from './FetchCard.js';
 import { IntegrationsPanel } from '../IntegrationsPanel.js';
@@ -643,7 +644,14 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
           ) : dayData ? (
             <>
               <FormCard data={dayData} />
+              {/* Tier 2 — Form components */}
+              <SleepScoreCard data={dayData} />
+              <HRVCard data={dayData} />
+              <CircadianCard data={dayData} />
+              <MotionCard data={dayData} />
               <SleepCard data={dayData} />
+              <SleepDebtCard data={dayData} />
+              {dayData.restingHR !== null && <RestingHRCard data={dayData} />}
               <LoadCard data={dayData} />
 
               {/* Phase 2 cards — real data or ghost invite */}
