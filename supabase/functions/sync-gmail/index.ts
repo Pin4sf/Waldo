@@ -44,8 +44,13 @@ async function syncUserGmail(
     return { ok: false, daysComputed: 0, error: 'no_token' };
   }
 
-  // Sync last 7 days
-  const after = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
+  // Check if first sync — pull 30 days back on first sync, 7 days otherwise
+  const { count: existingCount } = await supabase
+    .from('email_metrics').select('id', { count: 'exact', head: true }).eq('user_id', userId);
+  const isFirstSync = (existingCount ?? 0) === 0;
+  const lookbackDays = isFirstSync ? 30 : 7;
+  const after = Math.floor((Date.now() - lookbackDays * 24 * 60 * 60 * 1000) / 1000);
+  if (isFirstSync) log('info', 'first_sync_gmail', { userId, lookbackDays });
 
   // List message IDs (metadata only — no subject, no body)
   const listResult = await googleFetch(

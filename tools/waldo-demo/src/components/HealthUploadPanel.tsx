@@ -10,8 +10,13 @@
  * Parses: Heart Rate, HRV (SDNN), Sleep stages, Steps, Resting HR, SpO2
  * Computes: CRS per day (simplified version of the full engine)
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { SUPABASE_FN_URL } from '../supabase-api.js';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL ?? 'https://ogjgbudoedwxebxfgxpa.supabase.co';
+const SUPABASE_ANON_KEY_VAL = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9namdidWRvZWR3eGVieGZneHBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDg0NTgsImV4cCI6MjA5MDUyNDQ1OH0.z2AZE7K8d1irAx3Jm7jziC0MZj3azZgzgGtb9T2LNvc';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY_VAL);
 
 interface Props {
   userId: string;
@@ -398,6 +403,31 @@ export function HealthUploadPanel({ userId, adminKey, onImported }: Props) {
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Check if user already has health data uploaded (persist across reloads)
+  useEffect(() => {
+    if (!userId) return;
+    Promise.all([
+      supabase.from('users').select('last_health_sync').eq('id', userId).maybeSingle(),
+      supabase.from('health_snapshots').select('date', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('crs_scores').select('score', { count: 'exact', head: false }).eq('user_id', userId).order('date', { ascending: false }).limit(5),
+    ]).then(([userRes, countRes, crsRes]) => {
+      const lastSync = (userRes.data as any)?.last_health_sync;
+      const count = countRes.count ?? 0;
+      if (lastSync && count > 0) {
+        // User has uploaded data before — show the success state
+        const crsScores = (crsRes.data ?? []).map((c: any) => c.score).filter((s: number) => s > 0);
+        setSummary({
+          days: count,
+          crsAvg: crsScores.length > 0 ? Math.round(crsScores.reduce((a: number, b: number) => a + b, 0) / crsScores.length) : 0,
+          crsMin: crsScores.length > 0 ? Math.min(...crsScores) : 0,
+          crsMax: crsScores.length > 0 ? Math.max(...crsScores) : 0,
+          stressEvents: 0,
+        });
+        setState('done');
+      }
+    });
+  }, [userId]);
 
   const process = useCallback(async (file: File) => {
     setError('');

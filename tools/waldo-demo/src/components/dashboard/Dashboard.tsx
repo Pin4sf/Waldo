@@ -41,6 +41,115 @@ function formatDateLabel(date: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+// ─── Range View (7d / 30d / 3m / 12m aggregated view) ────────────
+function RangeView({ allDates, spots, patterns, timeRange }: {
+  allDates: DateEntry[];
+  spots: SpotData[];
+  patterns: PatternData[];
+  timeRange: TimeRange;
+}) {
+  const rangeDays = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '3m' ? 90 : 365;
+  const cutoff = new Date(Date.now() - rangeDays * 86400000).toISOString().slice(0, 10);
+  const datesInRange = allDates.filter(d => d.date >= cutoff);
+  const crsScores = datesInRange.map(d => d.crs).filter(s => s > 0);
+  const avgCrs = crsScores.length > 0 ? Math.round(crsScores.reduce((a, b) => a + b, 0) / crsScores.length) : 0;
+  const minCrs = crsScores.length > 0 ? Math.min(...crsScores) : 0;
+  const maxCrs = crsScores.length > 0 ? Math.max(...crsScores) : 0;
+  const peakDays = datesInRange.filter(d => d.zone === 'peak').length;
+  const lowDays = datesInRange.filter(d => d.zone === 'low').length;
+  const spotsInRange = spots.filter(s => s.date >= cutoff);
+
+  const rangeLabel = timeRange === '7d' ? 'Last 7 days' : timeRange === '30d' ? 'Last 30 days' : timeRange === '3m' ? 'Last 3 months' : 'Last 12 months';
+
+  return (
+    <>
+      {/* Summary card */}
+      <div className="dash-card">
+        <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)' }}>
+          {rangeLabel} &middot; {datesInRange.length} days
+        </span>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 10 }}>
+          <span style={{ fontFamily: 'var(--font-headline)', fontSize: 48, fontWeight: 400, color: 'var(--text)' }}>
+            {avgCrs || '--'}
+          </span>
+          <span style={{ fontSize: 14, color: 'var(--text-dim)' }}>avg Form</span>
+        </div>
+        <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 13 }}>
+          <span style={{ color: 'var(--peak-text)' }}>{peakDays} peak days</span>
+          <span style={{ color: 'var(--text-dim)' }}>range {minCrs}–{maxCrs}</span>
+          <span style={{ color: lowDays > 0 ? 'var(--flagging-text)' : 'var(--text-dim)' }}>{lowDays} low days</span>
+        </div>
+      </div>
+
+      {/* CRS trend mini-chart */}
+      {crsScores.length > 1 && (
+        <div className="dash-card" style={{ padding: '16px 20px' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 10 }}>
+            Form trend
+          </span>
+          <svg width="100%" height="80" viewBox={`0 0 ${Math.min(datesInRange.length, 60)} 100`} preserveAspectRatio="none">
+            {/* Zone bands */}
+            <rect x="0" y="0" width="100%" height="20" fill="var(--peak-bg)" opacity="0.3" />
+            <rect x="0" y="40" width="100%" height="20" fill="var(--steady-bg)" opacity="0.3" />
+            <rect x="0" y="60" width="100%" height="40" fill="var(--flagging-bg)" opacity="0.2" />
+            {/* Line */}
+            <polyline
+              fill="none" stroke="var(--accent)" strokeWidth="1.5"
+              points={datesInRange.slice(-60).map((d, i) => `${i},${100 - d.crs}`).join(' ')}
+            />
+          </svg>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-dim)', marginTop: 4 }}>
+            <span>{datesInRange.length > 60 ? formatDateLabel(datesInRange[datesInRange.length - 60]?.date ?? '') : formatDateLabel(datesInRange[0]?.date ?? '')}</span>
+            <span>{formatDateLabel(datesInRange[datesInRange.length - 1]?.date ?? '')}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Spots in range */}
+      {spotsInRange.length > 0 && (
+        <div className="dash-card" style={{ padding: '16px 20px' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
+            {spotsInRange.length} observations
+          </span>
+          {spotsInRange.slice(0, 8).map((s, i) => (
+            <div key={i} style={{ padding: '6px 0', borderBottom: i < 7 ? '1px solid var(--border)' : 'none', fontSize: 13 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 500 }}>{s.title}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{s.date}</span>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{s.detail}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Patterns */}
+      {patterns.length > 0 && (
+        <div className="dash-card" style={{ padding: '16px 20px' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
+            Patterns ({patterns.length})
+          </span>
+          {patterns.slice(0, 5).map((p, i) => (
+            <div key={i} style={{ padding: '8px 0', borderLeft: '3px solid #7C6BF0', paddingLeft: 12, marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{p.type}</span>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.5 }}>{p.summary}</p>
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
+                {p.evidenceCount} evidence &middot; {typeof p.confidence === 'number' ? `${Math.round(p.confidence * 100)}%` : p.confidence}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {datesInRange.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-dim)' }}>
+          No data in this time range yet.
+        </div>
+      )}
+    </>
+  );
+}
+
 export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
   // ─── State ──────────────────────────────────────────────────────
   const [sidebarView, setSidebarView] = useState<SidebarView>('home');
@@ -472,7 +581,7 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
             </div>
           )}
 
-          {/* Data cards for selected date */}
+          {/* Data cards — single day or aggregated range */}
           {isLoadingDay || isLoadingDates ? (
             <div style={{ padding: 40, textAlign: 'center' }}>
               <div className="loading" style={{ justifyContent: 'center' }}>
@@ -482,6 +591,9 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
                 Loading {selectedDate ? formatDateLabel(selectedDate) : 'data'}...
               </p>
             </div>
+          ) : timeRange !== 'today' ? (
+            /* ── RANGE VIEW (7d / 30d / 3m / 12m) ── */
+            <RangeView allDates={allDates} spots={filteredSpots} patterns={patterns} timeRange={timeRange} />
           ) : dayData ? (
             <>
               <FormCard data={dayData} />
@@ -489,7 +601,7 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               <LoadCard data={dayData} />
 
               {/* Day's spots inline */}
-              {filteredSpots.length > 0 && timeRange === 'today' && (
+              {filteredSpots.length > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
                     Spots for this day
@@ -507,24 +619,6 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
                         </span>
                       </div>
                       <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4, lineHeight: 1.5 }}>{s.detail}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Patterns summary for range views */}
-              {timeRange !== 'today' && patterns.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
-                    Patterns ({patterns.length})
-                  </span>
-                  {patterns.slice(0, 5).map((p, i) => (
-                    <div key={i} className="dash-card" style={{ padding: '12px 16px', marginBottom: 8, borderLeft: '3px solid #7C6BF0' }}>
-                      <span style={{ fontSize: 13, fontWeight: 500 }}>{p.type}</span>
-                      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{p.summary}</p>
-                      <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
-                        {p.evidenceCount} evidence &middot; {typeof p.confidence === 'number' ? `${Math.round(p.confidence * 100)}%` : p.confidence} confidence
-                      </span>
                     </div>
                   ))}
                 </div>

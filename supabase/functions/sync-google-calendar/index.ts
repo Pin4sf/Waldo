@@ -123,11 +123,17 @@ async function syncUserCalendar(
     return { ok: false, eventsInserted: 0, daysComputed: 0, error: 'no_token' };
   }
 
-  // Sync window: yesterday to 7 days ahead
-  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const timeMin = yesterday.toISOString();
-  const timeMax = nextWeek.toISOString();
+  // Check if this is a first sync — if no calendar_metrics exist, pull 30 days back
+  const { count: existingCount } = await supabase
+    .from('calendar_metrics').select('id', { count: 'exact', head: true }).eq('user_id', userId);
+  const isFirstSync = (existingCount ?? 0) === 0;
+
+  // Sync window: first sync = 30 days back + 7 ahead, subsequent = 1 day back + 7 ahead
+  const lookbackDays = isFirstSync ? 30 : 1;
+  const lookbackMs = lookbackDays * 24 * 60 * 60 * 1000;
+  const timeMin = new Date(Date.now() - lookbackMs).toISOString();
+  const timeMax = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  if (isFirstSync) log('info', 'first_sync_calendar', { userId, lookbackDays });
 
   const result = await googleFetch(
     `${GOOGLE_CALENDAR_API}/calendars/primary/events`,
