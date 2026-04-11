@@ -18,6 +18,9 @@ import { FormCard } from './FormCard.js';
 import { SleepCard } from './SleepCard.js';
 import { LoadCard } from './LoadCard.js';
 import { HRVCard, CircadianCard, MotionCard, SleepDebtCard, RestingHRCard, SleepScoreCard } from './Tier2Cards.js';
+import { SignalDepthCard } from './SignalDepthCard.js';
+import { TheClose } from './TheClose.js';
+import { BodyReadings } from './BodyReadings.js';
 import { FetchCard, spotsToFetchEvents } from './FetchCard.js';
 import type { FetchEvent } from './FetchCard.js';
 import { IntegrationsPanel } from '../IntegrationsPanel.js';
@@ -441,6 +444,9 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               date={selectedDate ? formatDateLabel(selectedDate) : undefined}
             />
 
+            {/* The Close — evening wind-down (after 7pm) */}
+            {dayData && <TheClose data={dayData} />}
+
             {/* The Handoff — approval card (ghost until backend supports it) */}
             <TheHandoff status="none" />
 
@@ -643,18 +649,27 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
             <RangeView allDates={allDates} spots={filteredSpots} patterns={patterns} timeRange={timeRange} />
           ) : dayData ? (
             <>
+              {/* ── Tier 1: Agent outputs ── */}
               <FormCard data={dayData} />
-              {/* Tier 2 — Form components */}
+              <LoadCard data={dayData} />
+              <SleepCard data={dayData} />
+
+              {/* ── Tier 2: Component metrics ── */}
+              <div className="tier-section-head">Body signals</div>
               <SleepScoreCard data={dayData} />
               <HRVCard data={dayData} />
               <CircadianCard data={dayData} />
               <MotionCard data={dayData} />
-              <SleepCard data={dayData} />
               <SleepDebtCard data={dayData} />
               {dayData.restingHR !== null && <RestingHRCard data={dayData} />}
-              <LoadCard data={dayData} />
+              <BodyReadings data={dayData} />
 
-              {/* Phase 2 cards — real data or ghost invite */}
+              {/* ── Signal Depth ── */}
+              <div className="tier-section-head">Intelligence depth</div>
+              <SignalDepthCard />
+
+              {/* ── Phase 2: Productivity context ── */}
+              <div className="tier-section-head">Productivity context</div>
               <StackCard data={dayData.calendar} />
               <SignalPressureCard data={dayData.email} />
               <TaskPileUpCard data={dayData.tasks} />

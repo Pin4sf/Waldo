@@ -82,21 +82,24 @@ export function HRVCard({ data }: CardProps) {
 
   if (!expanded) {
     return (
-      <div className="dash-card" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
-        <span className="zone-badge" style={{ color: zoneColor }}>{zoneLabel}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 0 }}>
-          <div style={{ flex: 1 }}>
+      <div className="dash-card card-tier2" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
+        <div className="card-compact-row">
+          {/* Visual-first: chart takes right side prominently */}
+          <div className="card-compact-text">
+            <span className={`zone-badge zone-${zone === 'above' ? 'peak' : zone === 'within' ? 'steady' : 'flagging'}`}>{zoneLabel}</span>
             <h3 className="dash-card-title">HRV</h3>
-            <p className="dash-card-narrative">{crsHrv.factors[0] ?? `${todayVal}ms today — ${zoneLabel.toLowerCase()} vs your baseline.`}</p>
-            <span className="dash-card-meta">Beat-to-beat · IBI source</span>
+            <p className="dash-card-narrative">{crsHrv.factors[0] ?? `${todayVal}ms · ${zoneLabel.toLowerCase()} vs baseline.`}</p>
           </div>
-          <div className="dash-legend-panel" style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: 22, fontWeight: 500, fontFamily: 'var(--font-body)', color: '#1a1a1a', marginBottom: 6 }}>{todayVal}<span style={{ fontSize: 11, color: '#9a9a96', marginLeft: 3 }}>ms</span></div>
-            <svg width={miniW} height={miniH} viewBox={`0 0 ${miniW} ${miniH}`}>
-              <rect x={0} y={miniToY(baselineHi)} width={miniW} height={miniToY(baselineLo) - miniToY(baselineHi)} fill="rgba(251,148,63,0.12)" />
-              <path d={miniPath} fill="none" stroke={zoneColor} strokeWidth={1.5} strokeLinecap="round" />
-              <circle cx={miniToX(29)} cy={miniToY(todayVal)} r={3} fill={zoneColor} />
-            </svg>
+          <div className="card-compact-visual">
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 26, fontWeight: 500, fontFamily: 'var(--font-body)', color: zoneColor }}>{todayVal}<span style={{ fontSize: 10, color: '#9a9a96' }}>ms</span></div>
+              <svg width={100} height={40} viewBox={`0 0 ${miniW} ${miniH}`} style={{ marginTop: 4 }}>
+                <rect x={0} y={miniToY(baselineHi)} width={miniW} height={Math.max(1, miniToY(baselineLo) - miniToY(baselineHi))} fill="rgba(251,148,63,0.15)" rx={2} />
+                <path d={miniPath} fill="none" stroke={zoneColor} strokeWidth={1.5} strokeLinecap="round" />
+                <circle cx={miniToX(29)} cy={miniToY(todayVal)} r={3} fill={zoneColor} />
+              </svg>
+              <div style={{ fontSize: 8, color: '#9a9a96', marginTop: 2 }}>30-day · baseline band</div>
+            </div>
           </div>
         </div>
       </div>
@@ -254,16 +257,15 @@ export function CircadianCard({ data }: CardProps) {
 
   if (!expanded) {
     return (
-      <div className="dash-card" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
-        <span className="zone-badge" style={{ color: zoneColor }}>{zone}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 0 }}>
-          <div style={{ flex: 1 }}>
+      <div className="dash-card card-tier2" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
+        <div className="card-compact-row">
+          <div className="card-compact-text">
+            <span className={`zone-badge zone-${score >= 80 ? 'peak' : score >= 60 ? 'steady' : 'flagging'}`}>{zone}</span>
             <h3 className="dash-card-title">Circadian</h3>
-            <p className="dash-card-narrative">{circadian.factors[0] ?? `Wake drift: ${driftLabel}. Body clock ${zone.toLowerCase()}.`}</p>
-            <span className="dash-card-meta">Body clock alignment · sleep timing</span>
+            <p className="dash-card-narrative">{circadian.factors[0] ?? `Drift: ${driftLabel}. Clock ${zone.toLowerCase()}.`}</p>
           </div>
-          <div className="dash-legend-panel" style={{ padding: '12px', flexShrink: 0 }}>
-            <CircadianArc size={90} />
+          <div className="card-compact-visual">
+            <CircadianArc size={100} />
           </div>
         </div>
       </div>
@@ -357,21 +359,22 @@ export function MotionCard({ data }: CardProps) {
 
   if (!expanded) {
     return (
-      <div className="dash-card" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
-        <span className="zone-badge" style={{ color: zoneColor }}>{zoneLabel}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 0 }}>
-          <div style={{ flex: 1 }}>
+      <div className="dash-card card-tier2" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
+        <div className="card-compact-row">
+          <div className="card-compact-text">
+            <span className={`zone-badge zone-${overallScore >= 80 ? 'peak' : overallScore >= 50 ? 'steady' : 'flagging'}`}>{zoneLabel}</span>
             <h3 className="dash-card-title">Motion</h3>
-            <p className="dash-card-narrative">{crsActivity.factors[0] ?? `${activity.steps.toLocaleString()} steps · ${activity.exerciseMinutes}min exercise · ${activity.standHours}h stand.`}</p>
-            <span className="dash-card-meta">Steps · exercise · stand hours</span>
+            <p className="dash-card-narrative">{activity.steps.toLocaleString()} steps · {activity.exerciseMinutes}m exercise</p>
           </div>
-          <div className="dash-legend-panel" style={{ padding: '14px', minWidth: 140 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="card-compact-visual" style={{ minWidth: 120 }}>
+            {/* 3 visual bars — the chart IS the content */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
               {rows.map(row => (
                 <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 9, color: '#9a9a96', width: 40, flexShrink: 0 }}>{row.label}</span>
-                  <SegBar pct={row.pct} color={barColor} />
-                  <span style={{ fontSize: 9, color: '#6b6b68', width: 28, textAlign: 'right', flexShrink: 0 }}>{row.pct}%</span>
+                  <span style={{ fontSize: 9, color: '#9a9a96', width: 38, flexShrink: 0 }}>{row.label}</span>
+                  <div style={{ flex: 1, background: 'rgba(26,26,26,0.04)', borderRadius: 20, height: 6, overflow: 'hidden' }}>
+                    <div style={{ width: `${row.pct}%`, height: '100%', background: barColor, borderRadius: 20, transition: 'width 0.8s ease' }} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -491,22 +494,26 @@ export function SleepDebtCard({ data }: CardProps) {
 
   if (!expanded) {
     return (
-      <div className="dash-card" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
-        <span className="zone-badge" style={{ color: zoneColor }}>{zoneLabel}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 0 }}>
-          <div style={{ flex: 1 }}>
+      <div className="dash-card card-tier2" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
+        <div className="card-compact-row">
+          <div className="card-compact-text">
+            <span className={`zone-badge zone-${debtHours <= 0.5 ? 'peak' : debtHours <= 1.5 ? 'steady' : 'flagging'}`}>{zoneLabel}</span>
             <h3 className="dash-card-title">Sleep Debt</h3>
             <p className="dash-card-narrative">{debt.summary}</p>
-            <span className="dash-card-meta">{arrow} {direction} · 7-day window</span>
           </div>
-          <div className="dash-legend-panel" style={{ padding: '12px 14px', flexShrink: 0 }}>
-            <div style={{ fontSize: 22, fontWeight: 500, fontFamily: 'var(--font-body)', color: zoneColor, marginBottom: 6 }}>
-              {debtHours.toFixed(1)}<span style={{ fontSize: 11, color: '#9a9a96', marginLeft: 3 }}>h owed</span>
+          <div className="card-compact-visual">
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 26, fontWeight: 500, fontFamily: 'var(--font-body)', color: zoneColor }}>
+                {debtHours.toFixed(1)}<span style={{ fontSize: 10, color: '#9a9a96' }}>h</span>
+                <span style={{ fontSize: 16, marginLeft: 4 }}>{arrow}</span>
+              </div>
+              <svg width={100} height={40} viewBox={`0 0 ${miniW} ${miniH}`} style={{ marginTop: 4 }}>
+                <path d={`${miniStep} V ${miniH} H ${mToX(0)} Z`} fill={zoneColor} opacity={0.08} />
+                <path d={miniStep} fill="none" stroke={zoneColor} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx={mToX(6)} cy={mToY(history[6] ?? 0)} r={3} fill={zoneColor} />
+              </svg>
+              <div style={{ fontSize: 8, color: '#9a9a96', marginTop: 2 }}>7-day · {direction}</div>
             </div>
-            <svg width={miniW} height={miniH} viewBox={`0 0 ${miniW} ${miniH}`}>
-              <path d={miniStep} fill="none" stroke={zoneColor} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx={mToX(6)} cy={mToY(history[6] ?? 0)} r={3} fill={zoneColor} />
-            </svg>
           </div>
         </div>
       </div>
@@ -616,20 +623,22 @@ export function RestingHRCard({ data }: CardProps) {
 
   if (!expanded) {
     return (
-      <div className="dash-card" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
-        <span className="zone-badge" style={{ color: zoneColor }}>{zoneLabel}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 0 }}>
-          <div style={{ flex: 1 }}>
+      <div className="dash-card card-tier2" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
+        <div className="card-compact-row">
+          <div className="card-compact-text">
+            <span className={`zone-badge zone-${rhr < 72 ? 'peak' : rhr < 85 ? 'steady' : 'flagging'}`}>{zoneLabel}</span>
             <h3 className="dash-card-title">Resting HR</h3>
-            <p className="dash-card-narrative">{rhr} bpm · <span style={{ color: trendColor }}>{trendArrow} {trend}</span> over 7 days.</p>
-            <span className="dash-card-meta">7-day trend · beats per minute</span>
+            <p className="dash-card-narrative">{rhr} bpm · <span style={{ color: trendColor }}>{trendArrow} {trend}</span></p>
           </div>
-          <div className="dash-legend-panel" style={{ padding: '12px 14px', flexShrink: 0 }}>
-            <div style={{ fontSize: 22, fontWeight: 500, fontFamily: 'var(--font-body)', color: '#1a1a1a', marginBottom: 6 }}>{rhr}<span style={{ fontSize: 11, color: '#9a9a96', marginLeft: 3 }}>bpm</span></div>
-            <svg width={miniW} height={miniH} viewBox={`0 0 ${miniW} ${miniH}`}>
-              <path d={miniPath} fill="none" stroke={zoneColor} strokeWidth={1.5} strokeLinecap="round" />
-              <circle cx={mToX(6)} cy={mToY(rhr)} r={3} fill={trendColor} />
-            </svg>
+          <div className="card-compact-visual">
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 26, fontWeight: 500, fontFamily: 'var(--font-body)', color: '#1a1a1a' }}>{rhr}<span style={{ fontSize: 10, color: '#9a9a96' }}>bpm</span></div>
+              <svg width={100} height={36} viewBox={`0 0 ${miniW} ${miniH}`} style={{ marginTop: 4 }}>
+                <path d={miniPath} fill="none" stroke={zoneColor} strokeWidth={1.5} strokeLinecap="round" />
+                <circle cx={mToX(6)} cy={mToY(rhr)} r={3} fill={trendColor} />
+              </svg>
+              <div style={{ fontSize: 8, color: trendColor, marginTop: 2 }}>{trendArrow} {trend} · 7d</div>
+            </div>
           </div>
         </div>
       </div>
@@ -733,23 +742,27 @@ export function SleepScoreCard({ data }: CardProps) {
 
   if (!expanded) {
     return (
-      <div className="dash-card" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
-        <span className="zone-badge" style={{ color: zoneColor }}>{zoneLabel}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 0 }}>
-          <div style={{ flex: 1 }}>
+      <div className="dash-card card-tier2" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
+        <div className="card-compact-row">
+          <div className="card-compact-text">
+            <span className={`zone-badge zone-${score >= 80 ? 'peak' : score >= 65 ? 'steady' : 'flagging'}`}>{zoneLabel}</span>
             <h3 className="dash-card-title">Sleep Score</h3>
-            <p className="dash-card-narrative">{crsSleep.factors[0] ?? `${durationStr} total · ${score}/100 score.`}</p>
-            <span className="dash-card-meta">{sleep.bedtime ?? '--'} → {sleep.wakeTime ?? '--'}</span>
+            <p className="dash-card-narrative">{crsSleep.factors[0] ?? `${durationStr} · ${zoneLabel.toLowerCase()} quality.`}</p>
           </div>
-          <div className="dash-legend-panel" style={{ padding: '12px 14px', flexShrink: 0 }}>
-            <div style={{ fontSize: 28, fontWeight: 500, fontFamily: 'var(--font-body)', color: zoneColor, marginBottom: 6 }}>{score}</div>
-            {/* Mini stage pills */}
-            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-              {stageConfig.map(s => (
-                <span key={s.key} style={{ fontSize: 8, padding: '2px 5px', borderRadius: 4, background: 'rgba(26,26,26,0.06)', color: s.color, fontWeight: 500, fontFamily: 'var(--font-body)' }}>
-                  {s.label} {Math.round(s.pct)}%
-                </span>
-              ))}
+          <div className="card-compact-visual">
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 32, fontWeight: 500, fontFamily: 'var(--font-body)', color: zoneColor }}>{score}</div>
+              {/* Stage color bar — visual instead of numbers */}
+              <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', width: 90, margin: '6px auto 0', gap: 1 }}>
+                {stageConfig.map(s => (
+                  <div key={s.key} style={{ flex: Math.max(s.pct, 3), background: s.color, transition: 'flex 0.8s ease' }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 6 }}>
+                {stageConfig.map(s => (
+                  <span key={s.key} style={{ fontSize: 7, color: s.color, fontWeight: 500 }}>{s.label}</span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
