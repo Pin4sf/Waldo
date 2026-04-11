@@ -122,20 +122,25 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
 
 // ─── Dates & Day Data ───────────────────────────────────────────
 
-/** Lightweight date list for timeline. */
+/** Lightweight date list for timeline — includes time-series values for client-side historical charts. */
 export async function fetchDates(userId = DEFAULT_USER_ID): Promise<DateEntry[]> {
-  const [{ data: crsData }, { data: healthData }, { data: activityData }] = await Promise.all([
+  const [{ data: crsData }, { data: healthData }, { data: activityData }, { data: masterData }] = await Promise.all([
     supabase.from('crs_scores').select('date, score, zone').eq('user_id', userId).order('date'),
-    supabase.from('health_snapshots').select('date, data_tier, sleep_duration_hours, hrv_count, steps').eq('user_id', userId).order('date'),
+    supabase.from('health_snapshots')
+      .select('date, data_tier, sleep_duration_hours, hrv_count, hrv_rmssd, resting_hr, spo2, steps')
+      .eq('user_id', userId).order('date'),
     supabase.from('day_activity').select('date, morning_wag, spots_json').eq('user_id', userId),
+    supabase.from('master_metrics').select('date, sleep_debt, strain').eq('user_id', userId),
   ]);
 
   const crsMap = new Map((crsData ?? []).map((c: any) => [c.date, c]));
   const activityMap = new Map((activityData ?? []).map((a: any) => [a.date, a]));
+  const masterMap = new Map((masterData ?? []).map((m: any) => [m.date, m]));
 
   return (healthData ?? []).map((h: any) => {
     const crs = crsMap.get(h.date);
     const act = activityMap.get(h.date);
+    const master = masterMap.get(h.date);
     return {
       date: h.date,
       crs: crs?.score ?? -1,
@@ -150,6 +155,13 @@ export async function fetchDates(userId = DEFAULT_USER_ID): Promise<DateEntry[]>
       spotCount: (act?.spots_json ?? []).length,
       headline: '',
       morningWag: act?.morning_wag ?? null,
+      // Time-series values for historical charts
+      hrvAvg: h.hrv_rmssd ?? null,
+      restingHR: h.resting_hr ?? null,
+      sleepHours: h.sleep_duration_hours ?? null,
+      sleepDebtHours: (master?.sleep_debt as any)?.debtHours ?? null,
+      strainScore: (master?.strain as any)?.score ?? null,
+      spO2: h.spo2 ?? null,
     };
   });
 }

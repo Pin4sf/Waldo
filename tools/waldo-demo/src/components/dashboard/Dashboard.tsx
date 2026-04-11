@@ -28,7 +28,7 @@ import { IntegrationsPanel } from '../IntegrationsPanel.js';
 import { ConversationHistory } from '../ConversationHistory.js';
 import { ConstellationView } from '../ConstellationView.js';
 import * as cloud from '../../supabase-api.js';
-import type { DateEntry, DayResponse, WaldoResponse, SpotData, PatternData } from '../../types.js';
+import type { DateEntry, DayResponse, WaldoResponse, SpotData, PatternData, SyncStatus } from '../../types.js';
 
 type SidebarView = 'home' | 'chat' | 'connectors' | 'fetches' | 'constellations' | 'chats';
 type TimeRange = 'today' | '7d' | '30d' | '3m' | '12m';
@@ -312,6 +312,7 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
   const [showConstellation, setShowConstellation] = useState(false);
   const [buildingIntel, setBuildingIntel] = useState(false);
   const [buildResult, setBuildResult] = useState<{ spots_generated: number; baselines_computed: number; patterns_promoted: number; message: string; error?: string } | null>(null);
+  const [syncStatuses, setSyncStatuses] = useState<SyncStatus[]>([]);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -325,11 +326,13 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
       cloud.fetchLearningTimeline(userId),
       cloud.fetchConversationHistory(userId, 10),
       cloud.fetchSummary(userId),
-    ]).then(([dates, spotsData, patternsData, learning, history, summary]) => {
+      cloud.fetchSyncStatus(userId),
+    ]).then(([dates, spotsData, patternsData, learning, history, summary, syncs]) => {
       setAllDates(dates ?? []);
       setSpots(spotsData ?? []);
       setPatterns(patternsData ?? []);
       setIntelligenceScore(learning?.intelligenceScore ?? 0);
+      setSyncStatuses(syncs ?? []);
 
       // Intelligence summary from user_intelligence or summary
       const uiSummary = (summary as any)?.userIntelligence;
@@ -467,11 +470,25 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
     const el = document.querySelector(`[data-card-id="${cardId}"]`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      // Flash highlight
       el.classList.add('card-highlight');
       setTimeout(() => el.classList.remove('card-highlight'), 1200);
     }
   }, []);
+
+  // ─── Health history arrays — built from allDates for chart cards ──
+  // These replace seeded-random fake history in Tier2Cards / LoadCard.
+  // Pass to cards that need sparklines / trend charts.
+  const healthHistory = useMemo(() => {
+    const last30 = allDates.slice(-30);
+    const last7  = allDates.slice(-7);
+    return {
+      hrv30d:       last30.map(d => d.hrvAvg),
+      rhr7d:        last7.map(d => d.restingHR),
+      sleepDebt7d:  last7.map(d => d.sleepDebtHours),
+      strain7d:     last7.map(d => d.strainScore),
+      sleepHours7d: last7.map(d => d.sleepHours),
+    };
+  }, [allDates]);
 
   // ─── Intelligence feed items for center column ─────────────────
   const intelligenceFeed = useMemo((): FetchEvent[] => {

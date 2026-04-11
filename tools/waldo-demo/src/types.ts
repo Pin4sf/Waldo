@@ -14,6 +14,13 @@ export interface DateEntry {
   spotCount: number;
   headline: string;
   morningWag: string | null;
+  // Time-series fields — enables client-side historical charts without extra API calls
+  hrvAvg: number | null;        // avg RMSSD for the day (from health_snapshots.hrv_rmssd)
+  restingHR: number | null;     // resting HR bpm (from health_snapshots.resting_hr)
+  sleepHours: number | null;    // total sleep hours (from health_snapshots.sleep_duration_hours)
+  sleepDebtHours: number | null;// cumulative debt on this day (from master_metrics.sleep_debt.debtHours)
+  strainScore: number | null;   // Load score 0–21 (from master_metrics.strain.score)
+  spO2: number | null;          // SpO2 % (from health_snapshots.spo2)
 }
 
 export interface ComponentScore {
@@ -253,4 +260,18 @@ export interface AgentLogEntry {
   llmFallbackLevel: number;
   estimatedCostUsd: number;
   createdAt: string;
+}
+
+/**
+ * Pre-computed history arrays derived from allDates in Dashboard.
+ * Pass to Tier2Cards (HRVCard, RestingHRCard, SleepDebtCard) and LoadCard
+ * to replace seeded-random fake historical charts with real data.
+ * All arrays are ordered oldest→newest. Null entries mean no data for that day.
+ */
+export interface HealthHistory {
+  hrv30d: (number | null)[];       // 30-day HRV avg — for HRVCard baseline chart
+  rhr7d: (number | null)[];        // 7-day resting HR — for RestingHRCard sparkline
+  sleepDebt7d: (number | null)[];  // 7-day debt accumulation — for SleepDebtCard
+  strain7d: (number | null)[];     // 7-day strain scores — for LoadCard 7-day avg
+  sleepHours7d: (number | null)[]; // 7-day sleep hours — for SleepDebtCard context
 }
