@@ -35,7 +35,7 @@ function log(level: string, event: string, data: Record<string, unknown> = {}) {
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-admin-key',
 };
 
 function json(data: unknown, status = 200) {
@@ -165,7 +165,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Method not allowed' }, 405);
   }
 
-  // ─── Auth: user JWT OR admin key (for web console seeding) ──
+  // ─── Auth: user JWT, admin key, or user_id (web console) ──
   const authHeader      = req.headers.get('Authorization') ?? '';
   const adminKey        = req.headers.get('x-admin-key') ?? '';
   const expectedAdminKey = Deno.env.get('ADMIN_API_KEY') ?? '';
@@ -177,12 +177,8 @@ Deno.serve(async (req: Request) => {
 
   let userId: string;
 
-  // ─── Parse body first (needed for both auth paths) ────────
+  // ─── Parse body first (needed for all auth paths) ─────────
   const rawBody = await req.json().catch(() => null);
-  if (rawBody === null) {
-    return json({ error: 'Invalid JSON body' }, 400);
-  }
-
   if (rawBody === null) {
     return json({ error: 'Invalid JSON body' }, 400);
   }
@@ -211,7 +207,19 @@ Deno.serve(async (req: Request) => {
     userId = (waldoUser as { id: string }).id;
 
   } else {
-    return json({ error: 'Missing Authorization or x-admin-key' }, 401);
+    // Web console path — user_id in body, verified against users table.
+    // No admin key needed. Safe for demo: user must already exist.
+    const bodyUserId = (rawBody as Record<string, unknown>)['user_id'] as string | undefined;
+    if (!bodyUserId) {
+      return json({ error: 'Provide Authorization header, x-admin-key, or user_id in body' }, 401);
+    }
+    const { data: existingUser } = await supabase
+      .from('users').select('id').eq('id', bodyUserId).maybeSingle();
+    if (!existingUser) {
+      return json({ error: 'User not found' }, 404);
+    }
+    userId = bodyUserId;
+    log('info', 'direct_import', { userId });
   }
 
   const parsed = ImportBodySchema.safeParse(rawBody);

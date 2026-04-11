@@ -11,6 +11,7 @@
 import { Bot, webhookCallback, InlineKeyboard } from 'https://deno.land/x/grammy@v1.31.3/mod.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getUserByChatId, checkIdempotency, recordSent } from '../_shared/config.ts';
+import { agentChat, agentTrigger, provisionUser } from '../_shared/waldo-worker.ts';
 
 function log(level: string, event: string, data: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ ts: new Date().toISOString(), fn: 'telegram-bot', level, event, ...data }));
@@ -198,22 +199,14 @@ bot.command('morning', async (ctx) => {
 
   await ctx.replyWithChatAction('typing');
 
-  const agentUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/invoke-agent`;
-  const response = await fetch(agentUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-    },
-    body: JSON.stringify({ user_id: user.id, trigger_type: 'morning_wag', channel: 'telegram' }),
-  });
-  const result = await response.json();
+  // Route to CF Worker DO (falls back to invoke-agent EF if worker not deployed)
+  const result = await agentTrigger(user.id, 'morning_wag');
 
   const keyboard = new InlineKeyboard()
     .text('👍', `fb_pos:${user.id}`)
     .text('👎', `fb_neg:${user.id}`);
 
-  await ctx.reply(result.message ?? 'Something went wrong.', { reply_markup: keyboard });
+  await ctx.reply(result.reply ?? 'Something went wrong.', { reply_markup: keyboard });
 });
 
 // ─── Any text message → look up user → invoke agent ──────────
@@ -230,36 +223,23 @@ bot.on('message:text', async (ctx) => {
 
   await ctx.replyWithChatAction('typing');
 
-  const triggerType = user.onboarding_complete ? 'conversational' : 'onboarding';
-
   try {
-    const agentUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/invoke-agent`;
-    const response = await fetch(agentUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-      },
-      body: JSON.stringify({
-        user_id: user.id,
-        trigger_type: triggerType,
-        question,
-        channel: 'telegram',
-      }),
-    });
+    // Route to CF Worker DO — the single agent brain
+    // DO handles interview vs conversational mode internally
+    const result = await agentChat(user.id, question, 'telegram');
 
-    const result = await response.json();
     log('info', 'agent_response', {
       userId: user.id, zone: result.zone,
-      tokens_in: result.tokens_in, tokens_out: result.tokens_out,
-      fallback: result.fallback ?? false,
+      iterations: result.iterations,
+      tools: result.tools_called,
+      fallback: result.usedFallback ?? false,
     });
 
     const keyboard = new InlineKeyboard()
       .text('👍', `fb_pos:${user.id}`)
       .text('👎', `fb_neg:${user.id}`);
 
-    await ctx.reply(result.message ?? result.error ?? 'Something went wrong.', {
+    await ctx.reply(result.reply ?? 'Something went wrong.', {
       reply_markup: keyboard,
     });
   } catch (err) {

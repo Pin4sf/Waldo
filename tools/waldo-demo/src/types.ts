@@ -172,7 +172,7 @@ export interface WaldoResponse {
   crsScore?: number;
   iterations?: number;
   toolsCalled?: string[];
-  method?: 'claude' | 'template';
+  method?: string;  // 'claude' | 'template' | 'L1:claude' | 'L2:claude' | 'L2:deepseek'
   fallback?: boolean;
   debug?: { systemPrompt: string; userMessage: string; model: string };
 }

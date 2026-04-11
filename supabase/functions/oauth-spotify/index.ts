@@ -180,6 +180,14 @@ Deno.serve(async (req: Request) => {
     }, { onConflict: 'user_id,provider' });
 
     log('connected', { userId: stateData.userId });
+
+    // Immediate first sync — don't wait for pg_cron
+    fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-spotify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+      body: JSON.stringify({ user_id: stateData.userId }),
+    }).catch(() => {});
+
     return Response.redirect(`${successUrl}?connected=spotify`, 302);
   }
 

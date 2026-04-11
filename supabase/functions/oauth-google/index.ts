@@ -80,6 +80,7 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
   refresh_token?: string;
   expires_in: number;
   token_type: string;
+  scope?: string;
 } | null> {
   const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
   const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
@@ -297,6 +298,34 @@ Deno.serve(async (req: Request) => {
       return errorRedirect('Failed to exchange Google authorization code — please try again');
     }
 
+    // Validate granted scopes — Google may grant fewer scopes than requested
+    const requestedScopes = stateData.scopes;
+    let grantedScopes: string[];
+
+    if (tokens.scope) {
+      // Google returns granted scopes as a space-separated string
+      const grantedSet = new Set(tokens.scope.split(' ').filter(Boolean));
+      grantedScopes = requestedScopes.filter(s => grantedSet.has(s));
+
+      const deniedScopes = requestedScopes.filter(s => !grantedSet.has(s));
+      if (deniedScopes.length > 0) {
+        log('warn', 'oauth_partial_scopes', {
+          userId: stateData.userId,
+          requested: requestedScopes,
+          granted: grantedScopes,
+          denied: deniedScopes,
+        });
+      }
+    } else {
+      // If Google didn't return scope field, assume all requested were granted (pre-2019 behavior)
+      grantedScopes = requestedScopes;
+      log('warn', 'oauth_no_scope_in_response', { userId: stateData.userId });
+    }
+
+    if (grantedScopes.length === 0) {
+      return errorRedirect('Google did not grant any of the requested permissions — please try again');
+    }
+
     // Fetch the connected Google account's email via userinfo endpoint
     let googleEmail: string | null = null;
     try {
@@ -311,7 +340,7 @@ Deno.serve(async (req: Request) => {
       // Non-fatal — email is nice-to-have, not blocking
     }
 
-    await storeTokens(supabase, stateData.userId, tokens, stateData.scopes, googleEmail);
+    await storeTokens(supabase, stateData.userId, tokens, grantedScopes, googleEmail);
 
     // Also store email on the users table if it's currently null
     if (googleEmail) {
@@ -322,7 +351,28 @@ Deno.serve(async (req: Request) => {
         .is('email', null); // only set if not already set
     }
 
-    log('info', 'oauth_connected', { userId: stateData.userId, scopes: stateData.scopes.length, googleEmail });
+    log('info', 'oauth_connected', { userId: stateData.userId, scopesGranted: grantedScopes.length, scopesRequested: requestedScopes.length, googleEmail });
+
+    // ─── Immediate first sync (fire-and-forget, don't block redirect) ─
+    // No reason to wait for pg_cron — Google APIs are queryable instantly after OAuth.
+    const fnBase = `${Deno.env.get('SUPABASE_URL')}/functions/v1`;
+    const syncHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+    };
+    const syncBody = JSON.stringify({ user_id: stateData.userId });
+
+    // Fire all applicable syncs in parallel — don't await, don't block the redirect
+    const syncFunctions = ['sync-google-calendar', 'sync-gmail', 'sync-tasks'];
+    if (grantedScopes.some(s => s.includes('fit'))) {
+      syncFunctions.push('sync-google-fit');
+    }
+
+    for (const fn of syncFunctions) {
+      fetch(`${fnBase}/${fn}`, { method: 'POST', headers: syncHeaders, body: syncBody }).catch(() => {});
+    }
+
+    log('info', 'first_sync_triggered', { userId: stateData.userId, functions: syncFunctions });
     return successRedirect('google');
   }
 

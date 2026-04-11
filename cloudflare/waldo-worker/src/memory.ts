@@ -90,10 +90,11 @@ export function initSchema(sql: SqlStorage): void {
     -- category = 'pattern'    → promoted high-confidence patterns from compaction
     -- category = 'episodic'   → daily diary entries: diary_YYYY-MM-DD
     CREATE TABLE IF NOT EXISTS memory_blocks (
-      key        TEXT PRIMARY KEY,
-      value      TEXT NOT NULL,
-      category   TEXT DEFAULT 'general',
-      updated_at TEXT DEFAULT (datetime('now'))
+      key         TEXT PRIMARY KEY,
+      value       TEXT NOT NULL,
+      category    TEXT DEFAULT 'general',
+      source_type TEXT DEFAULT 'auto_derived',  -- 'auto_derived' | 'user_validated' | 'conversation_insight' (Karpathy/JieqLuo tier distinction)
+      updated_at  TEXT DEFAULT (datetime('now'))
     );
 
     -- Tier 2: Raw daily event log (conversation turns, proactive messages, observations)

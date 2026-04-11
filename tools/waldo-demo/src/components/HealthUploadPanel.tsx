@@ -15,7 +15,7 @@ import { SUPABASE_FN_URL } from '../supabase-api.js';
 
 interface Props {
   userId: string;
-  adminKey: string;
+  adminKey?: string;  // No longer required — health-import accepts user_id directly
   onImported?: (summary: ImportSummary) => void;
 }
 
@@ -408,10 +408,7 @@ export function HealthUploadPanel({ userId, adminKey, onImported }: Props) {
       return;
     }
 
-    if (!adminKey) {
-      setError('Admin key not set. Open browser console and run: localStorage.setItem("waldo_admin_key", "YOUR_KEY")');
-      return;
-    }
+    // Admin key no longer required — health-import verifies user_id directly
 
     // Accept XML or ZIP
     const name = file.name.toLowerCase();
@@ -481,17 +478,17 @@ export function HealthUploadPanel({ userId, adminKey, onImported }: Props) {
         setStatusMsg(`Uploading batch ${b + 1}/${batches} (${batchSnaps.length} days)…`);
         setProgress(90 + Math.round((b / batches) * 10));
 
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (adminKey) headers['x-admin-key'] = adminKey;
+
         const res = await fetch(`${SUPABASE_FN_URL}/health-import`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-admin-key': adminKey,
-          },
+          headers,
           body: JSON.stringify({
             user_id: userId,
             health_snapshots: batchSnaps,
             crs_scores: batchCrs,
-            stress_events: b === 0 ? payload.stress_events : [], // Only send stress on first batch
+            stress_events: b === 0 ? payload.stress_events : [],
           }),
         });
 
@@ -530,7 +527,7 @@ export function HealthUploadPanel({ userId, adminKey, onImported }: Props) {
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
         setError('Network error — the upload request could not reach the server. Check your internet connection and try again. If the file is very large (>200MB), try a smaller export.');
       } else if (msg.includes('401') || msg.includes('Unauthorized')) {
-        setError('Authentication failed. Set the admin key: open browser console → localStorage.setItem("waldo_admin_key", "YOUR_KEY")');
+        setError('Authentication failed. Make sure the user exists in the database.');
       } else if (msg.includes('413') || msg.includes('too large')) {
         setError('File too large for a single upload. This should not happen with batching — please report this bug.');
       } else {
@@ -538,7 +535,7 @@ export function HealthUploadPanel({ userId, adminKey, onImported }: Props) {
       }
       setState('error');
     }
-  }, [userId, adminKey, onImported]);
+  }, [userId, onImported]);
 
   const handleFile = (file: File | null | undefined) => {
     if (file) process(file);

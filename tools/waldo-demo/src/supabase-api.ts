@@ -16,6 +16,10 @@ export const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
 export const AGENT_URL = `${SUPABASE_URL}/functions/v1/invoke-agent`;
 export const SUPABASE_FN_URL = `${SUPABASE_URL}/functions/v1`;
 
+// CF Worker URL — set via env var or localStorage. When set, chat routes to DO instead of invoke-agent EF.
+export const WALDO_WORKER_URL = (import.meta as any).env?.VITE_WALDO_WORKER_URL ?? localStorage.getItem('waldo_worker_url') ?? '';
+export const WALDO_WORKER_SECRET = (import.meta as any).env?.VITE_WALDO_WORKER_SECRET ?? localStorage.getItem('waldo_worker_secret') ?? '';
+
 // ─── Admin API (requires ADMIN_API_KEY) ─────────────────────────
 
 function getAdminKey(): string {
@@ -273,13 +277,81 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
 
 // ─── Agent ───────────────────────────────────────────────────────
 
-/** Call invoke-agent Edge Function. */
+/**
+ * Call Waldo agent — smart routing across 3 compute layers:
+ *   L1: invoke-agent EF (simple chat — fast, stateless, cheap)
+ *   L2: CF Worker DO (complex queries, proactive triggers — persistent memory, ReAct)
+ *
+ * Routing: proactive triggers + complex queries → L2, simple chat → L1.
+ * If CF Worker not deployed, everything goes to L1 gracefully.
+ */
+const COMPLEX_PATTERNS = [
+  /pattern|constellation|trend|over time|this week|last week|compare/i,
+  /remember|you told me|last time|previously|you said/i,
+  /why.*(score|crs|nap|sleep|stress|hrv)/i,
+  /what should|suggest|recommend|plan|schedule/i,
+  /correlation|connect|relationship between/i,
+  /update.*memory|learn|note that|remember this/i,
+];
+
+function needsL2(question: string | undefined, mode: MessageMode): boolean {
+  if (['morning_wag', 'fetch_alert', 'evening_review', 'onboarding'].includes(mode)) return true;
+  if (!question) return false;
+  if (COMPLEX_PATTERNS.some(p => p.test(question))) return true;
+  if (question.length > 200) return true;
+  return false;
+}
+
 export async function callWaldo(
   date: string,
   mode: MessageMode,
   question?: string,
   userId = DEFAULT_USER_ID,
 ): Promise<WaldoResponse | WaldoError> {
+  const useL2 = WALDO_WORKER_URL && needsL2(question, mode);
+
+  // L2: CF Worker DO (complex queries, triggers)
+  if (useL2) {
+    try {
+      const endpoint = question
+        ? `${WALDO_WORKER_URL}/chat/${userId}`
+        : `${WALDO_WORKER_URL}/trigger/${userId}`;
+      const body = question
+        ? { message: question, channel: 'web' }
+        : { trigger_type: mode };
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(WALDO_WORKER_SECRET ? { 'x-waldo-secret': WALDO_WORKER_SECRET } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          message: data.reply ?? 'No response.',
+          zone: data.zone ?? 'moderate',
+          mode: data.mode ?? mode,
+          tokensIn: data.tokens_in ?? 0,
+          tokensOut: data.tokens_out ?? 0,
+          responseTimeMs: data.latencyMs ?? 0,
+          crsScore: data.crs_score,
+          iterations: data.iterations ?? 0,
+          toolsCalled: data.tools_called ?? [],
+          method: `L2:${data.provider ?? 'claude'}`,
+          fallback: false,
+        } as WaldoResponse;
+      }
+      console.warn(`[Waldo] L2 returned ${res.status}, falling to L1`);
+    } catch (err) {
+      console.warn('[Waldo] L2 unreachable, falling to L1:', err);
+    }
+  }
+
+  // L1: invoke-agent Edge Function (simple chat, or L2 fallback)
   const res = await fetch(AGENT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -299,7 +371,7 @@ export async function callWaldo(
     crsScore: data.crs_score,
     iterations: data.iterations ?? 0,
     toolsCalled: data.tools_called ?? [],
-    method: data.method ?? 'claude',
+    method: `L1:${data.method ?? 'claude'}`,
     fallback: data.method === 'template' || !!data.fallback,
   } as WaldoResponse;
 }
@@ -381,12 +453,13 @@ export async function fetchSummary(userId = DEFAULT_USER_ID) {
 
 // ─── Integrations ────────────────────────────────────────────────
 
-/** Fetch Google integration status + sync log for a user. */
+/** Fetch ALL integration statuses + sync logs for a user. */
 export async function fetchSyncStatus(userId = DEFAULT_USER_ID): Promise<SyncStatus[]> {
-  const [{ data: token }, { data: logs }] = await Promise.all([
-    supabase.from('oauth_tokens').select('provider, scopes, expires_at, updated_at').eq('user_id', userId).eq('provider', 'google').maybeSingle(),
+  const [{ data: tokens }, { data: logs }] = await Promise.all([
+    supabase.from('oauth_tokens').select('provider, scopes, expires_at, updated_at').eq('user_id', userId),
     supabase.from('sync_log').select('provider, last_sync_at, last_sync_status, records_synced, last_error').eq('user_id', userId),
   ]);
+  const token = tokens?.find(t => t.provider === 'google') ?? null;
 
   const { data: spotifyToken } = await supabase
     .from('oauth_tokens').select('id').eq('user_id', userId).eq('provider', 'spotify').maybeSingle();
@@ -432,6 +505,21 @@ export function getSpotifyConnectUrl(userId: string): string {
   return `${SUPABASE_FN_URL}/oauth-spotify/connect?user_id=${userId}`;
 }
 
+/** Todoist connect URL. */
+export function getTodoistConnectUrl(userId: string): string {
+  return `${SUPABASE_FN_URL}/oauth-todoist/connect?user_id=${userId}`;
+}
+
+/** Strava connect URL. */
+export function getStravaConnectUrl(userId: string): string {
+  return `${SUPABASE_FN_URL}/oauth-strava/connect?user_id=${userId}`;
+}
+
+/** Notion connect URL. */
+export function getNotionConnectUrl(userId: string): string {
+  return `${SUPABASE_FN_URL}/oauth-notion/connect?user_id=${userId}`;
+}
+
 /** Check Spotify connection status for a user. */
 export async function fetchSpotifyStatus(userId: string): Promise<{ connected: boolean; lastSyncAt: string | null; status: string }> {
   const { data } = await supabase
@@ -454,12 +542,18 @@ export async function fetchSpotifyStatus(userId: string): Promise<{ connected: b
 }
 
 /** Manually trigger a sync for a provider. */
-export async function triggerSync(provider: 'google_calendar' | 'gmail' | 'google_tasks' | 'spotify', userId: string): Promise<void> {
+export async function triggerSync(provider: string, userId: string): Promise<void> {
   const fnMap: Record<string, string> = {
     google_calendar: 'sync-google-calendar',
     gmail: 'sync-gmail',
     google_tasks: 'sync-tasks',
     spotify: 'sync-spotify',
+    youtube_music: 'sync-youtube-music',
+    google_fit: 'sync-google-fit',
+    todoist: 'sync-todoist',
+    strava: 'sync-strava',
+    notion: 'sync-notion',
+    rescuetime: 'sync-rescuetime',
   };
   const fn = fnMap[provider];
   if (!fn) return;

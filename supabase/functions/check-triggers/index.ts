@@ -14,6 +14,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { checkIdempotency } from '../_shared/config.ts';
 import type { MessageMode } from '../_shared/soul-file.ts';
+import { agentTrigger, provisionUser, agentStatus, isWorkerConfigured } from '../_shared/waldo-worker.ts';
 
 const CONCURRENCY_LIMIT = 5;
 const MAX_FETCH_ALERTS_PER_DAY = 3;
@@ -224,52 +225,45 @@ async function processOneUser(
 
     log('info', 'trigger_fired', { userId: user.id, trigger: trigger.triggerType, reason: trigger.reason });
 
-    const agentUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/invoke-agent`;
-    const agentResponse = await fetch(agentUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-      },
-      body: JSON.stringify({
-        user_id: user.id,
-        trigger_type: trigger.triggerType,
-        channel: 'telegram',
-      }),
-    });
+    // ─── Route to CF Worker DO (primary) or invoke-agent EF (fallback) ─
+    // If CF Worker is configured, the DO handles: agent call + Telegram delivery internally.
+    // If not configured, falls back to invoke-agent + telegram-bot/send (legacy path).
+    const result = await agentTrigger(user.id, trigger.triggerType);
 
-    const agentResult = await agentResponse.json().catch(() => ({ error: `invoke-agent returned ${agentResponse.status}` })) as Record<string, unknown>;
-    const message = agentResult['message'] as string | null;
-
-    if (!message) {
-      log('warn', 'no_message', { userId: user.id, trigger: trigger.triggerType, error: agentResult['error'] });
-      return { userId: user.id, triggered: true, triggerType: trigger.triggerType, delivered: false, error: agentResult['error'] };
+    if (!result.reply) {
+      log('warn', 'no_message', { userId: user.id, trigger: trigger.triggerType, error: result.error });
+      return { userId: user.id, triggered: true, triggerType: trigger.triggerType, delivered: false, error: result.error };
     }
 
-    const telegramUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-bot/send`;
-    const sendResponse = await fetch(telegramUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-      },
-      body: JSON.stringify({
-        chat_id: user.telegram_chat_id,
-        message,
-        user_id: user.id,
-        trigger_type: trigger.triggerType,
-      }),
-    });
+    // If we used fallback (invoke-agent EF), the DO didn't deliver via Telegram — we need to.
+    // If CF Worker handled it, the DO already sent via Telegram (built into patrol loop).
+    let delivered = !result.usedFallback;
 
-    const sendResult = await sendResponse.json();
-    const delivered = sendResult.ok === true && sendResult.skipped !== true;
+    if (result.usedFallback && user.telegram_chat_id) {
+      const telegramUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/telegram-bot/send`;
+      const sendResponse = await fetch(telegramUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        },
+        body: JSON.stringify({
+          chat_id: user.telegram_chat_id,
+          message: result.reply,
+          user_id: user.id,
+          trigger_type: trigger.triggerType,
+        }),
+      });
+      const sendResult = await sendResponse.json();
+      delivered = sendResult.ok === true && sendResult.skipped !== true;
+    }
 
     log('info', 'delivery_complete', {
       userId: user.id,
       trigger: trigger.triggerType,
       delivered,
-      skipped: sendResult.skipped ?? false,
-      zone: agentResult.zone,
+      zone: result.zone,
+      usedWorker: !result.usedFallback,
     });
 
     return { userId: user.id, triggered: true, triggerType: trigger.triggerType, delivered };

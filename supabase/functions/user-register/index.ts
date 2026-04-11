@@ -102,7 +102,7 @@ Deno.serve(async (req: Request) => {
   // If CLOUDFLARE_WORKER_URL is set, spin up the user's persistent Waldo agent.
   // If not set (during initial testing), this is skipped gracefully.
   let doProvisioned = false;
-  const workerUrl = Deno.env.get('CLOUDFLARE_WORKER_URL');
+  const workerUrl = Deno.env.get('WALDO_WORKER_URL') ?? Deno.env.get('CLOUDFLARE_WORKER_URL');
   const workerSecret = Deno.env.get('WALDO_WORKER_SECRET');
 
   if (workerUrl && !existing) {
