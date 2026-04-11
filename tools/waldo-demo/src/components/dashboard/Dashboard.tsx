@@ -201,15 +201,24 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
       );
       if (wagMsg) setMorningWag((wagMsg as any).content);
 
-      // Select today or most recent rich date
+      // Select best date: today → most recent with CRS → most recent with any data → last date
       const datesArr = dates ?? [];
       const todayEntry = datesArr.find(d => d.date === today);
       if (todayEntry) {
         setSelectedDate(today);
       } else {
-        const rich = datesArr.filter(d => d.hasSleep && d.hasHrv);
-        if (rich.length > 0) setSelectedDate(rich[rich.length - 1]!.date);
-        else if (datesArr.length > 0) setSelectedDate(datesArr[datesArr.length - 1]!.date);
+        // Find most recent date with a real CRS score
+        const withCrs = datesArr.filter(d => d.crs > 0);
+        if (withCrs.length > 0) {
+          setSelectedDate(withCrs[withCrs.length - 1]!.date);
+        } else if (datesArr.length > 0) {
+          setSelectedDate(datesArr[datesArr.length - 1]!.date);
+        }
+      }
+
+      // If we have dates but no today, default to range view so user sees aggregated data
+      if (!datesArr.find(d => d.date === today) && datesArr.length > 7) {
+        setTimeRange('7d');
       }
 
       setIsLoadingDates(false);
@@ -307,8 +316,9 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
 
   // ─── Date mini-timeline for right column ───────────────────────
   const recentDates = useMemo(() => {
-    // Show last 14 dates with data
-    return allDates.slice(-14);
+    // Show last 30 dates with CRS data (more useful navigation)
+    const withData = allDates.filter(d => d.crs > 0);
+    return withData.slice(-30);
   }, [allDates]);
 
   // ─── Intelligence feed items for center column ─────────────────
