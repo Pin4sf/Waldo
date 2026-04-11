@@ -541,6 +541,24 @@ export async function fetchSpotifyStatus(userId: string): Promise<{ connected: b
   };
 }
 
+/** Disconnect a provider — removes OAuth tokens and sync logs. */
+export async function disconnectProvider(provider: 'google' | 'spotify' | 'todoist' | 'strava' | 'notion', userId: string): Promise<void> {
+  // Delete OAuth token
+  await supabase.from('oauth_tokens').delete().eq('user_id', userId).eq('provider', provider);
+
+  // Clear sync logs for related providers
+  const relatedProviders: Record<string, string[]> = {
+    google: ['google_calendar', 'gmail', 'google_tasks', 'youtube_music', 'google_fit'],
+    spotify: ['spotify'],
+    todoist: ['todoist'],
+    strava: ['strava'],
+    notion: ['notion'],
+  };
+  for (const p of relatedProviders[provider] ?? []) {
+    await supabase.from('sync_log').delete().eq('user_id', userId).eq('provider', p);
+  }
+}
+
 /** Manually trigger a sync for a provider. */
 export async function triggerSync(provider: string, userId: string): Promise<void> {
   const fnMap: Record<string, string> = {

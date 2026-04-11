@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, getTodoistConnectUrl, getStravaConnectUrl, getNotionConnectUrl, triggerSync, SUPABASE_FN_URL } from '../supabase-api.js';
+import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, getTodoistConnectUrl, getStravaConnectUrl, getNotionConnectUrl, triggerSync, disconnectProvider, SUPABASE_FN_URL } from '../supabase-api.js';
 import type { SyncStatus } from '../types.js';
 import { HealthUploadPanel } from './HealthUploadPanel.js';
 
@@ -31,19 +31,36 @@ function timeSince(iso: string | null): string {
 export function IntegrationsPanel({ userId }: Props) {
   const [statuses, setStatuses] = useState<SyncStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState<string | null>(null);
+  const [syncingSet, setSyncingSet] = useState<Set<string>>(new Set());
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const refreshStatuses = () => fetchSyncStatus(userId).then(setStatuses);
 
   useEffect(() => {
-    fetchSyncStatus(userId).then(s => { setStatuses(s); setLoading(false); });
+    refreshStatuses().then(() => setLoading(false));
   }, [userId]);
 
-  const handleSync = async (provider: SyncStatus['provider']) => {
-    setSyncing(provider);
-    await triggerSync(provider as any, userId);
+  // Parallel sync — each provider syncs independently
+  const handleSync = async (provider: string) => {
+    setSyncingSet(prev => new Set(prev).add(provider));
+    await triggerSync(provider, userId);
     await new Promise(r => setTimeout(r, 2000));
-    const fresh = await fetchSyncStatus(userId);
-    setStatuses(fresh);
-    setSyncing(null);
+    await refreshStatuses();
+    setSyncingSet(prev => { const next = new Set(prev); next.delete(provider); return next; });
+  };
+
+  // Sync all connected providers in parallel
+  const handleSyncAll = () => {
+    const connected = statuses.filter(s => s.connected);
+    connected.forEach(s => handleSync(s.provider));
+  };
+
+  const handleDisconnect = async (provider: 'google' | 'spotify' | 'todoist' | 'strava' | 'notion') => {
+    if (!confirm(`Disconnect ${provider}? Waldo will lose access to this data source.`)) return;
+    setDisconnecting(true);
+    await disconnectProvider(provider, userId);
+    await refreshStatuses();
+    setDisconnecting(false);
   };
 
   const googleConnectUrl = getGoogleConnectUrl(userId);
@@ -55,10 +72,22 @@ export function IntegrationsPanel({ userId }: Props) {
       <div className="debug-section">
         <div className="debug-header" style={{ cursor: 'default' }}>
           <span>Google Workspace</span>
-          {anyConnected
-            ? <span style={{ fontSize: 11, color: '#34D399' }}>Connected</span>
-            : <span style={{ fontSize: 11, color: '#9CA3AF' }}>Not connected</span>
-          }
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {anyConnected && (
+              <>
+                <button className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px', color: 'var(--text-dim)' }}
+                  onClick={handleSyncAll} disabled={syncingSet.size > 0}>
+                  {syncingSet.size > 0 ? 'Syncing...' : 'Sync all'}
+                </button>
+                <button className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px', color: '#EF4444' }}
+                  onClick={() => handleDisconnect('google')} disabled={disconnecting}>
+                  Disconnect
+                </button>
+                <span style={{ fontSize: 11, color: '#34D399' }}>Connected</span>
+              </>
+            )}
+            {!anyConnected && <span style={{ fontSize: 11, color: '#9CA3AF' }}>Not connected</span>}
+          </div>
         </div>
 
         {!anyConnected && (
@@ -94,11 +123,11 @@ export function IntegrationsPanel({ userId }: Props) {
                     {s.connected && (
                       <button
                         className="btn btn-ghost"
-                        style={{ fontSize: 11, padding: '3px 10px', opacity: syncing === s.provider ? 0.5 : 1 }}
-                        onClick={() => handleSync(s.provider as any)}
-                        disabled={syncing !== null}
+                        style={{ fontSize: 11, padding: '3px 10px', opacity: syncingSet.has(s.provider) ? 0.5 : 1 }}
+                        onClick={() => handleSync(s.provider)}
+                        disabled={syncingSet.has(s.provider)}
                       >
-                        {syncing === s.provider ? '...' : 'Sync now'}
+                        {syncingSet.has(s.provider) ? '...' : 'Sync now'}
                       </button>
                     )}
                     {!s.connected && (

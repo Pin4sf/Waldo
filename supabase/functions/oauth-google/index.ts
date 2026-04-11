@@ -29,7 +29,7 @@ import { z } from 'npm:zod@3';
 // Scopes — carefully minimal
 const SCOPE_DEFINITIONS: Record<string, string> = {
   calendar:  'https://www.googleapis.com/auth/calendar.readonly',
-  gmail:     'https://www.googleapis.com/auth/gmail.metadata',       // metadata only — never body
+  gmail:     'https://www.googleapis.com/auth/gmail.readonly',        // gmail.metadata restricted for new GCP projects; readonly needed for message listing
   tasks:     'https://www.googleapis.com/auth/tasks.readonly',
   youtube:   'https://www.googleapis.com/auth/youtube.readonly',     // YouTube Music liked videos
   // Google Fit — syncs from Health Connect on Android + any paired wearable

@@ -52,20 +52,20 @@ const HealthSnapshotSchema = z.object({
   hr_avg: z.number().nullable().optional(),
   hr_min: z.number().nullable().optional(),
   hr_max: z.number().nullable().optional(),
-  hr_count: z.number().int().optional(),
+  hr_count: z.number().int().nullable().optional(),
   hrv_rmssd: z.number().nullable().optional(),
-  hrv_count: z.number().int().optional(),
+  hrv_count: z.number().int().nullable().optional(),
   resting_hr: z.number().nullable().optional(),
   sleep_duration_hours: z.number().nullable().optional(),
-  sleep_efficiency: z.number().int().nullable().optional(),
-  sleep_deep_pct: z.number().int().nullable().optional(),
-  sleep_rem_pct: z.number().int().nullable().optional(),
+  sleep_efficiency: z.number().nullable().optional(),
+  sleep_deep_pct: z.number().nullable().optional(),
+  sleep_rem_pct: z.number().nullable().optional(),
   sleep_bedtime: z.string().nullable().optional(),
   sleep_wake_time: z.string().nullable().optional(),
   sleep_stages: z.record(z.number()).nullable().optional(),
-  steps: z.number().int().nullable().optional(),
+  steps: z.number().nullable().optional(),
   exercise_minutes: z.number().nullable().optional(),
-  stand_hours: z.number().int().nullable().optional(),
+  stand_hours: z.number().nullable().optional(),
   active_energy: z.number().nullable().optional(),
   distance_km: z.number().nullable().optional(),
   spo2: z.number().nullable().optional(),
@@ -78,20 +78,20 @@ const HealthSnapshotSchema = z.object({
   avg_noise_db: z.number().nullable().optional(),
   daylight_minutes: z.number().nullable().optional(),
   data_tier: z.enum(['rich', 'partial', 'sparse', 'empty']).optional(),
-});
+}).passthrough();
 
 const CrsScoreSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  score: z.number().int().min(0).max(100),
+  score: z.number().int(),
   zone: z.string(),
-  confidence: z.number().min(0).max(1).optional(),
-  components_with_data: z.number().int().optional(),
+  confidence: z.number().nullable().optional(),
+  components_with_data: z.number().int().nullable().optional(),
   sleep_json: z.record(z.unknown()).nullable().optional(),
   hrv_json: z.record(z.unknown()).nullable().optional(),
   circadian_json: z.record(z.unknown()).nullable().optional(),
   activity_json: z.record(z.unknown()).nullable().optional(),
   summary: z.string().nullable().optional(),
-});
+}).passthrough();
 
 const StressEventSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -120,9 +120,9 @@ const SpotSchema = z.object({
 const ImportBodySchema = z.object({
   health_snapshots: z.array(HealthSnapshotSchema).min(1).max(10000),
   crs_scores: z.array(CrsScoreSchema).max(10000),
-  stress_events: z.array(StressEventSchema).max(50000),
+  stress_events: z.array(StressEventSchema).max(50000).optional().default([]),
   spots: z.array(SpotSchema).max(100000).optional(),
-});
+}).passthrough();
 
 // ─── Helpers ───────────────────────────────────────────────────────
 
