@@ -40,20 +40,8 @@ export function TheHandoff({ proposal, onApprove, onReject }: TheHandoffProps) {
     await onReject(proposal.id).catch(() => {});
   };
 
-  // Ghost state
-  if (!proposal || proposal.status === 'expired') {
-    return (
-      <div className="dash-card" style={{ opacity: 0.6, border: '1px dashed var(--border)' }}>
-        <span style={sectionLabel}>The Handoff</span>
-        <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 12, lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
-          The Handoff activates when Waldo has a plan ready.
-        </p>
-      </div>
-    );
-  }
-
-  // Resolved states
-  if (localStatus === 'done' || proposal.status === 'executed') {
+  // Check localStatus FIRST — these must survive after proposal is cleared from parent
+  if (localStatus === 'done') {
     return (
       <div className="dash-card" style={{ borderLeft: '3px solid var(--accent)' }}>
         <span style={sectionLabel}>The Handoff</span>
@@ -65,12 +53,24 @@ export function TheHandoff({ proposal, onApprove, onReject }: TheHandoffProps) {
     );
   }
 
-  if (localStatus === 'rejected' || proposal.status === 'rejected') {
+  if (localStatus === 'rejected') {
     return (
       <div className="dash-card">
         <span style={sectionLabel}>The Handoff</span>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.6 }}>
           Understood. Keeping things as they are.
+        </p>
+      </div>
+    );
+  }
+
+  // Ghost state — no pending proposal
+  if (!proposal || proposal.status === 'expired' || proposal.status === 'rejected') {
+    return (
+      <div className="dash-card" style={{ opacity: 0.6, border: '1px dashed var(--border)' }}>
+        <span style={sectionLabel}>The Handoff</span>
+        <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 12, lineHeight: 1.6, fontFamily: 'var(--font-body)' }}>
+          The Handoff activates when Waldo has a plan ready.
         </p>
       </div>
     );
