@@ -13,6 +13,8 @@ interface RadialGaugeProps {
   hourlyEnergy?: number[];
   size?: number;
   compact?: boolean;
+  /** Show time labels (6pm, 12am, 6am, 12pm) — shown by default when size >= 180 */
+  showLabels?: boolean;
 }
 
 const ZONE_COLORS: Record<string, string> = {
@@ -55,7 +57,8 @@ function defaultEnergyCurve(score: number): number[] {
   return curve;
 }
 
-export function RadialGauge({ score, zone, hourlyEnergy, size = 200, compact = false }: RadialGaugeProps) {
+export function RadialGauge({ score, zone, hourlyEnergy, size = 200, compact = false, showLabels }: RadialGaugeProps) {
+  const shouldShowLabels = showLabels ?? size >= 180;
   const energy = hourlyEnergy ?? defaultEnergyCurve(score);
   const cx = size / 2;
   const cy = size / 2;
@@ -118,9 +121,9 @@ export function RadialGauge({ score, zone, hourlyEnergy, size = 200, compact = f
   });
 
   const labelRadius = size * 0.47;
-  const fontSize = compact ? 10 : 12;
+  const fontSize = size < 180 ? 8 : 12;
 
-  const timeLabels = compact ? [] : [
+  const timeLabels = !shouldShowLabels ? [] : [
     { label: '12am', hour: 0 },
     { label: '6am', hour: 6 },
     { label: '12pm', hour: 12 },

@@ -17,8 +17,13 @@ import { StackCard, SignalPressureCard, TaskPileUpCard, TodaysWeightCard } from 
 import { FormCard } from './FormCard.js';
 import { SleepCard } from './SleepCard.js';
 import { LoadCard } from './LoadCard.js';
+import { HRVCard, CircadianCard, MotionCard, SleepDebtCard, RestingHRCard, SleepScoreCard } from './Tier2Cards.js';
+import { SignalDepthCard } from './SignalDepthCard.js';
+import { TheClose } from './TheClose.js';
+import { BodyReadings } from './BodyReadings.js';
 import { FetchCard, spotsToFetchEvents } from './FetchCard.js';
 import type { FetchEvent } from './FetchCard.js';
+import { WaldoCalendar } from './WaldoCalendar.js';
 import { IntegrationsPanel } from '../IntegrationsPanel.js';
 import { ConversationHistory } from '../ConversationHistory.js';
 import { ConstellationView } from '../ConstellationView.js';
@@ -45,11 +50,17 @@ function formatDateLabel(date: string): string {
 }
 
 // ─── Range View (7d / 30d / 3m / 12m aggregated view) ────────────
-function RangeView({ allDates, spots, patterns, timeRange }: {
+
+const ZONE_FILL: Record<string, string> = {
+  peak: '#34D399', moderate: '#FBBF24', low: '#F87171',
+};
+
+function RangeView({ allDates, spots, patterns, timeRange, onSelectDate }: {
   allDates: DateEntry[];
   spots: SpotData[];
   patterns: PatternData[];
   timeRange: TimeRange;
+  onSelectDate?: (date: string) => void;
 }) {
   const rangeDays = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '3m' ? 90 : 365;
   const cutoff = new Date(Date.now() - rangeDays * 86400000).toISOString().slice(0, 10);
@@ -59,68 +70,201 @@ function RangeView({ allDates, spots, patterns, timeRange }: {
   const minCrs = crsScores.length > 0 ? Math.min(...crsScores) : 0;
   const maxCrs = crsScores.length > 0 ? Math.max(...crsScores) : 0;
   const peakDays = datesInRange.filter(d => d.zone === 'peak').length;
+  const steadyDays = datesInRange.filter(d => d.zone === 'moderate').length;
   const lowDays = datesInRange.filter(d => d.zone === 'low').length;
   const spotsInRange = spots.filter(s => s.date >= cutoff);
-
   const rangeLabel = timeRange === '7d' ? 'Last 7 days' : timeRange === '30d' ? 'Last 30 days' : timeRange === '3m' ? 'Last 3 months' : 'Last 12 months';
+
+  // Chart dimensions
+  const chartW = 340, chartH = 120, padL = 32, padR = 12, padT = 12, padB = 24;
+  const plotW = chartW - padL - padR, plotH = chartH - padT - padB;
+  const visibleDates = datesInRange.slice(-(timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 60));
+  const scoreMin = Math.max(0, minCrs - 10), scoreMax = Math.min(100, maxCrs + 10);
+  const toX = (i: number) => padL + (i / Math.max(1, visibleDates.length - 1)) * plotW;
+  const toY = (v: number) => padT + plotH - ((v - scoreMin) / Math.max(1, scoreMax - scoreMin)) * plotH;
+
+  // Zone distribution donut
+  const total = peakDays + steadyDays + lowDays;
+  const donutR = 32, donutStroke = 10;
+  const circ = 2 * Math.PI * donutR;
+  const peakPct = total > 0 ? peakDays / total : 0;
+  const steadyPct = total > 0 ? steadyDays / total : 0;
+  const lowPct = total > 0 ? lowDays / total : 0;
+
+  if (datesInRange.length === 0) {
+    return <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-dim)' }}>No data in this time range yet.</div>;
+  }
 
   return (
     <>
-      {/* Summary card */}
+      {/* Hero summary with donut */}
       <div className="dash-card">
-        <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)' }}>
-          {rangeLabel} &middot; {datesInRange.length} days
-        </span>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 10 }}>
-          <span style={{ fontFamily: 'var(--font-headline)', fontSize: 48, fontWeight: 400, color: 'var(--text)' }}>
-            {avgCrs || '--'}
-          </span>
-          <span style={{ fontSize: 14, color: 'var(--text-dim)' }}>avg Form</span>
-        </div>
-        <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 13 }}>
-          <span style={{ color: 'var(--peak-text)' }}>{peakDays} peak days</span>
-          <span style={{ color: 'var(--text-dim)' }}>range {minCrs}–{maxCrs}</span>
-          <span style={{ color: lowDays > 0 ? 'var(--flagging-text)' : 'var(--text-dim)' }}>{lowDays} low days</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-dim)' }}>
+              {rangeLabel}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+              <span style={{ fontFamily: 'var(--font-headline)', fontSize: 52, fontWeight: 400, color: 'var(--text)', lineHeight: 1 }}>
+                {avgCrs || '--'}
+              </span>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>avg Form</span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, marginTop: 10, fontSize: 12 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399' }} />{peakDays} peak
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FBBF24' }} />{steadyDays} steady
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F87171' }} />{lowDays} low
+              </span>
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 8, display: 'block' }}>
+              range {minCrs}–{maxCrs} · {datesInRange.length} days
+            </span>
+          </div>
+          {/* Zone distribution donut */}
+          {total > 0 && (
+            <svg width={80} height={80} viewBox="0 0 80 80" style={{ flexShrink: 0 }}>
+              <circle cx={40} cy={40} r={donutR} fill="none" stroke="#e8e6e0" strokeWidth={donutStroke} />
+              {peakPct > 0 && (
+                <circle cx={40} cy={40} r={donutR} fill="none" stroke="#34D399" strokeWidth={donutStroke}
+                  strokeDasharray={`${peakPct * circ} ${circ}`} strokeDashoffset={circ * 0.25}
+                  strokeLinecap="round" transform="rotate(-90 40 40)" />
+              )}
+              {steadyPct > 0 && (
+                <circle cx={40} cy={40} r={donutR} fill="none" stroke="#FBBF24" strokeWidth={donutStroke}
+                  strokeDasharray={`${steadyPct * circ} ${circ}`} strokeDashoffset={circ * 0.25 - peakPct * circ}
+                  strokeLinecap="round" transform="rotate(-90 40 40)" />
+              )}
+              {lowPct > 0 && (
+                <circle cx={40} cy={40} r={donutR} fill="none" stroke="#F87171" strokeWidth={donutStroke}
+                  strokeDasharray={`${lowPct * circ} ${circ}`} strokeDashoffset={circ * 0.25 - (peakPct + steadyPct) * circ}
+                  strokeLinecap="round" transform="rotate(-90 40 40)" />
+              )}
+              <text x={40} y={38} textAnchor="middle" dominantBaseline="central"
+                fontSize={16} fontWeight={500} fontFamily="'DM Sans', sans-serif" fill="#1a1a1a">
+                {avgCrs}
+              </text>
+              <text x={40} y={52} textAnchor="middle" dominantBaseline="central"
+                fontSize={8} fontFamily="'DM Sans', sans-serif" fill="#9a9a96">
+                avg
+              </text>
+            </svg>
+          )}
         </div>
       </div>
 
-      {/* CRS trend mini-chart */}
+      {/* Form trend area chart */}
       {crsScores.length > 1 && (
         <div className="dash-card" style={{ padding: '16px 20px' }}>
-          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 10 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
             Form trend
           </span>
-          <svg width="100%" height="80" viewBox={`0 0 ${Math.min(datesInRange.length, 60)} 100`} preserveAspectRatio="none">
-            {/* Zone bands */}
-            <rect x="0" y="0" width="100%" height="20" fill="var(--peak-bg)" opacity="0.3" />
-            <rect x="0" y="40" width="100%" height="20" fill="var(--steady-bg)" opacity="0.3" />
-            <rect x="0" y="60" width="100%" height="40" fill="var(--flagging-bg)" opacity="0.2" />
+          <svg width="100%" viewBox={`0 0 ${chartW} ${chartH}`} style={{ display: 'block' }}>
+            {/* Zone background bands */}
+            <rect x={padL} y={toY(80)} width={plotW} height={toY(scoreMin) - toY(80)} fill="rgba(52,211,153,0.06)" />
+            <rect x={padL} y={toY(scoreMax)} width={plotW} height={toY(80) - toY(scoreMax)} fill="rgba(52,211,153,0.03)" />
+            {/* Avg reference line */}
+            <line x1={padL} y1={toY(avgCrs)} x2={padL + plotW} y2={toY(avgCrs)}
+              stroke="rgba(26,26,26,0.15)" strokeWidth={1} strokeDasharray="4 3" />
+            <text x={padL - 4} y={toY(avgCrs)} textAnchor="end" dominantBaseline="central"
+              fontSize={8} fill="#9a9a96" fontFamily="'DM Sans', sans-serif">{avgCrs}</text>
+            {/* Y-axis labels */}
+            {[scoreMin, Math.round((scoreMin + scoreMax) / 2), scoreMax].map(v => (
+              <text key={v} x={padL - 4} y={toY(v)} textAnchor="end" dominantBaseline="central"
+                fontSize={7} fill="#d4d4d0" fontFamily="'DM Sans', sans-serif">{v}</text>
+            ))}
+            {/* Area fill under the line */}
+            <path
+              d={
+                visibleDates.map((d, i) => `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(d.crs)}`).join(' ') +
+                ` L ${toX(visibleDates.length - 1)} ${padT + plotH} L ${toX(0)} ${padT + plotH} Z`
+              }
+              fill="url(#rangeGrad)" opacity={0.3}
+            />
             {/* Line */}
             <polyline
-              fill="none" stroke="var(--accent)" strokeWidth="1.5"
-              points={datesInRange.slice(-60).map((d, i) => `${i},${100 - d.crs}`).join(' ')}
+              fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+              points={visibleDates.map((d, i) => `${toX(i)},${toY(d.crs)}`).join(' ')}
             />
+            {/* Zone-colored dots */}
+            {visibleDates.map((d, i) => (
+              <circle key={i} cx={toX(i)} cy={toY(d.crs)} r={visibleDates.length <= 14 ? 3.5 : 2}
+                fill={ZONE_FILL[d.zone] ?? '#D4D4D0'} stroke="white" strokeWidth={1}
+                style={{ cursor: 'pointer' }}
+                onClick={() => onSelectDate?.(d.date)}
+              />
+            ))}
+            {/* Gradient def */}
+            <defs>
+              <linearGradient id="rangeGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            {/* X-axis labels */}
+            {visibleDates.length > 0 && [0, Math.floor(visibleDates.length / 2), visibleDates.length - 1]
+              .filter((v, i, a) => a.indexOf(v) === i)
+              .map(idx => (
+                <text key={idx} x={toX(idx)} y={chartH - 4} textAnchor="middle"
+                  fontSize={8} fill="#9a9a96" fontFamily="'DM Sans', sans-serif">
+                  {formatDateLabel(visibleDates[idx]?.date ?? '')}
+                </text>
+              ))}
           </svg>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-dim)', marginTop: 4 }}>
-            <span>{datesInRange.length > 60 ? formatDateLabel(datesInRange[datesInRange.length - 60]?.date ?? '') : formatDateLabel(datesInRange[0]?.date ?? '')}</span>
-            <span>{formatDateLabel(datesInRange[datesInRange.length - 1]?.date ?? '')}</span>
+        </div>
+      )}
+
+      {/* Daily bar chart (7d) or weekly bar chart (30d+) */}
+      {timeRange === '7d' && visibleDates.length > 0 && (
+        <div className="dash-card" style={{ padding: '16px 20px' }}>
+          <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-dim)', display: 'block', marginBottom: 10 }}>
+            Daily Form scores
+          </span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 80 }}>
+            {visibleDates.map((d, i) => {
+              const pct = d.crs > 0 ? (d.crs / 100) * 100 : 5;
+              const color = ZONE_FILL[d.zone] ?? '#D4D4D0';
+              const dayLabel = new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+              return (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }}
+                  onClick={() => onSelectDate?.(d.date)}>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: '#1a1a1a' }}>{d.crs || '--'}</span>
+                  <div style={{
+                    width: '100%', maxWidth: 32, height: `${pct}%`, minHeight: 4,
+                    borderRadius: 6, background: color, opacity: 0.8,
+                    transition: 'height 0.3s',
+                  }} />
+                  <span style={{ fontSize: 8, color: '#9a9a96' }}>{dayLabel}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Spots in range */}
+      {/* Spots in range — compact list */}
       {spotsInRange.length > 0 && (
         <div className="dash-card" style={{ padding: '16px 20px' }}>
-          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
             {spotsInRange.length} observations
           </span>
-          {spotsInRange.slice(0, 8).map((s, i) => (
-            <div key={i} style={{ padding: '6px 0', borderBottom: i < 7 ? '1px solid var(--border)' : 'none', fontSize: 13 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          {spotsInRange.slice(0, 6).map((s, i) => (
+            <div key={i} style={{ padding: '6px 0', borderBottom: i < 5 ? '1px solid var(--border)' : 'none', fontSize: 13 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 500 }}>{s.title}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{s.date}</span>
+                <span style={{
+                  fontSize: 9, padding: '2px 8px', borderRadius: 8,
+                  background: s.severity === 'warning' ? 'var(--flagging-bg)' : s.severity === 'positive' ? 'var(--peak-bg)' : 'var(--bg-surface-2)',
+                  color: s.severity === 'warning' ? 'var(--flagging-text)' : s.severity === 'positive' ? 'var(--peak-text)' : 'var(--text-dim)',
+                }}>
+                  {s.date}
+                </span>
               </div>
-              <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{s.detail}</p>
+              <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2, lineHeight: 1.4 }}>{s.detail}</p>
             </div>
           ))}
         </div>
@@ -129,7 +273,7 @@ function RangeView({ allDates, spots, patterns, timeRange }: {
       {/* Patterns */}
       {patterns.length > 0 && (
         <div className="dash-card" style={{ padding: '16px 20px' }}>
-          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
             Patterns ({patterns.length})
           </span>
           {patterns.slice(0, 5).map((p, i) => (
@@ -141,12 +285,6 @@ function RangeView({ allDates, spots, patterns, timeRange }: {
               </span>
             </div>
           ))}
-        </div>
-      )}
-
-      {datesInRange.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-dim)' }}>
-          No data in this time range yet.
         </div>
       )}
     </>
@@ -324,6 +462,17 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
     return withData.slice(-30);
   }, [allDates]);
 
+  // ─── Drill-down: scroll to a T2 card from T1 component rows ────
+  const handleDrillDown = useCallback((cardId: string) => {
+    const el = document.querySelector(`[data-card-id="${cardId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Flash highlight
+      el.classList.add('card-highlight');
+      setTimeout(() => el.classList.remove('card-highlight'), 1200);
+    }
+  }, []);
+
   // ─── Intelligence feed items for center column ─────────────────
   const intelligenceFeed = useMemo((): FetchEvent[] => {
     const feed: FetchEvent[] = [];
@@ -439,6 +588,9 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               isLoading={isLoadingDay}
               date={selectedDate ? formatDateLabel(selectedDate) : undefined}
             />
+
+            {/* The Close — evening wind-down (after 7pm) */}
+            {dayData && <TheClose data={dayData} />}
 
             {/* The Handoff — approval card (ghost until backend supports it) */}
             <TheHandoff status="none" />
@@ -639,14 +791,34 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
             </div>
           ) : timeRange !== 'today' ? (
             /* ── RANGE VIEW (7d / 30d / 3m / 12m) ── */
-            <RangeView allDates={allDates} spots={filteredSpots} patterns={patterns} timeRange={timeRange} />
+            <>
+              <WaldoCalendar dates={allDates} selectedDate={selectedDate} onSelectDate={(d) => { setSelectedDate(d); setTimeRange('today'); }} />
+              <RangeView allDates={allDates} spots={filteredSpots} patterns={patterns} timeRange={timeRange}
+                onSelectDate={(d) => { setSelectedDate(d); setTimeRange('today'); }} />
+            </>
           ) : dayData ? (
             <>
-              <FormCard data={dayData} />
-              <SleepCard data={dayData} />
+              {/* ── Tier 1: Agent outputs ── */}
+              <FormCard data={dayData} onDrillDown={handleDrillDown} />
               <LoadCard data={dayData} />
+              <SleepCard data={dayData} />
 
-              {/* Phase 2 cards — real data or ghost invite */}
+              {/* ── Tier 2: Component metrics ── */}
+              <div className="tier-section-head">Body signals</div>
+              <div data-card-id="sleep-score"><SleepScoreCard data={dayData} /></div>
+              <div data-card-id="hrv"><HRVCard data={dayData} /></div>
+              <div data-card-id="circadian"><CircadianCard data={dayData} /></div>
+              <div data-card-id="motion"><MotionCard data={dayData} /></div>
+              <SleepDebtCard data={dayData} />
+              {dayData.restingHR !== null && <RestingHRCard data={dayData} />}
+              <BodyReadings data={dayData} />
+
+              {/* ── Signal Depth ── */}
+              <div className="tier-section-head">Intelligence depth</div>
+              <SignalDepthCard />
+
+              {/* ── Phase 2: Productivity context ── */}
+              <div className="tier-section-head">Productivity context</div>
               <StackCard data={dayData.calendar} />
               <SignalPressureCard data={dayData.email} />
               <TaskPileUpCard data={dayData.tasks} />
