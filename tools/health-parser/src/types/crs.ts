@@ -85,8 +85,10 @@ export interface Baselines {
   chronotype: 'early' | 'normal' | 'late';
   /** 7-day average resting HR */
   restingHR7d: number | null;
-  /** 7-day average daily active energy burned (kcal) — for EES */
+  /** 7-day average daily active energy burned (kcal) */
   activeEnergy7d: number | null;
+  /** 30-day average daily active energy burned (kcal) — for EES baseline (spec uses 30d×2 as 48h baseline) */
+  activeEnergy30d: number | null;
   /** Number of days of historical data available */
   daysOfData: number;
 }

@@ -131,8 +131,11 @@ export function computeBaselines(
     .map(d => allDays.get(d)!.restingHR)
     .filter((v): v is number => v !== null);
 
-  // Active energy 7d average — used for EES in Activity score
+  // Active energy baselines — EES spec requires 30d daily avg × 2 as the 48h baseline
   const activeEnergy7d = lookback7
+    .map(d => allDays.get(d)!.activeEnergyBurned)
+    .filter(v => v > 0);
+  const activeEnergy30d = lookback30
     .map(d => allDays.get(d)!.activeEnergyBurned)
     .filter(v => v > 0);
 
@@ -148,6 +151,7 @@ export function computeBaselines(
     chronotype: estimateChronotype(sleepSessions14d),
     restingHR7d: sma(restingHR7d),
     activeEnergy7d: sma(activeEnergy7d),
+    activeEnergy30d: sma(activeEnergy30d),
     daysOfData: lookback7.length,
   };
 }
