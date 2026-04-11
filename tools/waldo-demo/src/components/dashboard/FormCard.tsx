@@ -1,9 +1,10 @@
 /**
- * FormCard — Nap Score card with radial gauge + component bars
+ * FormCard — Nap Score / Form card matching Figma designs
  *
- * Compact card view (right column): zone badge, title, narrative, gauge
- * Matches Figma: "Your nap score" with radial clock gauge
+ * Compact: badge + title + narrative + timestamp (left), radial gauge (right)
+ * Expanded: time-range tabs + large gauge + component breakdown + line chart + about
  */
+import { useState } from 'react';
 import { RadialGauge } from './RadialGauge.js';
 import type { DayResponse } from '../../types.js';
 
@@ -11,19 +12,15 @@ interface FormCardProps {
   data: DayResponse;
 }
 
-const ZONE_LABELS: Record<string, string> = {
-  peak: 'Peak',
-  moderate: 'Steady',
-  low: 'Flagging',
-  nodata: '--',
-};
+type TimeRange = 'today' | '7d' | '30d' | '3m' | '12m';
 
-const ZONE_BADGE_STYLES: Record<string, { bg: string; color: string }> = {
-  peak: { bg: 'var(--peak-bg)', color: 'var(--peak-text)' },
-  moderate: { bg: 'var(--steady-bg)', color: 'var(--steady-text)' },
-  low: { bg: 'var(--flagging-bg)', color: 'var(--flagging-text)' },
-  nodata: { bg: 'var(--bg-surface)', color: 'var(--text-dim)' },
-};
+const TIME_TABS: { id: TimeRange; label: string; disabled?: boolean }[] = [
+  { id: 'today', label: 'Today' },
+  { id: '7d', label: '7 Days' },
+  { id: '30d', label: '30 Days' },
+  { id: '3m', label: '3 Months', disabled: true },
+  { id: '12m', label: '12 Months', disabled: true },
+];
 
 function componentStatus(score: number): string {
   if (score >= 80) return 'strong';
@@ -33,70 +30,257 @@ function componentStatus(score: number): string {
   return 'low';
 }
 
-function barColor(score: number): string {
-  if (score >= 75) return '#4F7DF9'; // blue
-  if (score >= 50) return '#4F7DF9';
-  return '#F97316'; // orange for low
+/** Mini CRS line chart for the day */
+function CrsDayChart({ score }: { score: number }) {
+  const w = 354;
+  const h = 160;
+  const padL = 44;
+  const padR = 16;
+  const padT = 20;
+  const padB = 40;
+  const chartW = w - padL - padR;
+  const chartH = h - padT - padB;
+
+  // Generate a plausible CRS curve (past = solid, future = dashed)
+  const now = new Date();
+  const hourNow = now.getHours() + now.getMinutes() / 60;
+  const normalized = score / 100;
+
+  const hourlyValues: { h: number; v: number }[] = [];
+  for (let h = 6; h <= 22; h += 0.5) {
+    let v: number;
+    if (h < 8) v = 0.65 + normalized * 0.1;
+    else if (h < 11) v = 0.70 + normalized * 0.25 + Math.sin((h - 8) * 0.8) * 0.05;
+    else if (h < 13) v = 0.72 + normalized * 0.2 - (h - 11) * 0.015;
+    else if (h < 15) v = 0.62 + normalized * 0.15;
+    else if (h < 18) v = 0.58 + normalized * 0.12 - (h - 15) * 0.01;
+    else v = 0.50 + normalized * 0.1 - (h - 18) * 0.02;
+    v = Math.max(0.3, Math.min(1, v + (Math.random() - 0.5) * 0.02));
+    hourlyValues.push({ h, v });
+  }
+
+  const toX = (h: number) => padL + ((h - 6) / 16) * chartW;
+  const toY = (v: number) => padT + chartH - v * chartH;
+
+  const splitIdx = hourlyValues.findIndex(p => p.h >= hourNow);
+  const past = splitIdx > 0 ? hourlyValues.slice(0, splitIdx) : hourlyValues;
+  const future = splitIdx > 0 ? hourlyValues.slice(splitIdx - 1) : [];
+
+  const pastPath = past.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(p.h)} ${toY(p.v)}`).join(' ');
+  const futurePath = future.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(p.h)} ${toY(p.v)}`).join(' ');
+
+  const yLabels = [50, 60, 70, 80, 90, 100];
+  const xLabels = [{ h: 7, label: '7am' }, { h: 10, label: '10am' }, { h: 13, label: '1pm' }, { h: 16, label: '4pm' }, { h: 19, label: '7pm' }];
+  const splitX = splitIdx > 0 ? toX(hourlyValues[splitIdx - 1]!.h) : toX(hourNow);
+
+  return (
+    <div style={{
+      background: 'white',
+      border: '1px solid rgba(26,26,26,0.08)',
+      borderRadius: 16,
+      padding: '0 0 4px',
+      marginTop: 10,
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`}>
+        {/* Grid lines */}
+        {yLabels.map(y => {
+          const yPos = toY(y / 100);
+          return (
+            <g key={y}>
+              <line x1={padL} y1={yPos} x2={w - padR} y2={yPos} stroke="rgba(26,26,26,0.06)" strokeWidth={0.8} />
+              <text x={padL - 6} y={yPos} textAnchor="end" dominantBaseline="central"
+                fill="#6b6b68" fontSize={8} opacity={0.5} fontFamily="'DM Sans', sans-serif">{y}</text>
+            </g>
+          );
+        })}
+        {xLabels.map(({ h: hr, label }) => (
+          <text key={label} x={toX(hr)} y={h - padB + 14} textAnchor="middle"
+            fill="#6b6b68" fontSize={8} fontFamily="'DM Sans', sans-serif"
+            opacity={0.5}>{label}</text>
+        ))}
+
+        {/* "now" divider */}
+        <line x1={splitX} y1={padT} x2={splitX} y2={h - padB}
+          stroke="rgba(26,26,26,0.15)" strokeWidth={1} strokeDasharray="3 3" />
+        <text x={splitX + 4} y={padT + 8} fill="#6b6b68" fontSize={8}
+          fontFamily="'DM Sans', sans-serif">projected</text>
+
+        {/* Past curve (solid orange) */}
+        {pastPath && (
+          <path d={pastPath} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        )}
+        {/* Future curve (dashed, lighter) */}
+        {futurePath && (
+          <path d={futurePath} fill="none" stroke="var(--accent)" strokeWidth={1.5}
+            strokeDasharray="4 4" opacity={0.4} strokeLinecap="round" strokeLinejoin="round" />
+        )}
+      </svg>
+    </div>
+  );
 }
 
 export function FormCard({ data }: FormCardProps) {
+  const [timeRange, setTimeRange] = useState<TimeRange>('today');
+  const [expanded, setExpanded] = useState(false);
   const crs = data?.crs;
   if (!crs) return null;
+
   const zone = crs.zone;
-  const badge = ZONE_BADGE_STYLES[zone] ?? ZONE_BADGE_STYLES.nodata!;
+  const zoneLabel = zone === 'peak' ? 'Peak' : zone === 'moderate' ? 'Steady' : zone === 'low' ? 'Flagging' : '--';
 
   const components = [
-    { name: 'Sleep', score: crs.sleep?.score ?? 0, status: componentStatus(crs.sleep?.score ?? 0) },
-    { name: 'HRV', score: crs.hrv?.score ?? 0, status: componentStatus(crs.hrv?.score ?? 0) },
-    { name: 'Circadian', score: crs.circadian?.score ?? 0, status: componentStatus(crs.circadian?.score ?? 0) },
-    { name: 'Motion', score: crs.activity?.score ?? 0, status: componentStatus(crs.activity?.score ?? 0) },
+    { name: 'Sleep', score: Math.round(crs.sleep?.score ?? 0), status: componentStatus(crs.sleep?.score ?? 0) },
+    { name: 'HRV', score: Math.round(crs.hrv?.score ?? 0), status: componentStatus(crs.hrv?.score ?? 0) },
+    { name: 'Circadian', score: Math.round(crs.circadian?.score ?? 0), status: componentStatus(crs.circadian?.score ?? 0) },
+    { name: 'Motion', score: Math.round(crs.activity?.score ?? 0), status: componentStatus(crs.activity?.score ?? 0) },
   ];
 
-  return (
-    <div className="dash-card">
-      {/* Zone badge */}
-      <span
-        className="zone-badge"
-        style={{ background: badge.bg, color: badge.color }}
-      >
-        {ZONE_LABELS[zone]}
-      </span>
+  const nowStr = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
-        {/* Left: Title + narrative */}
-        <div style={{ flex: 1 }}>
-          <h3 className="dash-card-title">Form</h3>
-          <p className="dash-card-narrative">
-            {crs.summary || `${ZONE_LABELS[zone]} day. Score ${crs.score}.`}
-          </p>
-          <span className="dash-card-meta">updated this morning</span>
-        </div>
+  // ── Compact card (default) ────────────────────────────────
+  if (!expanded) {
+    return (
+      <div className="dash-card" style={{ cursor: 'pointer' }} onClick={() => setExpanded(true)}>
+        <span className="zone-badge">{zoneLabel}</span>
 
-        {/* Right: Radial gauge */}
-        <div style={{ flexShrink: 0 }}>
-          <RadialGauge score={crs.score} zone={zone} size={130} compact />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 0 }}>
+          {/* Left: text */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0 }}>
+            <h3 className="dash-card-title" style={{ marginTop: 20 }}>Form</h3>
+            <p className="dash-card-narrative">
+              {crs.summary || `${zoneLabel} day. Your biological readiness today.`}
+            </p>
+            <span className="dash-card-meta">last read · {nowStr}</span>
+          </div>
+
+          {/* Right: radial gauge */}
+          <div style={{ flexShrink: 0 }}>
+            <RadialGauge score={crs.score} zone={zone} size={140} showLabels />
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Component bars */}
+  // ── Expanded card ─────────────────────────────────────────
+  return (
+    <div className="dash-card">
+      {/* Close button */}
+      <button
+        onClick={() => setExpanded(false)}
+        style={{
+          float: 'right', background: 'none', border: 'none',
+          color: '#9a9a96', cursor: 'pointer', fontSize: 18, lineHeight: 1,
+          padding: 0, marginTop: -4,
+        }}
+      >
+        ×
+      </button>
+
+      {/* Tabs */}
+      <div className="time-tabs-figma">
+        {TIME_TABS.map(tab => (
+          <button
+            key={tab.id}
+            className={`time-tab-figma${timeRange === tab.id ? ' active' : ''}`}
+            onClick={() => !tab.disabled && setTimeRange(tab.id)}
+            disabled={tab.disabled}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Large radial gauge */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>
+        <RadialGauge score={crs.score} zone={zone} size={280} showLabels />
+      </div>
+
+      {/* Zone badge + title + narrative */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 15, marginBottom: 10 }}>
+        <span className="zone-badge">{zoneLabel}</span>
+        <h3 style={{
+          fontFamily: 'var(--font-headline)', fontSize: 28, fontWeight: 400,
+          color: '#1a1a1a', margin: 0, lineHeight: 1.1, textAlign: 'center',
+        }}>Form</h3>
+        <p style={{
+          fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
+          color: '#6b6b68', margin: 0, textAlign: 'center', lineHeight: 1.3,
+        }}>
+          {crs.summary || `${zoneLabel} day. Your biological readiness today.`}
+        </p>
+        <span style={{
+          fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 500,
+          fontStyle: 'italic', color: '#9a9a96',
+        }}>
+          updated at {nowStr}
+        </span>
+      </div>
+
+      {/* Component breakdown (Figma legend panel) */}
       <div className="component-bars">
-        {components.map(c => (
+        {components.map((c, i) => (
           <div key={c.name} className="component-row">
             <div className="component-label">
-              <span style={{ fontWeight: 500, color: 'var(--text)' }}>{c.name}</span>
-              <span style={{ color: 'var(--text-dim)', marginLeft: 8 }}>{c.status}</span>
+              <span className="component-label-name">{c.name}</span>
+              <span className="component-label-status">{c.status}</span>
             </div>
             <div className="component-value">
               <span className="component-score">{c.score}</span>
               <div className="component-bar-track">
-                <div
-                  className="component-bar-fill"
-                  style={{ width: `${c.score}%`, background: barColor(c.score) }}
-                />
+                <div className="component-bar-fill" style={{ width: `${c.score}%` }} />
               </div>
             </div>
           </div>
         ))}
+      </div>
+
+      {/* CRS day chart */}
+      {timeRange === 'today' && <CrsDayChart score={crs.score} />}
+
+      {/* Insight */}
+      <div style={{
+        background: 'white', border: '1px solid rgba(26,26,26,0.08)',
+        borderRadius: 16, padding: 20, marginTop: 10,
+        fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 500,
+        color: '#6b6b68', lineHeight: 1.3, textAlign: 'center',
+      }}>
+        {crs.score >= 80
+          ? "Peak window right now. Your hardest thinking goes here."
+          : crs.score >= 65
+          ? "Solid baseline. Watch cognitive load after 2pm."
+          : crs.score >= 50
+          ? "Running a bit low. Protect your focus blocks."
+          : "Rough day biologically. Defer heavy decisions where possible."}
+      </div>
+
+      {/* About section */}
+      <div style={{
+        background: 'white', border: '1px solid rgba(26,26,26,0.08)',
+        borderRadius: 16, padding: 20, marginTop: 10,
+      }}>
+        <span className="zone-badge" style={{ fontSize: 8 }}>About</span>
+        <h4 style={{
+          fontFamily: 'var(--font-headline)', fontSize: 18, fontWeight: 400,
+          color: '#1a1a1a', margin: '20px 0 20px', lineHeight: 1.1,
+        }}>
+          What is Form?
+        </h4>
+        <p style={{
+          fontFamily: 'var(--font-body)', fontSize: 10, fontWeight: 400,
+          color: '#6b6b68', lineHeight: 1.3, margin: 0,
+        }}>
+          Form is the single number that tells you how sharp your brain is right now.
+          Not how healthy you are. How ready you are, today, for things that require
+          actual thinking.
+          {'\n\n'}
+          It's built from four signals — sleep quality, HRV, your body clock, and
+          yesterday's movement. Waldo weighs them and gives you one number that updates
+          through the day. 80 and above is a day to do your hardest work. Below 50,
+          protect your energy.
+        </p>
       </div>
     </div>
   );
