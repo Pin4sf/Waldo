@@ -11,6 +11,8 @@ import type {
   ExtractedHealthData,
   InstantaneousBeat,
   SleepStage,
+  WalkingHRRecord,
+  PhysicalEffortRecord,
 } from './types/index.js';
 
 /** Record types we care about */
@@ -29,6 +31,8 @@ const RECORD_TYPES = {
   ACTIVE_ENERGY: 'HKQuantityTypeIdentifierActiveEnergyBurned',
   FLIGHTS: 'HKQuantityTypeIdentifierFlightsClimbed',
   WALKING_SPEED: 'HKQuantityTypeIdentifierWalkingSpeed',
+  WALKING_HR: 'HKQuantityTypeIdentifierWalkingHeartRateAverage',
+  PHYSICAL_EFFORT: 'HKQuantityTypeIdentifierPhysicalEffort',
   VO2MAX: 'HKQuantityTypeIdentifierVO2Max',
 } as const;
 
@@ -46,6 +50,21 @@ const SLEEP_STAGE_MAP: Record<string, SleepStage> = {
 function parseDate(dateStr: string): Date {
   // Format: "2025-10-21 20:03:44 +0530"
   return new Date(dateStr.replace(' ', 'T').replace(' ', ''));
+}
+
+/**
+ * Extract timezone offset in decimal hours from Apple Health date string.
+ * e.g. "2025-10-21 20:03:44 +0530" → 5.5
+ * e.g. "2025-10-21 20:03:44 -0500" → -5.0
+ * Returns null if no offset found (UTC assumed).
+ */
+function extractTimezoneOffsetHours(dateStr: string): number | null {
+  const match = dateStr.match(/([+-])(\d{2})(\d{2})\s*$/);
+  if (!match) return null;
+  const sign = match[1] === '+' ? 1 : -1;
+  const hours = parseInt(match[2]!, 10);
+  const minutes = parseInt(match[3]!, 10);
+  return sign * (hours + minutes / 60);
 }
 
 /** Compute RMSSD from instantaneous BPM beats */
@@ -106,6 +125,8 @@ export async function parseAppleHealthExport(
     daylight: [],
     distance: [],
     walkingSpeed: [],
+    walkingHR: [],
+    physicalEffort: [],
     activeEnergy: [],
     flightsClimbed: [],
     vo2max: [],
@@ -315,12 +336,14 @@ function processRecord(
       const stage = SLEEP_STAGE_MAP[stageValue];
       if (stage) {
         const durationMs = endDate.getTime() - startDate.getTime();
+        const tzOffset = extractTimezoneOffsetHours(attrs['startDate'] ?? '');
         data.sleepStages.push({
           stage,
           startDate,
           endDate,
           durationMinutes: durationMs / 60000,
           source,
+          timezoneOffsetHours: tzOffset,
         });
       }
       break;
@@ -398,6 +421,15 @@ function processRecord(
 
     case RECORD_TYPES.WALKING_SPEED:
       data.walkingSpeed.push({ timestamp: startDate, kmPerHour: value, source });
+      break;
+
+    case RECORD_TYPES.WALKING_HR:
+      data.walkingHR.push({ timestamp: startDate, bpm: value, source } as WalkingHRRecord);
+      break;
+
+    case RECORD_TYPES.PHYSICAL_EFFORT:
+      // Apple stores PhysicalEffort in kcal/hr·kg — exactly the MET-equivalent unit PES needs
+      data.physicalEffort.push({ timestamp: startDate, value, source } as PhysicalEffortRecord);
       break;
 
     case RECORD_TYPES.VO2MAX:

@@ -162,6 +162,9 @@ export function organizeDailyData(extracted: ExtractedHealthData): Map<string, D
         vo2max: null,
         aqi: null,
         pm25: null,
+        walkingHR: null,
+        physicalEffortAvg: null,
+        sleepTimezoneOffsetHours: null,
       };
       days.set(date, day);
     }
@@ -329,6 +332,46 @@ export function organizeDailyData(extracted: ExtractedHealthData): Map<string, D
   // VO2Max
   for (const v of extracted.vo2max) {
     getDay(dateKey(v.timestamp)).vo2max = v.value;
+  }
+
+  // Walking HR — daily average (for WHAS in CASS)
+  const walkingHRByDay = new Map<string, number[]>();
+  for (const whr of extracted.walkingHR) {
+    const dk = dateKey(whr.timestamp);
+    if (!walkingHRByDay.has(dk)) walkingHRByDay.set(dk, []);
+    walkingHRByDay.get(dk)!.push(whr.bpm);
+  }
+  for (const [dk, values] of walkingHRByDay) {
+    getDay(dk).walkingHR = values.reduce((s, v) => s + v, 0) / values.length;
+  }
+
+  // Physical effort — daily average (kcal/hr·kg, for PES in ILAS)
+  const peByDay = new Map<string, number[]>();
+  for (const pe of extracted.physicalEffort) {
+    const dk = dateKey(pe.timestamp);
+    if (!peByDay.has(dk)) peByDay.set(dk, []);
+    peByDay.get(dk)!.push(pe.value);
+  }
+  for (const [dk, values] of peByDay) {
+    getDay(dk).physicalEffortAvg = values.reduce((s, v) => s + v, 0) / values.length;
+  }
+
+  // Sleep timezone offset — from sleep stage records (for CDP in ILAS)
+  // Use the most common non-null timezone offset found in the day's sleep stages.
+  const tzByDay = new Map<string, number[]>();
+  for (const ss of extracted.sleepStages) {
+    if (ss.timezoneOffsetHours !== null) {
+      const dk = dateKey(ss.startDate);
+      if (!tzByDay.has(dk)) tzByDay.set(dk, []);
+      tzByDay.get(dk)!.push(ss.timezoneOffsetHours);
+    }
+  }
+  for (const [dk, offsets] of tzByDay) {
+    // Use modal (most common) offset for robustness against brief DST records
+    const freq = new Map<number, number>();
+    for (const o of offsets) freq.set(o, (freq.get(o) ?? 0) + 1);
+    const modal = [...freq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    getDay(dk).sleepTimezoneOffsetHours = modal;
   }
 
   // Compute resting HR for each day (our estimate, prefer Apple's if available)

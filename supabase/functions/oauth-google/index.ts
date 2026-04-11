@@ -28,10 +28,12 @@ import { z } from 'npm:zod@3';
 
 // Scopes — carefully minimal
 const SCOPE_DEFINITIONS: Record<string, string> = {
-  calendar:  'https://www.googleapis.com/auth/calendar.readonly',
-  gmail:     'https://www.googleapis.com/auth/gmail.readonly',        // gmail.metadata restricted for new GCP projects; readonly needed for message listing
-  tasks:     'https://www.googleapis.com/auth/tasks.readonly',
-  youtube:   'https://www.googleapis.com/auth/youtube.readonly',     // YouTube Music liked videos
+  calendar:        'https://www.googleapis.com/auth/calendar.readonly',
+  calendar_write:  'https://www.googleapis.com/auth/calendar.events',   // The Adjustment: create/move events
+  gmail:           'https://www.googleapis.com/auth/gmail.readonly',
+  tasks:           'https://www.googleapis.com/auth/tasks.readonly',
+  tasks_write:     'https://www.googleapis.com/auth/tasks',              // The Adjustment: create/defer tasks
+  youtube:         'https://www.googleapis.com/auth/youtube.readonly',
   // Google Fit — syncs from Health Connect on Android + any paired wearable
   fit_heart: 'https://www.googleapis.com/auth/fitness.heart_rate.read',
   fit_sleep: 'https://www.googleapis.com/auth/fitness.sleep.read',

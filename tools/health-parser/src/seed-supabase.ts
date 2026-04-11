@@ -207,6 +207,9 @@ async function main() {
       pm25: day.pm25,
       avg_noise_db: day.avgNoiseDb ? Math.round(day.avgNoiseDb * 10) / 10 : null,
       daylight_minutes: day.daylightMinutes,
+      walking_heart_rate: day.walkingHR ? Math.round(day.walkingHR) : null,
+      physical_effort: day.physicalEffortAvg ? Math.round(day.physicalEffortAvg * 100) / 100 : null,
+      sleep_timezone_offset: day.sleepTimezoneOffsetHours,
       data_tier: healthSignals >= 2 ? 'rich' : healthSignals >= 1 ? 'partial' : day.totalSteps > 0 ? 'sparse' : 'empty',
     };
   });
@@ -220,6 +223,8 @@ async function main() {
       user_id: userId, date, score: c.score, zone: c.zone, confidence: c.confidence,
       components_with_data: c.componentsWithData,
       sleep_json: c.sleep, hrv_json: c.hrv, circadian_json: c.circadian, activity_json: c.activity,
+      pillars_json: c.pillars,
+      pillar_drag_json: c.pillarDrag,
       summary: c.summary,
     };
   });

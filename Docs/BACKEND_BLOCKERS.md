@@ -1,6 +1,6 @@
 # Waldo Dashboard — Backend Blockers & Intelligence Gaps
 
-*Updated: April 2026 — maintained as we build the web console*
+*Updated: April 12, 2026 — PR #2 (suyash-web-console-ui) analysis added*
 
 This document tracks every place where the dashboard design outpaces the backend — data we're designing for but the backend doesn't yet serve. Updated after every implementation sprint.
 
@@ -297,8 +297,164 @@ The Slope — "Needs 28 days of data. Building picture..."
 
 ---
 
+---
+
+## PR #2 Analysis — New Blockers from suyash-web-console-ui (April 12, 2026)
+
+PR #2 adds 11 new component files (Tier2Cards, WaldoCalendar, SignalDepthCard, etc.) with rich charts. All the historical charts currently use **synthetic seeded-random data** that must be replaced with real backend data. Summary of what's fake and what's needed.
+
+---
+
+### CRITICAL — The `DateEntry` fix that unblocks everything
+
+**Root cause of all 7-day/30-day chart fakes:** `DateEntry` (the lightweight per-day summary used to build `allDates`) only has `crs, zone, tier` — no raw metric values. If we add the key metrics to `DateEntry`, the dashboard can build all historical sparklines client-side from already-loaded data. **No new API endpoints needed.**
+
+**Single fix — add to `DateEntry` in types.ts + `fetchDates()` Edge Function:**
+```typescript
+interface DateEntry {
+  // existing fields...
+  date: string;
+  crs: number;
+  zone: 'peak' | 'moderate' | 'low' | 'nodata';
+  // ADD THESE:
+  hrvAvg: number | null;          // avg RMSSD/SDNN for the day
+  restingHR: number | null;       // resting HR bpm
+  sleepHours: number | null;      // total sleep hours
+  sleepDebtHours: number | null;  // cumulative debt on this day
+  strainScore: number | null;     // Load score (0–21)
+  spO2: number | null;            // SpO2 % if measured
+  respiratoryRate: number | null; // breaths/min if measured
+}
+```
+
+**This single change unblocks:** HRVCard 30-day chart, SleepDebtCard 7-day chart, RestingHRCard 7-day sparkline, LoadCard 7-day average reference line, BodyReadings SpO2 + resp rate.
+
+**Edge Function to update:** `supabase/functions/check-triggers/` or whichever builds the `dates` list for `fetchDates()`.
+
+**Effort:** 1 day
+
+---
+
+### 16. HRVCard — 30-day history is fake
+
+**Card:** `Tier2Cards.tsx > HRVCard`
+
+**What's fake:** `generateHRVHistory(todayAvg)` — seeded random 30-day HRV array derived from today's single value. The baseline band (±15%) is computed from this fake history.
+
+**Impact:** The "30-day history · your personal baseline" chart shows a plausible-looking but entirely synthetic line.
+
+**Fix:** Once `DateEntry` has `hrvAvg`, build the 30-day history client-side from `allDates.slice(-30).map(d => d.hrvAvg)`.
+
+**Effort:** 0.5 days (after DateEntry fix above)
+
+---
+
+### 17. RestingHRCard — 7-day sparkline is fake
+
+**Card:** `Tier2Cards.tsx > RestingHRCard`
+
+**What's fake:** `generateRHRHistory(today)` — seeded random 7 values around today's resting HR.
+
+**Fix:** Once `DateEntry` has `restingHR`, build from `allDates.slice(-7).map(d => d.restingHR)`.
+
+**Effort:** 0.5 days (after DateEntry fix)
+
+---
+
+### 18. SleepDebtCard — 7-day accumulation history is fake
+
+**Card:** `Tier2Cards.tsx > SleepDebtCard`
+
+**What's fake:** `generateSleepDebtHistory(debtHours)` — seeded random 7-day debt progression.
+
+**Impact:** The stepped area chart shows fictional debt accumulation. The direction indicator is correct (from `data.sleepDebt.direction`), but the shape of the chart is invented.
+
+**Fix:** Once `DateEntry` has `sleepDebtHours`, build from `allDates.slice(-7).map(d => d.sleepDebtHours)`.
+
+**Effort:** 0.5 days (after DateEntry fix)
+
+---
+
+### 19. LoadCard — 7-day average reference line is fake
+
+**Card:** `LoadCard.tsx`
+
+**What's fake:** `const avgRef = Math.round(loadScore * 0.85)` — literally 85% of today's score. Not a real average.
+
+**Impact:** The bullet graph reference line ("7-day avg") is always 85% of whatever today's score is.
+
+**Fix:** Once `DateEntry` has `strainScore`, compute real 7-day average from `allDates.slice(-7).map(d => d.strainScore)`.
+
+**Effort:** 0.5 days (after DateEntry fix)
+
+---
+
+### 20. FormCard CRS day chart — hourly progression is synthetic
+
+**Card:** `FormCard.tsx > CrsDayChart`
+
+**What's fake:** The entire hourly CRS curve (6am–10pm) is generated from a sine wave seeded from `score / 100`. The "past vs projected" split uses current clock time.
+
+**Impact:** The chart looks authentic but is not real. Every user at CRS 73 sees the same shape.
+
+**What's needed:** Either:
+- Option A (simple): Remove the chart or explicitly label it "estimated pattern" until real data exists
+- Option B (real): `hourlyFormEstimate: { hour: number; score: number }[]` computed server-side from intraday HR + activity data
+- Option C (hybrid): Compute from hourly stress events already stored — `stress.events` has timestamps
+
+**Recommended:** Option C — derive a rough hourly Form curve from existing `stress.events` and `activity` data. Not perfect but data-grounded.
+
+**Effort:** 3 days
+
+---
+
+### 21. BodyReadings — SpO2 hardcoded to 97, resp rate derived from RHR
+
+**Card:** `BodyReadings.tsx`
+
+**What's fake:**
+- `const spo2 = 97` — hardcoded normal value, card never shows
+- `Math.round(data.restingHR / 4.2)` — respiratory rate estimated from RHR (medically unsound)
+
+**Fix:**
+- Add `spO2: number | null` to `DayResponse` (data is stored, just not surfaced)
+- Add `respiratoryRate: number | null` to `DayResponse` (Apple Watch captures this during sleep)
+
+Both fields exist in `health_snapshots` — just need surfacing in the day response Edge Function.
+
+**Effort:** 0.5 days
+
+---
+
+### 22. CircadianCard — score not computed
+
+**Card:** `Tier2Cards.tsx > CircadianCard`
+
+**What's missing:** `data.crs.circadian.score` is always 0 — backend doesn't compute Circadian Score.
+
+This is the same as P0 blocker #4 above — listed again here for completeness.
+
+**Effort:** 2 days
+
+---
+
+### 23. SignalDepthCard — needs SyncStatus[] passed from Dashboard
+
+**Card:** `SignalDepthCard.tsx`
+
+**Status:** ✅ Data contract is correct — takes `SyncStatus[]` which is fetchable via `cloud.fetchSyncStatuses()`.
+
+**Gap:** `Dashboard.tsx` doesn't currently fetch sync statuses on mount and pass them to `SignalDepthCard`.
+
+**Fix:** Add `cloud.fetchSyncStatuses(userId)` to the initial `Promise.all` in Dashboard mount, store in state, pass to `SignalDepthCard`.
+
+**Effort:** 1 hour
+
+---
+
 ## Changelog
 
 | Date | Update |
 |---|---|
 | 2026-04-11 | Initial doc created from backend audit + dashboard design session |
+| 2026-04-12 | PR #2 analysis: 8 new blockers (16–23). Root cause: DateEntry missing time-series fields. Single fix unblocks 5 of the 8. |

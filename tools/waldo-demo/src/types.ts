@@ -14,12 +14,33 @@ export interface DateEntry {
   spotCount: number;
   headline: string;
   morningWag: string | null;
+  // Time-series fields — enables client-side historical charts without extra API calls
+  hrvAvg: number | null;        // avg RMSSD for the day (from health_snapshots.hrv_rmssd)
+  restingHR: number | null;     // resting HR bpm (from health_snapshots.resting_hr)
+  sleepHours: number | null;    // total sleep hours (from health_snapshots.sleep_duration_hours)
+  sleepDebtHours: number | null;// cumulative debt on this day (from master_metrics.sleep_debt.debtHours)
+  strainScore: number | null;   // Load score 0–21 (from master_metrics.strain.score)
+  spO2: number | null;          // SpO2 % (from health_snapshots.spo2)
 }
 
 export interface ComponentScore {
   score: number;
   factors: string[];
   dataAvailable: boolean;
+}
+
+export interface CrsPillars {
+  recovery: number;  // Sleep/Recovery Score (0–100)
+  cass: number;      // Autonomic State Score (0–100)
+  ilas: number;      // Inverse Load Score (0–100)
+}
+
+export interface PillarDrag {
+  sleep: number;
+  hrv: number;
+  circadian: number;
+  activity: number;
+  primary: 'sleep' | 'hrv' | 'circadian' | 'activity' | 'none';
 }
 
 export interface DayResponse {
@@ -33,6 +54,10 @@ export interface DayResponse {
     hrv: ComponentScore;
     circadian: ComponentScore;
     activity: ComponentScore;
+    /** 3-pillar rollup: recovery=sleep, cass=hrv, ilas=avg(circadian+activity) */
+    pillars: CrsPillars | null;
+    /** Which component is dragging CRS — drives The Brief attribution */
+    pillarDrag: PillarDrag | null;
     summary: string;
   };
   stress: {
@@ -61,6 +86,8 @@ export interface DayResponse {
   };
   restingHR: number | null;
   wristTemp: number | null;
+  spO2: number | null;              // surfaced only when <95% in BodyReadings card
+  respiratoryRate: number | null;   // 7-day sparkline in BodyReadings card
   avgNoiseDb: number | null;
   daylightMinutes: number;
   weather: { temperatureF: number; humidity: number; source: string } | null;
@@ -253,4 +280,30 @@ export interface AgentLogEntry {
   llmFallbackLevel: number;
   estimatedCostUsd: number;
   createdAt: string;
+}
+
+/**
+ * Pre-computed history arrays derived from allDates in Dashboard.
+ * Pass to Tier2Cards (HRVCard, RestingHRCard, SleepDebtCard) and LoadCard
+ * to replace seeded-random fake historical charts with real data.
+ * All arrays are ordered oldest→newest. Null entries mean no data for that day.
+ */
+/** A pending proposal from Waldo — shown in TheHandoff card */
+export interface WaldoProposal {
+  id: string;
+  type: 'calendar_block' | 'calendar_move' | 'task_create' | 'task_defer';
+  title: string;
+  description: string | null;
+  impact: string | null;
+  status: 'pending' | 'executing' | 'executed' | 'partial' | 'failed' | 'rejected' | 'expired';
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface HealthHistory {
+  hrv30d: (number | null)[];       // 30-day HRV avg — for HRVCard baseline chart
+  rhr7d: (number | null)[];        // 7-day resting HR — for RestingHRCard sparkline
+  sleepDebt7d: (number | null)[];  // 7-day debt accumulation — for SleepDebtCard
+  strain7d: (number | null)[];     // 7-day strain scores — for LoadCard 7-day avg
+  sleepHours7d: (number | null)[]; // 7-day sleep hours — for SleepDebtCard context
 }

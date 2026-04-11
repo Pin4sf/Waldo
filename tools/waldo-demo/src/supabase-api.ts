@@ -122,20 +122,25 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
 
 // ─── Dates & Day Data ───────────────────────────────────────────
 
-/** Lightweight date list for timeline. */
+/** Lightweight date list for timeline — includes time-series values for client-side historical charts. */
 export async function fetchDates(userId = DEFAULT_USER_ID): Promise<DateEntry[]> {
-  const [{ data: crsData }, { data: healthData }, { data: activityData }] = await Promise.all([
+  const [{ data: crsData }, { data: healthData }, { data: activityData }, { data: masterData }] = await Promise.all([
     supabase.from('crs_scores').select('date, score, zone').eq('user_id', userId).order('date'),
-    supabase.from('health_snapshots').select('date, data_tier, sleep_duration_hours, hrv_count, steps').eq('user_id', userId).order('date'),
+    supabase.from('health_snapshots')
+      .select('date, data_tier, sleep_duration_hours, hrv_count, hrv_rmssd, resting_hr, spo2, steps')
+      .eq('user_id', userId).order('date'),
     supabase.from('day_activity').select('date, morning_wag, spots_json').eq('user_id', userId),
+    supabase.from('master_metrics').select('date, sleep_debt, strain').eq('user_id', userId),
   ]);
 
   const crsMap = new Map((crsData ?? []).map((c: any) => [c.date, c]));
   const activityMap = new Map((activityData ?? []).map((a: any) => [a.date, a]));
+  const masterMap = new Map((masterData ?? []).map((m: any) => [m.date, m]));
 
   return (healthData ?? []).map((h: any) => {
     const crs = crsMap.get(h.date);
     const act = activityMap.get(h.date);
+    const master = masterMap.get(h.date);
     return {
       date: h.date,
       crs: crs?.score ?? -1,
@@ -150,6 +155,13 @@ export async function fetchDates(userId = DEFAULT_USER_ID): Promise<DateEntry[]>
       spotCount: (act?.spots_json ?? []).length,
       headline: '',
       morningWag: act?.morning_wag ?? null,
+      // Time-series values for historical charts
+      hrvAvg: h.hrv_rmssd ?? null,
+      restingHR: h.resting_hr ?? null,
+      sleepHours: h.sleep_duration_hours ?? null,
+      sleepDebtHours: (master?.sleep_debt as any)?.debtHours ?? null,
+      strainScore: (master?.strain as any)?.score ?? null,
+      spO2: h.spo2 ?? null,
     };
   });
 }
@@ -160,6 +172,7 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
     { data: crs }, { data: health }, { data: stress },
     { data: calMetrics }, { data: emailMetrics }, { data: taskMetrics },
     { data: masterMetrics }, { data: activity }, { data: patterns },
+    { data: waldoActionsRaw },
   ] = await Promise.all([
     supabase.from('crs_scores').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('health_snapshots').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
@@ -170,6 +183,8 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
     supabase.from('master_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('day_activity').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('patterns').select('*').eq('user_id', userId),
+    supabase.from('waldo_actions').select('time, action, reason, type, trace_id')
+      .eq('user_id', userId).eq('date', date).order('created_at', { ascending: true }),
   ]);
 
   const stressEvents = (stress ?? []).map((s: any) => ({
@@ -187,6 +202,8 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       hrv: crs?.hrv_json ?? { score: 0, factors: [], dataAvailable: false },
       circadian: crs?.circadian_json ?? { score: 0, factors: [], dataAvailable: false },
       activity: crs?.activity_json ?? { score: 0, factors: [], dataAvailable: false },
+      pillars: crs?.pillars_json ?? null,
+      pillarDrag: crs?.pillar_drag_json ?? null,
       summary: crs?.summary ?? '',
     },
     stress: {
@@ -211,8 +228,12 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       workouts: health?.workouts ?? [], standHours: health?.stand_hours ?? 0,
       activeEnergy: health?.active_energy ?? 0,
     },
-    restingHR: health?.resting_hr ?? null, wristTemp: health?.wrist_temp ?? null,
-    avgNoiseDb: health?.avg_noise_db ?? null, daylightMinutes: health?.daylight_minutes ?? null,
+    restingHR: health?.resting_hr ?? null,
+    wristTemp: health?.wrist_temp ?? null,
+    spO2: health?.spo2 ?? null,
+    respiratoryRate: health?.respiratory_rate ?? null,
+    avgNoiseDb: health?.avg_noise_db ?? null,
+    daylightMinutes: health?.daylight_minutes ?? null,
     weather: health?.weather ?? null, aqi: health?.aqi ?? null,
     aqiLabel: health?.aqi_label ?? null, pm25: health?.pm25 ?? null,
     sleepDebt: masterMetrics?.sleep_debt ?? null,
@@ -265,7 +286,10 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       id: p.id, type: p.type, confidence: p.confidence,
       summary: p.summary, evidenceCount: p.evidence_count,
     })),
-    waldoActions: activity?.actions_json ?? [],
+    waldoActions: (waldoActionsRaw ?? []).map((a: any) => ({
+      time: a.time, action: a.action, reason: a.reason,
+      type: a.type as 'proactive' | 'reactive' | 'learning',
+    })),
     dayActivity: activity ? {
       date: activity.date ?? date, headline: activity.headline ?? '',
       morningWag: activity.morning_wag ?? null, spots: activity.spots_json ?? [],
@@ -685,6 +709,40 @@ export async function triggerBuildIntelligence(userId: string): Promise<{
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
     body: JSON.stringify({ user_id: userId, source: 'dashboard_trigger' }),
+  });
+  return res.json();
+}
+
+// ─── Proposals (The Adjustment / TheHandoff) ─────────────────────
+
+/** Fetch pending proposals for the user — shown in TheHandoff card. */
+export async function fetchProposals(userId = DEFAULT_USER_ID) {
+  const { data, error } = await supabase
+    .from('waldo_proposals')
+    .select('id, type, title, description, impact, status, expires_at, created_at')
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) return null;
+  const p = data?.[0];
+  if (!p) return null;
+  return {
+    id: p.id, type: p.type, title: p.title,
+    description: p.description ?? null, impact: p.impact ?? null,
+    status: p.status, expiresAt: p.expires_at, createdAt: p.created_at,
+  };
+}
+
+/** Approve or reject a proposal — calls execute-proposal Edge Function. */
+export async function resolveProposal(
+  proposalId: string,
+  action: 'approve' | 'reject',
+): Promise<{ status: string; executed?: number; errors?: string[] }> {
+  const res = await fetch(`${SUPABASE_FN_URL}/execute-proposal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+    body: JSON.stringify({ proposal_id: proposalId, action }),
   });
   return res.json();
 }

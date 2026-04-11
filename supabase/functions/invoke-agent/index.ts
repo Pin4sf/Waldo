@@ -164,12 +164,41 @@ function getToolDefinitions(triggerType: MessageMode) {
         required: ['key', 'value'],
       },
     },
+    {
+      name: 'propose_action',
+      description: 'Propose a calendar or task action for the user to approve. Use this to suggest calendar blocking, event rescheduling, or task management. NEVER take action directly — always propose first. The user approves via The Handoff card.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['calendar_block', 'calendar_move', 'task_create', 'task_defer'],
+            description: 'calendar_block: protect a time slot. calendar_move: reschedule an event. task_create: create a new task. task_defer: push a task due date.',
+          },
+          title: { type: 'string', description: 'Short action label shown to user. e.g. "Block 10–11:30am as focus time" or "Move 9am standup to 10:30am"' },
+          description: { type: 'string', description: 'One sentence explaining why. e.g. "Your Form peaks at 10am and you have no meetings until noon."' },
+          impact: { type: 'string', description: 'What this protects or improves. e.g. "Protects your peak cognitive window (Form 82)"' },
+          actions: {
+            type: 'array',
+            description: 'The specific API actions to execute on approval.',
+            items: {
+              type: 'object',
+              properties: {
+                action: { type: 'string', description: 'e.g. calendar.create, calendar.move, task.create, task.defer' },
+                params: { type: 'object', description: 'Action parameters. For calendar.create: {title, start_time, end_time, color_id?, description?}. For calendar.move: {event_id, new_start, new_end}. For task.create: {title, due_date, priority?}. For task.defer: {task_id, new_due_date}.' },
+              },
+            },
+          },
+        },
+        required: ['type', 'title', 'description', 'actions'],
+      },
+    },
   ];
 
   // Per-trigger tool permissions
-  if (triggerType === 'morning_wag') return readTools.filter(t => ['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks'].includes(t.name));
-  if (triggerType === 'fetch_alert') return readTools.filter(t => ['get_crs', 'get_health', 'read_memory', 'get_spots'].includes(t.name));
-  if (triggerType === 'evening_review') return readTools.filter(t => ['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks'].includes(t.name));
+  if (triggerType === 'morning_wag') return [...readTools.filter(t => ['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks'].includes(t.name)), writeTools.find(t => t.name === 'propose_action')!];
+  if (triggerType === 'fetch_alert') return [...readTools.filter(t => ['get_crs', 'get_health', 'read_memory', 'get_spots'].includes(t.name)), writeTools.find(t => t.name === 'propose_action')!];
+  if (triggerType === 'evening_review') return [...readTools.filter(t => ['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks'].includes(t.name)), writeTools.find(t => t.name === 'propose_action')!];
   if (triggerType === 'onboarding') return [...readTools.filter(t => t.name === 'read_memory'), ...writeTools];
   return [...readTools, ...writeTools]; // conversational gets everything
 }
@@ -185,12 +214,23 @@ async function executeTool(name: string, input: any, userId: string, targetDate:
         : supabase.from('crs_scores').select('*').eq('user_id', userId).gte('score', 0).order('date', { ascending: false }).limit(1).single();
       const { data } = await query;
       if (!data) return 'No CRS data available for this date.';
-      return JSON.stringify({
+      const result: Record<string, unknown> = {
         date: data.date, score: data.score, zone: data.zone, confidence: data.confidence,
-        sleep: data.sleep_json?.score, hrv: data.hrv_json?.score,
-        circadian: data.circadian_json?.score, activity: data.activity_json?.score,
+        components: {
+          sleep: data.sleep_json?.score, hrv: data.hrv_json?.score,
+          circadian: data.circadian_json?.score, activity: data.activity_json?.score,
+        },
         summary: data.summary,
-      });
+      };
+      // Pillar breakdown (populated after CRS engine re-seed)
+      if (data.pillars_json) {
+        result.pillars = data.pillars_json; // { recovery, cass, ilas }
+      }
+      if (data.pillar_drag_json) {
+        result.primary_drag = data.pillar_drag_json.primary;
+        result.drag_detail = data.pillar_drag_json;
+      }
+      return JSON.stringify(result);
     }
 
     case 'get_health': {
@@ -312,6 +352,40 @@ async function executeTool(name: string, input: any, userId: string, targetDate:
       if (error) return `Memory update failed: ${error.message}`;
       log('info', 'memory_updated', { key: input.key, valueLength: value.length });
       return `Remembered: ${input.key} = ${value.slice(0, 50)}`;
+    }
+
+    case 'propose_action': {
+      // Validate required fields
+      const type = String(input?.type ?? '');
+      const title = String(input?.title ?? '').slice(0, 200);
+      const description = String(input?.description ?? '').slice(0, 500);
+      const impact = String(input?.impact ?? '').slice(0, 200);
+      const actions = Array.isArray(input?.actions) ? input.actions : [];
+
+      if (!type || !title || actions.length === 0) {
+        return 'Proposal rejected: type, title, and actions are required.';
+      }
+
+      const validTypes = ['calendar_block', 'calendar_move', 'task_create', 'task_defer'];
+      if (!validTypes.includes(type)) {
+        return `Proposal rejected: type must be one of ${validTypes.join(', ')}.`;
+      }
+
+      const { data: proposal, error } = await supabase.from('waldo_proposals').insert({
+        user_id: userId,
+        type,
+        title,
+        description,
+        impact,
+        proposed_actions: actions,
+        status: 'pending',
+        trace_id: crypto.randomUUID(),
+        expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+      }).select('id').single();
+
+      if (error) return `Proposal failed to save: ${error.message}`;
+      log('info', 'proposal_created', { proposalId: proposal?.id, type, title });
+      return `Proposal created (id: ${proposal?.id}). The user will see "Run it?" in The Handoff card and can approve or dismiss.`;
     }
 
     default:
@@ -695,6 +769,30 @@ Deno.serve(async (req: Request) => {
       latency_ms: latencyMs, delivery_status: 'sent',
       llm_fallback_level: 1, estimated_cost_usd: costUsd,
     }));
+
+    // ─── Log to waldo_actions (The Patrol feed) ──────────────
+    try {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+      const actionMap: Record<string, string> = {
+        morning_wag: 'Sent The Brief',
+        evening_review: 'Sent The Close',
+        fetch_alert: 'Fired The Fetch — stress elevated',
+        conversational: 'Responded to chat',
+        onboarding: 'Completed onboarding setup',
+      };
+      const actionText = actionMap[triggerType] ?? `Ran ${triggerType}`;
+      const actionType = triggerType === 'conversational' ? 'reactive' : 'proactive';
+      const reasonText = toolsCalled.length > 0
+        ? `Used ${toolsCalled.slice(0, 3).join(', ')}${toolsCalled.length > 3 ? ` +${toolsCalled.length - 3} more` : ''}`
+        : `${zone ?? 'unknown'} zone · Form ${Math.round(score ?? 0)}`;
+      savePromises.push(supabase.from('waldo_actions').insert({
+        user_id: userId, date: targetDate, time: timeStr,
+        action: actionText, reason: reasonText,
+        type: actionType, trace_id: traceId,
+      }));
+    } catch { /* non-critical — don't block delivery */ }
+
     await Promise.all(savePromises);
 
     return new Response(JSON.stringify({
