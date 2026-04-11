@@ -315,6 +315,18 @@ Deno.serve(async (req: Request) => {
     ...spotsResult.errors,
   ];
 
+  // ─── Trigger intelligence build (fire-and-forget) ───────────
+  // Immediately compute baselines, spots, patterns, user intelligence from the uploaded data.
+  // Don't wait for nightly jobs — the user should see intelligence right away.
+  fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/build-intelligence`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+    },
+    body: JSON.stringify({ user_id: userId, source: 'health_import' }),
+  }).catch(() => {});
+
   log('info', 'import_complete', {
     userId,
     days_imported: daysImported,
