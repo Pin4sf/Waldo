@@ -29,6 +29,20 @@ export interface ComponentScore {
   dataAvailable: boolean;
 }
 
+export interface CrsPillars {
+  recovery: number;  // Sleep/Recovery Score (0–100)
+  cass: number;      // Autonomic State Score (0–100)
+  ilas: number;      // Inverse Load Score (0–100)
+}
+
+export interface PillarDrag {
+  sleep: number;
+  hrv: number;
+  circadian: number;
+  activity: number;
+  primary: 'sleep' | 'hrv' | 'circadian' | 'activity' | 'none';
+}
+
 export interface DayResponse {
   date: string;
   crs: {
@@ -40,6 +54,10 @@ export interface DayResponse {
     hrv: ComponentScore;
     circadian: ComponentScore;
     activity: ComponentScore;
+    /** 3-pillar rollup: recovery=sleep, cass=hrv, ilas=avg(circadian+activity) */
+    pillars: CrsPillars | null;
+    /** Which component is dragging CRS — drives The Brief attribution */
+    pillarDrag: PillarDrag | null;
     summary: string;
   };
   stress: {

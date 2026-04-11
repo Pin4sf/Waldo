@@ -199,6 +199,8 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       hrv: crs?.hrv_json ?? { score: 0, factors: [], dataAvailable: false },
       circadian: crs?.circadian_json ?? { score: 0, factors: [], dataAvailable: false },
       activity: crs?.activity_json ?? { score: 0, factors: [], dataAvailable: false },
+      pillars: crs?.pillars_json ?? null,
+      pillarDrag: crs?.pillar_drag_json ?? null,
       summary: crs?.summary ?? '',
     },
     stress: {

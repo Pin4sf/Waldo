@@ -220,6 +220,8 @@ async function main() {
       user_id: userId, date, score: c.score, zone: c.zone, confidence: c.confidence,
       components_with_data: c.componentsWithData,
       sleep_json: c.sleep, hrv_json: c.hrv, circadian_json: c.circadian, activity_json: c.activity,
+      pillars_json: c.pillars,
+      pillar_drag_json: c.pillarDrag,
       summary: c.summary,
     };
   });

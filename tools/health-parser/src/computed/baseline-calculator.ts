@@ -25,6 +25,14 @@ function sma(values: number[]): number | null {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
+/** Population standard deviation */
+function std(values: number[]): number | null {
+  if (values.length < 2) return null;
+  const mean = values.reduce((s, v) => s + v, 0) / values.length;
+  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
 /** Get minutes from midnight for a Date */
 function minutesFromMidnight(d: Date): number {
   return d.getHours() * 60 + d.getMinutes();
@@ -123,16 +131,23 @@ export function computeBaselines(
     .map(d => allDays.get(d)!.restingHR)
     .filter((v): v is number => v !== null);
 
+  // Active energy 7d average — used for EES in Activity score
+  const activeEnergy7d = lookback7
+    .map(d => allDays.get(d)!.activeEnergyBurned)
+    .filter(v => v > 0);
+
   // Chronotype from 14-day sleep
   const sleepSessions14d = lookback14.map(d => allDays.get(d)!.sleep);
 
   return {
     hrv7d: ema(hrvValues7d),
     hrv30d: sma(hrvValues30d),
+    hrv30dSD: std(hrvValues30d),
     sleepDuration7d: sma(sleepDurations7d),
     bedtime7d: sma(bedtimes7d),
     chronotype: estimateChronotype(sleepSessions14d),
     restingHR7d: sma(restingHR7d),
+    activeEnergy7d: sma(activeEnergy7d),
     daysOfData: lookback7.length,
   };
 }
