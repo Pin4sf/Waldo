@@ -1,23 +1,19 @@
 /**
  * Waldo — bootstrap Edge Function
  *
- * ONE-TIME historical intelligence analysis run at onboarding.
- * Reads ALL available data (health, calendar, email, tasks, spots),
- * calls Claude to produce structured workspace files, then sends
- * them to the CF Worker DO for storage in R2.
+ * ONE-TIME onboarding intelligence run. Does TWO things:
+ *   1. GATHER: Pulls historical Google data (30 days calendar, 30 days email, all tasks)
+ *      directly from Google APIs — not relying on sync functions
+ *   2. ANALYZE: Reads ALL data from Supabase, calls Claude to produce workspace files
  *
- * Produces:
- *   - profile.md      — compressed user identity + habits
- *   - baselines.md    — rolling baselines + trend directions
- *   - patterns.md     — cross-domain correlations discovered
- *   - constellation.md — relationship map between dimensions
- *   - bootstrap.jsonl  — raw analysis (archived)
+ * Also triggers build-intelligence for spots/baselines if needed.
+ * Writes workspace files to R2 via CF Worker DO.
  *
  * POST /bootstrap
  *   Body: { user_id: string, source?: string }
- *   → { status, files_written, spots_generated, latency_ms }
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { getValidGoogleToken, googleFetch, recordSync } from '../_shared/google-auth.ts';
 
 function log(level: string, event: string, data: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ ts: new Date().toISOString(), fn: 'bootstrap', level, event, ...data }));
@@ -31,12 +27,9 @@ const CORS_HEADERS = {
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    status, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
 }
-
-// ─── Data compression helpers ────────────────────────────────────
 
 function avg(arr: any[], key: string): number | null {
   const vals = arr.map(r => r[key]).filter((v: any) => v != null && typeof v === 'number');
@@ -44,93 +37,214 @@ function avg(arr: any[], key: string): number | null {
   return vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
 }
 
-function summarizeHealthData(snapshots: any[]): string {
-  if (snapshots.length === 0) return 'No health data available.';
+// ─── PHASE 1: Pull historical Google data ────────────────────────
 
-  const days = snapshots.length;
-  const sleepDays = snapshots.filter((s: any) => s.sleep_duration_hours != null);
-  const hrvDays = snapshots.filter((s: any) => s.hrv_rmssd != null);
-  const stepDays = snapshots.filter((s: any) => s.steps != null && s.steps > 0);
+const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
+const GMAIL_API = 'https://www.googleapis.com/gmail/v1';
+const TASKS_API = 'https://tasks.googleapis.com/tasks/v1';
+const LOOKBACK_DAYS = 30;
 
-  const avgSleep = avg(sleepDays, 'sleep_duration_hours');
-  const avgHrv = avg(hrvDays, 'hrv_rmssd');
-  const avgSteps = avg(stepDays, 'steps');
-  const avgRhr = avg(snapshots.filter((s: any) => s.resting_hr), 'resting_hr');
+async function pullHistoricalCalendar(
+  supabase: ReturnType<typeof createClient>, userId: string, token: string, timezone: string,
+): Promise<number> {
+  const timeMin = new Date(Date.now() - LOOKBACK_DAYS * 86400000).toISOString();
+  const timeMax = new Date(Date.now() + 7 * 86400000).toISOString();
 
-  // Find patterns in sleep
-  const sleepByDow = new Map<number, number[]>();
-  for (const s of sleepDays) {
-    const dow = new Date(s.date).getDay();
-    if (!sleepByDow.has(dow)) sleepByDow.set(dow, []);
-    sleepByDow.get(dow)!.push(s.sleep_duration_hours);
+  const result = await googleFetch(`${GOOGLE_CALENDAR_API}/calendars/primary/events`, token, {
+    timeMin, timeMax, singleEvents: 'true', orderBy: 'startTime', maxResults: '250',
+    fields: 'items(id,summary,start,end,attendees,recurrence,status)',
+  });
+  if (!result.ok) { log('warn', 'calendar_pull_failed', { status: result.status }); return 0; }
+
+  const events = ((result.data as any)?.items ?? []).filter((e: any) => e.status !== 'cancelled');
+  if (events.length === 0) return 0;
+
+  // Group by date and compute metrics
+  const byDate = new Map<string, any[]>();
+  for (const e of events) {
+    const start = e.start?.dateTime ?? e.start?.date;
+    if (!start) continue;
+    const date = start.slice(0, 10);
+    if (!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date)!.push(e);
   }
 
-  const dowNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const dowAvgs = [...sleepByDow.entries()].map(([dow, vals]) => ({
-    day: dowNames[dow]!,
-    avg: vals.reduce((a, b) => a + b, 0) / vals.length,
-  }));
-  const bestSleepDay = dowAvgs.sort((a, b) => b.avg - a.avg)[0];
-  const worstSleepDay = dowAvgs.sort((a, b) => a.avg - b.avg)[0];
+  const rows: any[] = [];
+  for (const [date, dayEvents] of byDate) {
+    let totalMin = 0, b2b = 0, violations = 0;
+    const sorted = dayEvents.sort((a: any, b: any) => (a.start?.dateTime ?? '').localeCompare(b.start?.dateTime ?? ''));
+
+    for (let i = 0; i < sorted.length; i++) {
+      const e = sorted[i];
+      const startDt = e.start?.dateTime;
+      const endDt = e.end?.dateTime;
+      if (!startDt || !endDt) continue;
+      const durMin = (new Date(endDt).getTime() - new Date(startDt).getTime()) / 60000;
+      totalMin += durMin;
+      const hour = new Date(startDt).getHours();
+      if (hour < 7 || hour >= 19) violations++;
+      if (i > 0) {
+        const prevEnd = sorted[i-1]?.end?.dateTime;
+        if (prevEnd && new Date(startDt).getTime() - new Date(prevEnd).getTime() < 15 * 60000) b2b++;
+      }
+    }
+
+    const attendees = dayEvents.reduce((s: number, e: any) => s + (e.attendees?.length ?? 1), 0);
+    const mls = Math.min(15, (totalMin / 60) * 2.5 + b2b * 1.5 + (attendees > 5 ? 2 : 0));
+
+    rows.push({
+      user_id: userId, date,
+      meeting_load_score: Math.round(mls * 10) / 10,
+      total_meeting_minutes: Math.round(totalMin),
+      event_count: dayEvents.length,
+      back_to_back_count: b2b,
+      boundary_violations: violations,
+      focus_gaps: [],
+    });
+  }
+
+  if (rows.length > 0) {
+    await supabase.from('calendar_metrics').upsert(rows, { onConflict: 'user_id,date' });
+  }
+  await recordSync(supabase, userId, 'google_calendar', 'ok', rows.length);
+  log('info', 'calendar_historical_pulled', { userId, days: rows.length, events: events.length });
+  return rows.length;
+}
+
+async function pullHistoricalGmail(
+  supabase: ReturnType<typeof createClient>, userId: string, token: string, timezone: string,
+): Promise<number> {
+  const after = Math.floor((Date.now() - LOOKBACK_DAYS * 86400000) / 1000);
+
+  const listResult = await googleFetch(`${GMAIL_API}/users/me/messages`, token, {
+    q: `after:${after}`, maxResults: '500', fields: 'messages(id)',
+  });
+  if (!listResult.ok) { log('warn', 'gmail_pull_failed', { status: listResult.status }); return 0; }
+
+  const messageIds: string[] = ((listResult.data as any)?.messages ?? []).map((m: any) => m.id);
+  if (messageIds.length === 0) return 0;
+
+  // Fetch metadata in batches (NO body, NO subject, NO sender — privacy rules)
+  const metadataByDay = new Map<string, Array<{ timestampMs: number; labelIds: string[] }>>();
+
+  for (let i = 0; i < Math.min(messageIds.length, 300); i += 50) {
+    const batch = messageIds.slice(i, i + 50);
+    await Promise.allSettled(batch.map(async (id) => {
+      const r = await googleFetch(`${GMAIL_API}/users/me/messages/${id}`, token, {
+        format: 'metadata', fields: 'internalDate,labelIds',
+      });
+      if (!r.ok) return;
+      const msg = r.data as { internalDate?: string; labelIds?: string[] };
+      const ts = parseInt(msg.internalDate ?? '0', 10);
+      if (ts === 0) return;
+      const dateKey = new Date(ts).toISOString().slice(0, 10);
+      if (!metadataByDay.has(dateKey)) metadataByDay.set(dateKey, []);
+      metadataByDay.get(dateKey)!.push({ timestampMs: ts, labelIds: msg.labelIds ?? [] });
+    }));
+  }
+
+  const rows: any[] = [];
+  for (const [date, messages] of metadataByDay) {
+    const total = messages.length;
+    const sent = messages.filter(m => m.labelIds.includes('SENT')).length;
+    const afterHours = messages.filter(m => {
+      const h = new Date(m.timestampMs).getHours(); // UTC, close enough for aggregate
+      return h >= 19 || h < 7;
+    }).length;
+
+    rows.push({
+      user_id: userId, date,
+      total_emails: total, sent_count: sent,
+      received_count: total - sent,
+      after_hours_count: afterHours,
+      after_hours_ratio: total > 0 ? Math.round((afterHours / total) * 100) / 100 : 0,
+    });
+  }
+
+  if (rows.length > 0) {
+    await supabase.from('email_metrics').upsert(rows, { onConflict: 'user_id,date' });
+  }
+  await recordSync(supabase, userId, 'gmail', 'ok', rows.length);
+  log('info', 'gmail_historical_pulled', { userId, days: rows.length, messages: messageIds.length });
+  return rows.length;
+}
+
+async function pullHistoricalTasks(
+  supabase: ReturnType<typeof createClient>, userId: string, token: string,
+): Promise<number> {
+  // Get all task lists
+  const listResult = await googleFetch(`${TASKS_API}/users/@me/lists`, token, { maxResults: '100' });
+  if (!listResult.ok) return 0;
+
+  const taskLists = ((listResult.data as any)?.items ?? []) as Array<{ id: string }>;
+  let pending = 0, overdue = 0, completed = 0;
+  const today = new Date().toISOString().slice(0, 10);
+
+  for (const list of taskLists.slice(0, 5)) {
+    const tasksResult = await googleFetch(`${TASKS_API}/lists/${list.id}/tasks`, token, {
+      maxResults: '100', showCompleted: 'true', showHidden: 'true',
+    });
+    if (!tasksResult.ok) continue;
+    const tasks = ((tasksResult.data as any)?.items ?? []) as any[];
+    for (const t of tasks) {
+      if (t.status === 'completed') { completed++; continue; }
+      pending++;
+      if (t.due && t.due.slice(0, 10) < today) overdue++;
+    }
+  }
+
+  const row = {
+    user_id: userId, date: today,
+    pending_count: pending, overdue_count: overdue,
+    completed_today: completed,
+  };
+  await supabase.from('task_metrics').upsert(row, { onConflict: 'user_id,date' });
+  await recordSync(supabase, userId, 'google_tasks', 'ok', pending + completed);
+  log('info', 'tasks_historical_pulled', { userId, pending, overdue, completed });
+  return pending + completed;
+}
+
+// ─── PHASE 2: Summarize + Claude analysis ────────────────────────
+
+function summarizeHealth(health: any[]): string {
+  if (health.length === 0) return 'No health data.';
+  const sleepDays = health.filter((h: any) => h.sleep_duration_hours);
+  const avgSleep = sleepDays.length > 0 ? sleepDays.reduce((s: number, h: any) => s + h.sleep_duration_hours, 0) / sleepDays.length : null;
+  const hrvDays = health.filter((h: any) => h.hrv_rmssd);
+  const avgHrv = hrvDays.length > 0 ? hrvDays.reduce((s: number, h: any) => s + h.hrv_rmssd, 0) / hrvDays.length : null;
+  const avgSteps = avg(health.filter((h: any) => h.steps > 0), 'steps');
+  const avgRhr = avg(health.filter((h: any) => h.resting_hr), 'resting_hr');
 
   return [
-    `${days} days of health data.`,
-    avgSleep != null ? `Sleep: avg ${avgSleep.toFixed(1)}h/night (${sleepDays.length} nights tracked).` : 'No sleep data.',
-    avgHrv != null ? `HRV: avg ${avgHrv.toFixed(0)}ms RMSSD (${hrvDays.length} readings).` : 'No HRV data.',
-    avgSteps != null ? `Steps: avg ${Math.round(avgSteps!)}/day (${stepDays.length} days).` : 'No step data.',
-    avgRhr != null ? `Resting HR: avg ${avgRhr.toFixed(0)} bpm.` : '',
-    bestSleepDay ? `Best sleep day: ${bestSleepDay.day} (${bestSleepDay.avg.toFixed(1)}h avg).` : '',
-    worstSleepDay ? `Worst sleep day: ${worstSleepDay.day} (${worstSleepDay.avg.toFixed(1)}h avg).` : '',
+    `${health.length} days of health data.`,
+    avgSleep != null ? `Sleep: avg ${avgSleep.toFixed(1)}h/night (${sleepDays.length} nights).` : '',
+    avgHrv != null ? `HRV: avg ${avgHrv.toFixed(0)}ms (${hrvDays.length} readings).` : '',
+    avgSteps != null ? `Steps: avg ${Math.round(avgSteps)}/day.` : '',
+    avgRhr != null ? `Resting HR: avg ${avgRhr.toFixed(0)}bpm.` : '',
   ].filter(Boolean).join(' ');
 }
 
-function summarizeCrsData(scores: any[]): string {
-  if (scores.length === 0) return 'No CRS/Form data.';
-  const vals = scores.map((s: any) => s.score).filter((v: number) => v > 0);
-  if (vals.length === 0) return 'No valid CRS scores.';
-
-  const avgScore = Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length);
-  const peakDays = scores.filter((s: any) => s.zone === 'peak').length;
-  const lowDays = scores.filter((s: any) => s.zone === 'low').length;
-
-  // Trend: compare last 7d vs previous 7d
-  const recent7 = vals.slice(-7);
-  const prev7 = vals.slice(-14, -7);
-  const recentAvg = recent7.reduce((a: number, b: number) => a + b, 0) / (recent7.length || 1);
-  const prevAvg = prev7.length > 0 ? prev7.reduce((a: number, b: number) => a + b, 0) / prev7.length : recentAvg;
-  const trendDir = recentAvg > prevAvg + 3 ? 'improving' : recentAvg < prevAvg - 3 ? 'declining' : 'stable';
-
-  return `CRS/Form: avg ${avgScore}, range ${Math.min(...vals)}-${Math.max(...vals)}. ${peakDays} peak days, ${lowDays} low days. Trend: ${trendDir}. ${vals.length} scored days.`;
+function summarizeCrs(crs: any[]): string {
+  const vals = crs.map((c: any) => c.score).filter((s: number) => s > 0);
+  if (vals.length === 0) return 'No CRS data.';
+  const a = Math.round(vals.reduce((x: number, y: number) => x + y, 0) / vals.length);
+  const peak = crs.filter((c: any) => c.zone === 'peak').length;
+  const low = crs.filter((c: any) => c.zone === 'low').length;
+  return `CRS avg ${a}, range ${Math.min(...vals)}-${Math.max(...vals)}. ${peak} peak, ${low} low days. ${vals.length} scored.`;
 }
 
-function summarizeCalendar(metrics: any[]): string {
-  if (metrics.length === 0) return 'No calendar data.';
-  const avgLoad = avg(metrics, 'meeting_load_score');
-  const avgEvents = avg(metrics, 'event_count');
-  const totalB2b = metrics.reduce((s: number, m: any) => s + (m.back_to_back_count ?? 0), 0);
-  return `Calendar: ${metrics.length} days. Avg ${avgEvents?.toFixed(1)} meetings/day, load ${avgLoad?.toFixed(1)}/15. ${totalB2b} back-to-back meetings total.`;
+function summarizeCal(cal: any[]): string {
+  if (cal.length === 0) return 'No calendar data.';
+  const avgLoad = avg(cal, 'meeting_load_score');
+  const avgEvents = avg(cal, 'event_count');
+  return `Calendar: ${cal.length} days synced. Avg ${avgEvents?.toFixed(1)} meetings/day, load ${avgLoad?.toFixed(1)}/15.`;
 }
 
-function summarizeEmail(metrics: any[]): string {
-  if (metrics.length === 0) return 'No email data.';
-  const avgVol = avg(metrics, 'total_emails');
-  const avgAH = avg(metrics, 'after_hours_ratio');
-  return `Email: ${metrics.length} days. Avg ${avgVol?.toFixed(0)} emails/day. After-hours ratio: ${((avgAH ?? 0) * 100).toFixed(0)}%.`;
-}
-
-function summarizeTasks(metrics: any[]): string {
-  if (metrics.length === 0) return 'No task data.';
-  const latestPending = metrics[0]?.pending_count ?? 0;
-  const latestOverdue = metrics[0]?.overdue_count ?? 0;
-  return `Tasks: ${latestPending} pending, ${latestOverdue} overdue.`;
-}
-
-function summarizeSpots(spots: any[]): string {
-  if (spots.length === 0) return 'No observations yet.';
-  const byType = new Map<string, number>();
-  for (const s of spots) byType.set(s.category, (byType.get(s.category) ?? 0) + 1);
-  const typeStr = [...byType.entries()].map(([t, c]) => `${t}: ${c}`).join(', ');
-  return `${spots.length} observations. Breakdown: ${typeStr}.`;
+function summarizeEmail(email: any[]): string {
+  if (email.length === 0) return 'No email data.';
+  const avgVol = avg(email, 'total_emails');
+  const avgAH = avg(email, 'after_hours_ratio');
+  return `Email: ${email.length} days. Avg ${avgVol?.toFixed(0)}/day. After-hours: ${((avgAH ?? 0) * 100).toFixed(0)}%.`;
 }
 
 // ─── Main handler ────────────────────────────────────────────────
@@ -140,34 +254,58 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
 
   const startMs = Date.now();
-
   const body = await req.json().catch(() => null);
   if (!body) return json({ error: 'Invalid JSON' }, 400);
-
   const userId = (body as any).user_id;
   if (!userId) return json({ error: 'user_id required' }, 400);
 
   log('info', 'bootstrap_start', { userId });
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  );
+  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
-  // ─── Load ALL historical data ──────────────────────────────────
+  const { data: user } = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+  if (!user) return json({ error: 'User not found' }, 404);
+
+  // ═══ PHASE 1: GATHER — Pull historical Google data ═════════════
+  const gathered: Record<string, number> = {};
+
+  const token = await getValidGoogleToken(supabase, userId);
+  if (token) {
+    log('info', 'pulling_google_history', { userId, lookbackDays: LOOKBACK_DAYS });
+    const [calDays, emailDays, taskCount] = await Promise.all([
+      pullHistoricalCalendar(supabase, userId, token, user.timezone ?? 'UTC'),
+      pullHistoricalGmail(supabase, userId, token, user.timezone ?? 'UTC'),
+      pullHistoricalTasks(supabase, userId, token),
+    ]);
+    gathered.calendar_days = calDays;
+    gathered.email_days = emailDays;
+    gathered.tasks = taskCount;
+    log('info', 'google_history_gathered', { userId, ...gathered });
+  } else {
+    log('info', 'no_google_token', { userId });
+  }
+
+  // ═══ PHASE 1b: Generate spots + baselines if needed ════════════
+  let spotsGenerated = 0;
+  const { count: existingSpots } = await supabase
+    .from('spots').select('id', { count: 'exact', head: true }).eq('user_id', userId);
+  if ((existingSpots ?? 0) === 0) {
+    try {
+      const biRes = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/build-intelligence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+        body: JSON.stringify({ user_id: userId, source: 'bootstrap' }),
+      });
+      const biData = await biRes.json() as { spots_generated?: number };
+      spotsGenerated = biData.spots_generated ?? 0;
+    } catch { /* continue */ }
+  }
+
+  // ═══ PHASE 2: READ — Load all data from Supabase ═══════════════
   const [
-    { data: user },
-    { data: healthSnapshots },
-    { data: crsScores },
-    { data: calMetrics },
-    { data: emailMetrics },
-    { data: taskMetrics },
-    { data: spots },
-    { data: patterns },
-    { data: coreMemory },
-    { data: moodMetrics },
+    { data: health }, { data: crs }, { data: cal }, { data: email },
+    { data: tasks }, { data: spots }, { data: patterns }, { data: memory }, { data: mood },
   ] = await Promise.all([
-    supabase.from('users').select('*').eq('id', userId).maybeSingle(),
     supabase.from('health_snapshots').select('*').eq('user_id', userId).order('date'),
     supabase.from('crs_scores').select('*').eq('user_id', userId).order('date'),
     supabase.from('calendar_metrics').select('*').eq('user_id', userId).order('date'),
@@ -179,165 +317,111 @@ Deno.serve(async (req: Request) => {
     supabase.from('mood_metrics').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(30),
   ]);
 
-  if (!user) return json({ error: 'User not found' }, 404);
-
-  const health = healthSnapshots ?? [];
-  const crs = crsScores ?? [];
-  const cal = calMetrics ?? [];
-  const email = emailMetrics ?? [];
-  const tasks = taskMetrics ?? [];
-  const spotsList = spots ?? [];
-  const patternsList = patterns ?? [];
-  const memory = coreMemory ?? [];
-  const mood = moodMetrics ?? [];
-
-  // ─── Build compressed data summary for Claude ──────────────────
+  const connectedSources: string[] = [];
+  if ((health ?? []).length > 0) connectedSources.push('Apple Health');
+  if ((cal ?? []).length > 0) connectedSources.push('Google Calendar');
+  if ((email ?? []).length > 0) connectedSources.push('Gmail');
+  if ((tasks ?? []).length > 0) connectedSources.push('Google Tasks');
+  if ((mood ?? []).length > 0) connectedSources.push(mood![0]?.provider === 'spotify' ? 'Spotify' : 'YouTube Music');
 
   const dataSummary = [
-    summarizeHealthData(health),
-    summarizeCrsData(crs),
-    summarizeCalendar(cal),
-    summarizeEmail(email),
-    summarizeTasks(tasks),
-    summarizeSpots(spotsList),
-    mood.length > 0 ? `Mood: ${mood.length} days tracked. Latest: ${mood[0]?.dominant_mood ?? 'unknown'}.` : '',
-    memory.length > 0 ? `Memory: ${memory.length} entries. Baselines: ${memory.filter((m: any) => m.key.includes('baseline')).map((m: any) => `${m.key}=${m.value}`).join(', ')}.` : '',
+    summarizeHealth(health ?? []),
+    summarizeCrs(crs ?? []),
+    summarizeCal(cal ?? []),
+    summarizeEmail(email ?? []),
+    (tasks ?? []).length > 0 ? `Tasks: ${tasks![0]?.pending_count ?? 0} pending, ${tasks![0]?.overdue_count ?? 0} overdue.` : '',
+    (spots ?? []).length > 0 ? `${(spots ?? []).length} observations generated.` : '',
+    (mood ?? []).length > 0 ? `Mood: ${(mood ?? []).length} days. Latest: ${mood![0]?.dominant_mood ?? 'unknown'}.` : '',
+    (memory ?? []).length > 0 ? `Baselines: ${(memory ?? []).filter((m: any) => m.key.includes('baseline') || m.key.includes('avg')).map((m: any) => `${m.key}=${m.value}`).join(', ')}` : '',
+    (patterns ?? []).length > 0 ? `Patterns: ${(patterns ?? []).map((p: any) => p.summary).join('; ')}` : '',
   ].filter(Boolean).join('\n');
 
-  const connectedSources: string[] = ['Apple Health'];
-  if (cal.length > 0) connectedSources.push('Google Calendar');
-  if (email.length > 0) connectedSources.push('Gmail');
-  if (tasks.length > 0) connectedSources.push('Google Tasks');
-  if (mood.length > 0) connectedSources.push(mood[0]?.provider === 'spotify' ? 'Spotify' : 'YouTube Music');
-
   log('info', 'data_loaded', {
-    userId,
-    healthDays: health.length,
-    crsDays: crs.length,
-    calDays: cal.length,
-    emailDays: email.length,
-    spots: spotsList.length,
-    patterns: patternsList.length,
+    userId, health: (health ?? []).length, crs: (crs ?? []).length,
+    cal: (cal ?? []).length, email: (email ?? []).length, spots: (spots ?? []).length,
   });
 
-  // ─── Call Claude to produce workspace files ────────────────────
+  // ═══ PHASE 3: ANALYZE — Claude produces workspace files ════════
 
-  const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!;
-
-  const bootstrapPrompt = `You are Waldo's intelligence bootstrap system. Analyze this user's historical data and produce structured workspace files.
-
-USER: ${user.name} (${user.timezone}, wakes ~${user.wake_time_estimate ?? '07:00'}, wearable: ${user.wearable_type ?? 'unknown'})
-
-HISTORICAL DATA SUMMARY:
-${dataSummary}
-
-${patternsList.length > 0 ? `DETECTED PATTERNS:\n${patternsList.map((p: any) => `- [${p.type}] ${p.summary} (${p.evidence_count} evidence, ${(p.confidence * 100).toFixed(0)}% confidence)`).join('\n')}` : ''}
-
-${spotsList.length > 0 ? `RECENT OBSERVATIONS (last ${Math.min(spotsList.length, 20)}):\n${spotsList.slice(0, 20).map((s: any) => `- [${s.date}] ${s.category}: ${s.observation}`).join('\n')}` : ''}
-
-Produce exactly 4 sections in this format. Be specific and data-driven. Use the actual numbers from the data above. Keep each section concise.
-
-===PROFILE===
-Write a compressed user profile (~200 tokens). Include: identity, chronotype evidence, device, data coverage, top 3-5 insights about this specific person. Format as markdown with bullets.
-
-===BASELINES===
-Write current baselines with trend directions (~150 tokens). Include: sleep avg, HRV avg, resting HR, steps avg, CRS avg, meeting load avg, email volume. For each, note if trending up/down/stable based on recent vs historical. Format as markdown list.
-
-===PATTERNS===
-Write detected patterns and cross-domain correlations (~300 tokens). If no patterns exist yet, note what data is available and what patterns COULD emerge with more data. Be specific about the numbers. Format as markdown with headers per pattern.
-
-===CONSTELLATION===
-Write a cross-domain connection map. Link health metrics to productivity/communication/tasks. Example: "High meeting days → HRV drops 15% next morning". Only include connections supported by data. If insufficient data, note what connections to watch for.`;
-
-  let profileMd = '';
-  let baselinesMd = '';
-  let patternsMd = '';
-  let constellationMd = '';
+  let profileMd = '', baselinesMd = '', patternsMd = '', constellationMd = '';
 
   try {
     const llmRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': Deno.env.get('ANTHROPIC_API_KEY')!,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 2000,
-        messages: [{ role: 'user', content: bootstrapPrompt }],
+        messages: [{ role: 'user', content: `You are Waldo's intelligence bootstrap system. Analyze this user's complete historical data and produce structured workspace files.
+
+USER: ${user.name} (${user.timezone}, wakes ~${user.wake_time_estimate ?? '07:00'}, wearable: ${user.wearable_type ?? 'unknown'})
+CONNECTED SOURCES: ${connectedSources.join(', ')}
+
+ALL HISTORICAL DATA:
+${dataSummary}
+
+${(spots ?? []).length > 0 ? `RECENT OBSERVATIONS:\n${(spots ?? []).slice(0, 15).map((s: any) => `- [${s.date}] ${s.type}: ${s.title}`).join('\n')}` : ''}
+
+Produce exactly 4 sections. Be specific — use actual numbers from the data. Keep each section concise.
+
+===PROFILE===
+User profile (~200 tokens). Identity, chronotype evidence, data coverage, top 5 insights. Markdown bullets.
+
+===BASELINES===
+Current baselines with trend directions (~150 tokens). Sleep, HRV, HR, steps, CRS, meeting load, email volume. Note up/down/stable.
+
+===PATTERNS===
+Patterns and cross-domain correlations (~300 tokens). Link health to schedule/communication/tasks. If data is thin, note what patterns to WATCH FOR.
+
+===CONSTELLATION===
+Cross-domain connection map. Health ↔ productivity ↔ communication. Only connections supported by data.` }],
       }),
     });
 
-    if (!llmRes.ok) {
-      const err = await llmRes.text();
-      log('error', 'llm_failed', { status: llmRes.status, error: err });
-      return json({ error: `LLM call failed: ${llmRes.status}` }, 500);
+    if (llmRes.ok) {
+      const llmData = await llmRes.json() as { content: Array<{ text: string }>; usage?: any };
+      const fullText = llmData.content[0]?.text ?? '';
+      const sections = fullText.split(/===(\w+)===/);
+      for (let i = 1; i < sections.length; i += 2) {
+        const name = sections[i]?.trim().toUpperCase();
+        const content = sections[i + 1]?.trim() ?? '';
+        if (name === 'PROFILE') profileMd = content;
+        else if (name === 'BASELINES') baselinesMd = content;
+        else if (name === 'PATTERNS') patternsMd = content;
+        else if (name === 'CONSTELLATION') constellationMd = content;
+      }
+      log('info', 'llm_complete', { tokens_in: llmData.usage?.input_tokens, tokens_out: llmData.usage?.output_tokens });
     }
-
-    const llmData = await llmRes.json() as { content: Array<{ text: string }> };
-    const fullText = llmData.content[0]?.text ?? '';
-
-    // Parse sections
-    const sections = fullText.split(/===(\w+)===/);
-    for (let i = 1; i < sections.length; i += 2) {
-      const sectionName = sections[i]?.trim().toUpperCase();
-      const sectionContent = sections[i + 1]?.trim() ?? '';
-      if (sectionName === 'PROFILE') profileMd = sectionContent;
-      else if (sectionName === 'BASELINES') baselinesMd = sectionContent;
-      else if (sectionName === 'PATTERNS') patternsMd = sectionContent;
-      else if (sectionName === 'CONSTELLATION') constellationMd = sectionContent;
-    }
-
-    log('info', 'llm_analysis_complete', {
-      profileLen: profileMd.length,
-      baselinesLen: baselinesMd.length,
-      patternsLen: patternsMd.length,
-      constellationLen: constellationMd.length,
-      inputTokens: (llmData as any).usage?.input_tokens,
-      outputTokens: (llmData as any).usage?.output_tokens,
-    });
-
   } catch (err) {
-    log('error', 'llm_error', { error: String(err) });
-    // Fallback: generate from data without LLM
-    profileMd = [
-      `# ${user.name}`,
-      `- Timezone: ${user.timezone}`,
-      `- Wearable: ${user.wearable_type ?? 'unknown'}`,
-      `- Data: ${health.length} days observed`,
-      `- Sources: ${connectedSources.join(', ')}`,
-    ].join('\n');
-    baselinesMd = memory.map((m: any) => `- **${m.key}**: ${m.value}`).join('\n') || 'No baselines yet.';
-    patternsMd = patternsList.length > 0
-      ? patternsList.map((p: any) => `- ${p.type}: ${p.summary}`).join('\n')
-      : 'No patterns detected yet.';
-    constellationMd = 'Insufficient cross-domain data for connections yet.';
+    log('error', 'llm_failed', { error: String(err) });
+    // Fallback without LLM
+    profileMd = `# ${user.name}\n- ${connectedSources.join(', ')}\n- ${(health ?? []).length} days health data`;
+    baselinesMd = (memory ?? []).map((m: any) => `- ${m.key}: ${m.value}`).join('\n') || 'No baselines.';
+    patternsMd = 'Insufficient data for patterns yet.';
+    constellationMd = 'Insufficient cross-domain data for connections.';
   }
 
-  // ─── Write workspace files via CF Worker DO ────────────────────
+  // ═══ PHASE 4: STORE — Write workspace files to R2 via DO ═══════
 
   const WALDO_WORKER_URL = Deno.env.get('WALDO_WORKER_URL') ?? '';
   const WALDO_WORKER_SECRET = Deno.env.get('WALDO_WORKER_SECRET') ?? '';
-
   const filesWritten: string[] = [];
 
-  // Write files to DO (which stores them in R2)
-  if (WALDO_WORKER_URL) {
+  if (WALDO_WORKER_URL && WALDO_WORKER_SECRET) {
     const writeFile = async (filename: string, content: string) => {
       try {
-        await fetch(`${WALDO_WORKER_URL}/workspace/${userId}`, {
+        const res = await fetch(`${WALDO_WORKER_URL}/workspace/${userId}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-waldo-secret': WALDO_WORKER_SECRET,
-          },
+          headers: { 'Content-Type': 'application/json', 'x-waldo-secret': WALDO_WORKER_SECRET },
           body: JSON.stringify({ file: filename, content }),
         });
-        filesWritten.push(filename);
-      } catch (err) {
-        log('warn', 'workspace_write_failed', { filename, error: String(err) });
-      }
+        if (res.ok) filesWritten.push(filename);
+        else log('warn', 'workspace_write_failed', { filename, status: res.status });
+      } catch (err) { log('warn', 'workspace_write_error', { filename, error: String(err) }); }
     };
 
     await Promise.all([
@@ -346,83 +430,40 @@ Write a cross-domain connection map. Link health metrics to productivity/communi
       writeFile('patterns.md', patternsMd),
       writeFile('constellation.md', constellationMd),
       writeFile('bootstrap.jsonl', JSON.stringify({
-        timestamp: new Date().toISOString(),
-        userId,
+        timestamp: new Date().toISOString(), userId,
         source: (body as any).source ?? 'manual',
-        healthDays: health.length,
-        crsDays: crs.length,
-        calDays: cal.length,
-        emailDays: email.length,
-        spots: spotsList.length,
-        patterns: patternsList.length,
-        connectedSources,
+        healthDays: (health ?? []).length, crsDays: (crs ?? []).length,
+        calDays: (cal ?? []).length, emailDays: (email ?? []).length,
+        spots: (spots ?? []).length, connectedSources,
+        gathered,
       })),
     ]);
+  } else {
+    log('warn', 'no_worker_config', { hasUrl: !!WALDO_WORKER_URL, hasSecret: !!WALDO_WORKER_SECRET });
   }
 
-  // ─── Also update user_intelligence in Supabase ─────────────────
-
-  const intelligenceSummary = [
-    profileMd.slice(0, 500),
-    '',
-    '## Baselines',
-    baselinesMd.slice(0, 300),
-    '',
-    '## Patterns',
-    patternsMd.slice(0, 300),
-  ].join('\n');
-
+  // Update user_intelligence in Supabase
   await supabase.from('user_intelligence').upsert({
     user_id: userId,
-    summary: intelligenceSummary,
-    baselines: memory.map((m: any) => ({ key: m.key, value: m.value })),
-    crs_patterns: {
-      avg: avg(crs.map((c: any) => c.score).filter((s: number) => s > 0).map(s => ({ s })), 's'),
-      days: crs.length,
-    },
-    sleep_patterns: { avg_7d: avg(health.slice(-7), 'sleep_duration_hours') },
+    summary: [profileMd.slice(0, 500), '\n## Baselines\n', baselinesMd.slice(0, 300), '\n## Patterns\n', patternsMd.slice(0, 300)].join(''),
+    baselines: (memory ?? []).map((m: any) => ({ key: m.key, value: m.value })),
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' });
 
-  // ─── Also trigger build-intelligence for spots if needed ───────
-
-  let spotsGenerated = 0;
-  if (spotsList.length === 0 && health.length > 0) {
-    try {
-      const biRes = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/build-intelligence`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        },
-        body: JSON.stringify({ user_id: userId, source: 'bootstrap' }),
-      });
-      const biData = await biRes.json() as { spots_generated?: number };
-      spotsGenerated = biData.spots_generated ?? 0;
-    } catch { /* fire and forget */ }
-  }
-
   const latencyMs = Date.now() - startMs;
-  log('info', 'bootstrap_complete', {
-    userId,
-    filesWritten,
-    spotsGenerated,
-    latency_ms: latencyMs,
-  });
+  log('info', 'bootstrap_complete', { userId, filesWritten, spotsGenerated, gathered, latency_ms: latencyMs });
 
   return json({
     status: 'ok',
     user: user.name,
     files_written: filesWritten,
     spots_generated: spotsGenerated,
+    google_data_gathered: gathered,
     data_summary: {
-      health_days: health.length,
-      crs_days: crs.length,
-      calendar_days: cal.length,
-      email_days: email.length,
-      task_days: tasks.length,
-      spots: spotsList.length + spotsGenerated,
-      patterns: patternsList.length,
+      health_days: (health ?? []).length, crs_days: (crs ?? []).length,
+      calendar_days: (cal ?? []).length, email_days: (email ?? []).length,
+      task_count: (tasks ?? []).length > 0 ? (tasks![0]?.pending_count ?? 0) + (tasks![0]?.completed_today ?? 0) : 0,
+      spots: (spots ?? []).length + spotsGenerated,
       connected_sources: connectedSources,
     },
     latency_ms: latencyMs,
