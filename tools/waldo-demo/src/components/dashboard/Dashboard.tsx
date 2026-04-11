@@ -10,7 +10,10 @@
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Sidebar } from './Sidebar.js';
-import { MorningWag } from './MorningWag.js';
+import { TheBrief } from './TheBrief.js';
+import { ThePatrol } from './ThePatrol.js';
+import { TheHandoff } from './TheHandoff.js';
+import { StackCard, SignalPressureCard, TaskPileUpCard, TodaysWeightCard } from './Phase2Cards.js';
 import { FormCard } from './FormCard.js';
 import { SleepCard } from './SleepCard.js';
 import { LoadCard } from './LoadCard.js';
@@ -369,11 +372,12 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
       <main className="dash-center">
         {sidebarView === 'home' && (
           <div className="dash-center-scroll">
-            {/* Morning Wag hero */}
-            <MorningWag
+            {/* The Brief — hero card */}
+            <TheBrief
               message={morningWag}
               zone={dayData?.crs.zone}
               isLoading={isLoadingDates || isLoadingWag}
+              timestamp={selectedDate === today ? `Today · ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : selectedDate ? formatDateLabel(selectedDate) : undefined}
             />
 
             {/* Intelligence summary */}
@@ -429,11 +433,21 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               </div>
             )}
 
-            {/* Pattern + spot feed */}
+            {/* The Patrol — agent action log */}
+            <ThePatrol
+              actions={dayData?.waldoActions ?? []}
+              isLoading={isLoadingDay}
+              date={selectedDate ? formatDateLabel(selectedDate) : undefined}
+            />
+
+            {/* The Handoff — approval card (ghost until backend supports it) */}
+            <TheHandoff status="none" />
+
+            {/* Spots feed — what Waldo noticed */}
             {intelligenceFeed.length > 0 && (
               <div style={{ marginTop: 16 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 12 }}>
-                  What Waldo noticed &middot; {totalDays} days observed
+                  The Spots &middot; {totalDays} days observed
                 </span>
                 {intelligenceFeed.map((event, i) => (
                   <FetchCard key={i} event={event} />
@@ -493,21 +507,30 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
 
         {sidebarView === 'fetches' && (
           <div className="dash-center-scroll">
-            <h2 style={{ fontFamily: 'var(--font-headline)', fontSize: 24, fontWeight: 400, marginBottom: 20 }}>
-              Fetches &amp; Spots
-            </h2>
-            {spots.length === 0 ? (
-              <p style={{ color: 'var(--text-dim)' }}>No spots yet. Upload health data to start generating observations.</p>
-            ) : (
-              <>
-                <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 16 }}>
-                  {spots.length} observations across {new Set(spots.map(s => s.date)).size} days
-                </p>
-                {spotsToFetchEvents(spots, 20).map((event, i) => (
+            {/* Full Patrol log */}
+            <ThePatrol
+              actions={dayData?.waldoActions ?? []}
+              isLoading={isLoadingDay}
+              date={selectedDate ? formatDateLabel(selectedDate) : undefined}
+            />
+
+            {/* The Spots feed */}
+            <div style={{ marginTop: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 12 }}>
+                The Spots &middot; {spots.length} observations
+              </span>
+              {spots.length === 0 ? (
+                <div className="dash-card" style={{ opacity: 0.6, border: '1px dashed var(--border)' }}>
+                  <p style={{ color: 'var(--text-dim)', fontSize: 14, lineHeight: 1.6 }}>
+                    No spots yet. Upload health data or connect sources to start generating observations.
+                  </p>
+                </div>
+              ) : (
+                spotsToFetchEvents(spots, 20).map((event, i) => (
                   <FetchCard key={i} event={event} />
-                ))}
-              </>
-            )}
+                ))
+              )}
+            </div>
           </div>
         )}
 
@@ -622,6 +645,12 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               <FormCard data={dayData} />
               <SleepCard data={dayData} />
               <LoadCard data={dayData} />
+
+              {/* Phase 2 cards — real data or ghost invite */}
+              <StackCard data={dayData.calendar} />
+              <SignalPressureCard data={dayData.email} />
+              <TaskPileUpCard data={dayData.tasks} />
+              <TodaysWeightCard data={dayData.cognitiveLoad} />
 
               {/* Day's spots inline */}
               {filteredSpots.length > 0 && (

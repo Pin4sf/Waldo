@@ -21,7 +21,7 @@ const NAV_ITEMS: Array<{ id: SidebarView; label: string; icon: string }> = [
 ];
 
 const LOWER_ITEMS: Array<{ id: SidebarView; label: string; icon: string }> = [
-  { id: 'fetches', label: 'Fetches', icon: '\u21BB' },
+  { id: 'fetches', label: 'The Patrol', icon: '\u21BB' },
   { id: 'constellations', label: 'Constellations', icon: '\u2728' },
 ];
 

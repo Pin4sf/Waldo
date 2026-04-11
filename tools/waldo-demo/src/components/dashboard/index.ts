@@ -6,3 +6,6 @@ export { MorningWag } from './MorningWag.js';
 export { FetchCard } from './FetchCard.js';
 export { Sidebar } from './Sidebar.js';
 export { RadialGauge } from './RadialGauge.js';
+export { TheHandoff } from './TheHandoff.js';
+export type { HandoffProposal } from './TheHandoff.js';
+export { StackCard, SignalPressureCard, TaskPileUpCard, TodaysWeightCard } from './Phase2Cards.js';

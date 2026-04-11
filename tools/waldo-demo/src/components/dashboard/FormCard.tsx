@@ -65,7 +65,7 @@ export function FormCard({ data }: FormCardProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
         {/* Left: Title + narrative */}
         <div style={{ flex: 1 }}>
-          <h3 className="dash-card-title">Your nap score</h3>
+          <h3 className="dash-card-title">Form</h3>
           <p className="dash-card-narrative">
             {crs.summary || `${ZONE_LABELS[zone]} day. Score ${crs.score}.`}
           </p>
