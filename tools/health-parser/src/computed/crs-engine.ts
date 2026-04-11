@@ -178,6 +178,25 @@ export function computeSleepScore(day: DailyHealthData, baselines: Baselines): C
 //
 // CASS = (HRVS × 0.60) + (RHRTS × 0.25) + (WHAS × 0.15)
 
+function computeWHAS(day: DailyHealthData, baselines: Baselines): { score: number; factors: string[] } {
+  // Walking HR average — spec: delta vs 30d baseline, ×5 penalty per bpm above
+  const todayWalkingHR = day.walkingHR;
+
+  // Use resting HR 30d as a proxy baseline if dedicated walking HR baseline isn't available
+  // (a rough approximation until we have 30d walking HR in baselines)
+  const baseline = baselines.restingHR7d ? baselines.restingHR7d + 20 : null; // walking HR typically ~20bpm above resting
+
+  if (todayWalkingHR === null) return { score: 75, factors: [] }; // neutral placeholder
+  if (baseline === null) return { score: 75, factors: [] };
+
+  const delta = todayWalkingHR - baseline;
+  const score = delta <= 0 ? 100 : Math.max(0, 100 - delta * 5);
+  return {
+    score: clamp(score, 0, 100),
+    factors: delta > 5 ? [`Walking HR: ${Math.round(todayWalkingHR)} bpm (+${delta.toFixed(0)} above norm)`] : [],
+  };
+}
+
 function computeHRVS(day: DailyHealthData, baselines: Baselines): { score: number; factors: string[] } {
   if (day.hrvReadings.length === 0) return { score: 50, factors: ['No HRV data — neutral'] };
 
@@ -244,7 +263,7 @@ export function computeHrvScore(day: DailyHealthData, baselines: Baselines): Com
 
   const hrvs = computeHRVS(day, baselines);
   const rhrts = computeRHRTS(day, baselines);
-  const whas = { score: 75, factors: [] as string[] }; // Placeholder: walking HR not extracted yet
+  const whas = computeWHAS(day, baselines);
 
   // CASS = (HRVS × 0.60) + (RHRTS × 0.25) + (WHAS × 0.15)
   const score = Math.round(hrvs.score * 0.60 + rhrts.score * 0.25 + whas.score * 0.15);
@@ -273,6 +292,43 @@ function computeEES(day: DailyHealthData, yesterday: DailyHealthData | null, bas
   return Math.max(0, Math.round(100 - (ratio - 1.0) * 100));
 }
 
+function computePES(day: DailyHealthData, baselines: Baselines): number {
+  // Physical Effort Score: MET_ratio = today_avg / 30d_baseline
+  // ≤1.0 → 100; >1.0 → max(0, 100-(ratio-1)×80)
+  const todayMET = day.physicalEffortAvg;
+
+  // Fallback: derive from active energy if physical effort not available
+  const baseline30d = baselines.activeEnergy30d;
+  const todayEnergy = day.activeEnergyBurned;
+
+  if (todayMET !== null && todayMET > 0) {
+    // TODO: need 30d MET baseline in baselines — use today-only fallback for now
+    // Once baselines has physicalEffort30d, replace with real ratio
+    return 75; // neutral until 30d MET baseline is tracked
+  }
+
+  if (todayEnergy <= 0 || baseline30d === null || baseline30d <= 0) return 75;
+  const ratio = todayEnergy / baseline30d;
+  if (ratio <= 1.0) return 100;
+  return Math.max(0, Math.round(100 - (ratio - 1.0) * 80));
+}
+
+function computeCDP(
+  day: DailyHealthData,
+  yesterday: DailyHealthData | null,
+): number {
+  // Circadian Disruption Penalty: timezone shift between consecutive sleep sessions.
+  // ×12 penalty per hour of shift. 0h shift = 100 (no disruption).
+  const todayTZ = day.sleepTimezoneOffsetHours;
+  const yestTZ = yesterday?.sleepTimezoneOffsetHours ?? null;
+
+  if (todayTZ === null || yestTZ === null) return 100; // no disruption detectable
+
+  const deltaHours = Math.abs(todayTZ - yestTZ);
+  if (deltaHours === 0) return 100;
+  return Math.max(0, Math.round(100 - deltaHours * 12));
+}
+
 function computeDAS(day: DailyHealthData): number {
   const min = day.daylightMinutes;
   if (min <= 0) return 50; // neutral
@@ -291,8 +347,8 @@ function computeILAS(
   baselines: Baselines,
 ): { score: number; ees: number; pes: number; cdp: number; das: number; factors: string[] } {
   const ees = computeEES(day, yesterday, baselines);
-  const pes = 75; // Placeholder: PhysicalEffort/MET data not in health_snapshots schema yet
-  const cdp = 100; // Placeholder: timezone metadata not extracted from Apple Health sleep records yet
+  const pes = computePES(day, baselines);
+  const cdp = computeCDP(day, yesterday);
   const das = computeDAS(day);
 
   // ILAS = (EES × 0.30) + (PES × 0.25) + (CDP × 0.30) + (DAS × 0.15)
@@ -300,6 +356,7 @@ function computeILAS(
 
   const factors: string[] = [];
   if (ees < 80) factors.push(`Energy load: ${ees} (48h elevated)`);
+  if (cdp < 100) factors.push(`Timezone shift: ${cdp} (circadian disruption detected)`);
   if (das < 60) factors.push(`Daylight: ${day.daylightMinutes.toFixed(0)}min (${das})`);
 
   return { score: clamp(score, 0, 100), ees, pes, cdp, das, factors };

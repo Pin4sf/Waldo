@@ -41,6 +41,8 @@ export interface SleepStageRecord {
   endDate: Date;
   durationMinutes: number;
   source: string;
+  /** Timezone offset in hours extracted from the record date string (e.g. +5.5 for IST) */
+  timezoneOffsetHours: number | null;
 }
 
 /** Aggregated sleep session for one night */
@@ -144,6 +146,20 @@ export interface DaylightRecord {
   source: string;
 }
 
+/** Daily walking heart rate average (Apple Watch computed, ~sedentary walking pace) */
+export interface WalkingHRRecord {
+  timestamp: Date;
+  bpm: number;
+  source: string;
+}
+
+/** Physical effort record (METs × body mass × time, kcal/hr·kg) — Apple Watch watchOS 9+ */
+export interface PhysicalEffortRecord {
+  timestamp: Date;
+  value: number; // kcal/hr·kg
+  source: string;
+}
+
 /** Walking/running distance record */
 export interface DistanceRecord {
   startDate: Date;
@@ -183,6 +199,8 @@ export interface ExtractedHealthData {
   daylight: DaylightRecord[];
   distance: DistanceRecord[];
   walkingSpeed: WalkingSpeedRecord[];
+  walkingHR: WalkingHRRecord[];
+  physicalEffort: PhysicalEffortRecord[];
   activeEnergy: Array<{ timestamp: Date; kcal: number }>;
   flightsClimbed: Array<{ timestamp: Date; flights: number }>;
   vo2max: Array<{ timestamp: Date; value: number }>;
@@ -241,4 +259,10 @@ export interface DailyHealthData {
   aqi: number | null;
   /** PM2.5 particulate matter */
   pm25: number | null;
+  /** Daily average walking heart rate (bpm) — for WHAS in CASS */
+  walkingHR: number | null;
+  /** Daily average physical effort (kcal/hr·kg) — for PES in ILAS */
+  physicalEffortAvg: number | null;
+  /** Timezone offset (hours, e.g. +5.5 for IST) from sleep record — for CDP in ILAS */
+  sleepTimezoneOffsetHours: number | null;
 }
