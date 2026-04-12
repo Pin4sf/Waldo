@@ -112,6 +112,13 @@ function CrsDayChart({ score }: { score: number }) {
   );
 }
 
+const PILLAR_DRAG_LABEL: Record<string, string> = {
+  sleep: 'sleep dragging',
+  hrv: 'HRV dragging',
+  circadian: 'body clock dragging',
+  activity: 'low activity dragging',
+};
+
 export function FormCard({ data, onDrillDown }: FormCardProps) {
   const [expanded, setExpanded] = useState(false);
   const crs = data?.crs;
@@ -119,6 +126,7 @@ export function FormCard({ data, onDrillDown }: FormCardProps) {
 
   const zone = crs.zone;
   const zoneLabel = zone === 'peak' ? 'Peak' : zone === 'moderate' ? 'Steady' : zone === 'low' ? 'Flagging' : '--';
+  const primaryDrag = crs.pillarDrag?.primary ?? null;
 
   const components = [
     { name: 'Sleep', score: Math.round(crs.sleep?.score ?? 0), status: componentStatus(crs.sleep?.score ?? 0) },
@@ -142,7 +150,12 @@ export function FormCard({ data, onDrillDown }: FormCardProps) {
             <p className="dash-card-narrative">
               {(crs.summary || `${zoneLabel} day. Your biological readiness today.`).replace(/Nap Score/gi, 'Form').replace(/nap score/gi, 'Form')}
             </p>
-            <span className="dash-card-meta">last read · {nowStr}</span>
+            <span className="dash-card-meta">
+              last read · {nowStr}
+              {primaryDrag && crs.score < 75 && (
+                <span style={{ marginLeft: 8, color: '#F59E0B' }}>· {PILLAR_DRAG_LABEL[primaryDrag] ?? primaryDrag}</span>
+              )}
+            </span>
           </div>
 
           {/* Right: radial gauge */}
@@ -221,6 +234,49 @@ export function FormCard({ data, onDrillDown }: FormCardProps) {
           );
         })}
       </div>
+
+      {/* Pillar engine breakdown — shown when pillar data available */}
+      {crs.pillars && (
+        <div style={{
+          background: 'white', border: '1px solid rgba(26,26,26,0.08)',
+          borderRadius: 16, padding: '14px 16px', marginTop: 10,
+        }}>
+          <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9a9a96', marginBottom: 10 }}>
+            Pillar Engine
+          </div>
+          {[
+            { label: 'Recovery', key: 'recovery' as const, weight: '50%', desc: 'Sleep quality & architecture' },
+            { label: 'CASS', key: 'cass' as const, weight: '35%', desc: 'HRV & cardiac stress' },
+            { label: 'ILAS', key: 'ilas' as const, weight: '15%', desc: 'Circadian alignment & movement' },
+          ].map(({ label, key, weight, desc }) => {
+            const score = crs.pillars![key];
+            const isPrimary = primaryDrag && key === (primaryDrag === 'hrv' ? 'cass' : primaryDrag === 'activity' || primaryDrag === 'circadian' ? 'ilas' : 'recovery');
+            return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 60, fontSize: 10, fontWeight: 600, color: isPrimary ? '#F59E0B' : '#1a1a1a' }}>
+                  {label}
+                </div>
+                <div style={{ flex: 1, background: 'rgba(26,26,26,0.06)', borderRadius: 4, height: 5 }}>
+                  <div style={{
+                    height: 5, borderRadius: 4,
+                    width: `${score}%`,
+                    background: isPrimary ? '#F59E0B' : score >= 75 ? '#34D399' : score >= 50 ? 'var(--accent)' : '#EF4444',
+                  }} />
+                </div>
+                <div style={{ width: 28, fontSize: 10, fontWeight: 600, textAlign: 'right', color: isPrimary ? '#F59E0B' : '#1a1a1a' }}>
+                  {score}
+                </div>
+                <div style={{ width: 28, fontSize: 9, color: '#9a9a96', textAlign: 'right' }}>{weight}</div>
+              </div>
+            );
+          })}
+          {primaryDrag && crs.score < 80 && (
+            <div style={{ fontSize: 10, color: '#F59E0B', marginTop: 4, fontStyle: 'italic' }}>
+              {PILLAR_DRAG_LABEL[primaryDrag] ?? primaryDrag} is suppressing Form today
+            </div>
+          )}
+        </div>
+      )}
 
       {/* CRS day chart */}
       <CrsDayChart score={crs.score} />
