@@ -198,10 +198,11 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
     crs: {
       score: crs?.score ?? -1, zone: crs?.zone ?? 'nodata',
       confidence: crs?.confidence ?? 0, componentsWithData: crs?.components_with_data ?? 0,
-      sleep: crs?.sleep_json ?? { score: 0, factors: [], dataAvailable: false },
-      hrv: crs?.hrv_json ?? { score: 0, factors: [], dataAvailable: false },
-      circadian: crs?.circadian_json ?? { score: 0, factors: [], dataAvailable: false },
-      activity: crs?.activity_json ?? { score: 0, factors: [], dataAvailable: false },
+      // Normalize ComponentScore — old DB rows may have missing/null fields
+      sleep: { score: crs?.sleep_json?.score ?? 0, factors: crs?.sleep_json?.factors ?? [], dataAvailable: crs?.sleep_json?.dataAvailable ?? false },
+      hrv: { score: crs?.hrv_json?.score ?? 0, factors: crs?.hrv_json?.factors ?? [], dataAvailable: crs?.hrv_json?.dataAvailable ?? false },
+      circadian: { score: crs?.circadian_json?.score ?? 0, factors: crs?.circadian_json?.factors ?? [], dataAvailable: crs?.circadian_json?.dataAvailable ?? false },
+      activity: { score: crs?.activity_json?.score ?? 0, factors: crs?.activity_json?.factors ?? [], dataAvailable: crs?.activity_json?.dataAvailable ?? false },
       pillars: crs?.pillars_json ?? null,
       pillarDrag: crs?.pillar_drag_json ?? null,
       summary: crs?.summary ?? '',

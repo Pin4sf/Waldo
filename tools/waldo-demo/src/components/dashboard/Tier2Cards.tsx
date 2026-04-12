@@ -88,7 +88,7 @@ export function HRVCard({ data }: CardProps) {
           <div className="card-compact-text">
             <span className={`zone-badge zone-${zone === 'above' ? 'peak' : zone === 'within' ? 'steady' : 'flagging'}`}>{zoneLabel}</span>
             <h3 className="dash-card-title">HRV</h3>
-            <p className="dash-card-narrative">{crsHrv.factors[0] ?? `${todayVal}ms · ${zoneLabel.toLowerCase()} vs baseline.`}</p>
+            <p className="dash-card-narrative">{crsHrv.factors?.[0] ?? `${todayVal}ms · ${zoneLabel.toLowerCase()} vs baseline.`}</p>
           </div>
           <div className="card-compact-visual">
             <div style={{ textAlign: 'center' }}>
@@ -116,7 +116,7 @@ export function HRVCard({ data }: CardProps) {
           {todayVal}<span style={{ fontSize: 14, color: '#9a9a96', marginLeft: 4 }}>ms</span>
         </div>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#6b6b68', textAlign: 'center', margin: 0, lineHeight: 1.4 }}>
-          {crsHrv.factors[0] ?? `${todayVal}ms today · baseline ${baselineLo}–${baselineHi}ms`}
+          {crsHrv.factors?.[0] ?? `${todayVal}ms today · baseline ${baselineLo}–${baselineHi}ms`}
         </p>
       </div>
 
@@ -262,7 +262,7 @@ export function CircadianCard({ data }: CardProps) {
           <div className="card-compact-text">
             <span className={`zone-badge zone-${score >= 80 ? 'peak' : score >= 60 ? 'steady' : 'flagging'}`}>{zone}</span>
             <h3 className="dash-card-title">Circadian</h3>
-            <p className="dash-card-narrative">{circadian.factors[0] ?? `Drift: ${driftLabel}. Clock ${zone.toLowerCase()}.`}</p>
+            <p className="dash-card-narrative">{circadian.factors?.[0] ?? `Drift: ${driftLabel}. Clock ${zone.toLowerCase()}.`}</p>
           </div>
           <div className="card-compact-visual">
             <CircadianArc size={100} />
@@ -280,7 +280,7 @@ export function CircadianCard({ data }: CardProps) {
         <CircadianArc size={180} />
         <h3 style={{ fontFamily: 'var(--font-headline)', fontSize: 28, fontWeight: 400, color: '#1a1a1a', margin: 0 }}>Circadian</h3>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#6b6b68', textAlign: 'center', margin: 0, lineHeight: 1.4 }}>
-          {circadian.factors[0] ?? `Wake drift: ${driftLabel}. Body clock ${zone.toLowerCase()}.`}
+          {circadian.factors?.[0] ?? `Wake drift: ${driftLabel}. Body clock ${zone.toLowerCase()}.`}
         </p>
       </div>
 
@@ -392,7 +392,7 @@ export function MotionCard({ data }: CardProps) {
         <div style={{ fontSize: 40, fontWeight: 500, fontFamily: 'var(--font-body)', color: '#1a1a1a' }}>{overallScore}<span style={{ fontSize: 14, color: '#9a9a96' }}>/100</span></div>
         <h3 style={{ fontFamily: 'var(--font-headline)', fontSize: 28, fontWeight: 400, color: '#1a1a1a', margin: 0 }}>Motion</h3>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#6b6b68', textAlign: 'center', margin: 0, lineHeight: 1.4 }}>
-          {crsActivity.factors[0] ?? `${activity.steps.toLocaleString()} steps · ${activity.exerciseMinutes}min exercise.`}
+          {crsActivity.factors?.[0] ?? `${activity.steps.toLocaleString()} steps · ${activity.exerciseMinutes}min exercise.`}
         </p>
       </div>
 
@@ -747,7 +747,7 @@ export function SleepScoreCard({ data }: CardProps) {
           <div className="card-compact-text">
             <span className={`zone-badge zone-${score >= 80 ? 'peak' : score >= 65 ? 'steady' : 'flagging'}`}>{zoneLabel}</span>
             <h3 className="dash-card-title">Sleep Score</h3>
-            <p className="dash-card-narrative">{crsSleep.factors[0] ?? `${durationStr} · ${zoneLabel.toLowerCase()} quality.`}</p>
+            <p className="dash-card-narrative">{crsSleep.factors?.[0] ?? `${durationStr} · ${zoneLabel.toLowerCase()} quality.`}</p>
           </div>
           <div className="card-compact-visual">
             <div style={{ textAlign: 'center' }}>
@@ -778,7 +778,7 @@ export function SleepScoreCard({ data }: CardProps) {
         <div style={{ fontSize: 40, fontWeight: 500, fontFamily: 'var(--font-body)', color: zoneColor }}>{score}<span style={{ fontSize: 14, color: '#9a9a96' }}>/100</span></div>
         <h3 style={{ fontFamily: 'var(--font-headline)', fontSize: 28, fontWeight: 400, color: '#1a1a1a', margin: 0 }}>Sleep Score</h3>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#6b6b68', textAlign: 'center', margin: 0, lineHeight: 1.4 }}>
-          {crsSleep.factors[0] ?? `${durationStr} total sleep · ${zoneLabel.toLowerCase()} quality.`}
+          {crsSleep.factors?.[0] ?? `${durationStr} total sleep · ${zoneLabel.toLowerCase()} quality.`}
         </p>
         <span style={{ fontFamily: 'var(--font-body)', fontSize: 12, fontStyle: 'italic', color: '#9a9a96' }}>
           {sleep.bedtime ?? '--'} → {sleep.wakeTime ?? '--'}
