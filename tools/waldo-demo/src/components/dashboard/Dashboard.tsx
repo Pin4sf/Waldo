@@ -577,7 +577,7 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               message={morningWag}
               zone={dayData?.crs.zone}
               isLoading={isLoadingDates || isLoadingWag}
-              timestamp={selectedDate === today ? `Today · ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : selectedDate ? formatDateLabel(selectedDate) : undefined}
+              timestamp={`Today · ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
             />
 
             {/* Intelligence summary */}

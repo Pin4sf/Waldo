@@ -60,7 +60,7 @@ export async function adminToggleUserActive(userId: string) {
   return res.json();
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global: { headers: { Accept: 'application/json' } },
 });
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, getTodoistConnectUrl, getStravaConnectUrl, getNotionConnectUrl, triggerSync, disconnectProvider, SUPABASE_FN_URL } from '../supabase-api.js';
+import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, getTodoistConnectUrl, getStravaConnectUrl, getNotionConnectUrl, triggerSync, disconnectProvider, SUPABASE_FN_URL, supabase } from '../supabase-api.js';
 import type { SyncStatus } from '../types.js';
 import { HealthUploadPanel } from './HealthUploadPanel.js';
 
@@ -323,13 +323,7 @@ export function IntegrationsPanel({ userId }: Props) {
                 if (e.key === 'Enter') {
                   const key = (e.target as HTMLInputElement).value.trim();
                   if (!key) return;
-                  // Store in core_memory via direct Supabase
-                  const { createClient } = await import('@supabase/supabase-js');
-                  const sb = createClient(
-                    (import.meta as any).env?.VITE_SUPABASE_URL ?? 'https://ogjgbudoedwxebxfgxpa.supabase.co',
-                    (import.meta as any).env?.VITE_SUPABASE_ANON_KEY ?? ''
-                  );
-                  await sb.from('core_memory').upsert({
+                  await supabase.from('core_memory').upsert({
                     user_id: userId, key: 'rescuetime_api_key', value: key, updated_at: new Date().toISOString(),
                   }, { onConflict: 'user_id,key' });
                   alert('RescueTime API key saved. Data will sync tonight at 3 AM UTC.');
