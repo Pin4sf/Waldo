@@ -140,7 +140,7 @@ export function FormCard({ data, onDrillDown }: FormCardProps) {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0 }}>
             <h3 className="dash-card-title" style={{ marginTop: 20 }}>Form</h3>
             <p className="dash-card-narrative">
-              {crs.summary || `${zoneLabel} day. Your biological readiness today.`}
+              {(crs.summary || `${zoneLabel} day. Your biological readiness today.`).replace(/Nap Score/gi, 'Form').replace(/nap score/gi, 'Form')}
             </p>
             <span className="dash-card-meta">last read · {nowStr}</span>
           </div>

@@ -870,7 +870,7 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
 
               {/* ── Signal Depth ── */}
               <div className="tier-section-head">Intelligence depth</div>
-              <SignalDepthCard />
+              <SignalDepthCard syncStatuses={syncStatuses} />
 
               {/* Daily schedule — today's events with focus gaps */}
               <DailyScheduleCard calendar={dayData.calendar} />

@@ -379,7 +379,10 @@ export async function callWaldo(
   // L1: invoke-agent Edge Function (simple chat, or L2 fallback)
   const res = await fetch(AGENT_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
     body: JSON.stringify({ user_id: userId, trigger_type: mode, date, question, channel: 'web' }),
   });
 

@@ -117,9 +117,9 @@ export function LandingPage({ onLogin }: Props) {
       return;
     }
 
-    // Try lookup by name (case-insensitive)
+    // Try lookup by name (case-insensitive, partial match)
     const { data: byName } = await supabase
-      .from('users').select('id, name').ilike('name', input).eq('active', true).limit(1).maybeSingle();
+      .from('users').select('id, name').ilike('name', `%${input}%`).eq('active', true).limit(1).maybeSingle();
 
     if (byName) {
       setLookupLoading(false);
