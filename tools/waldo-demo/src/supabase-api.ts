@@ -518,9 +518,10 @@ export async function fetchSyncStatus(userId = DEFAULT_USER_ID): Promise<SyncSta
 /** Get the Google OAuth connect URL for a user. */
 /** Google Workspace + Fit connect URL. Includes fitness scopes for Android health data. */
 export function getGoogleConnectUrl(userId: string, includeFit = false): string {
+  // Always include write scopes so The Adjustment (calendar.events + tasks write) works
   const scopes = includeFit
-    ? 'calendar,gmail,tasks,youtube,fit_heart,fit_sleep,fit_steps'
-    : 'calendar,gmail,tasks,youtube';
+    ? 'calendar,calendar_write,gmail,tasks,tasks_write,youtube,fit_heart,fit_sleep,fit_steps'
+    : 'calendar,calendar_write,gmail,tasks,tasks_write,youtube';
   return `${SUPABASE_FN_URL}/oauth-google/connect?user_id=${userId}&scopes=${scopes}`;
 }
 
@@ -565,21 +566,20 @@ export async function fetchSpotifyStatus(userId: string): Promise<{ connected: b
   };
 }
 
-/** Disconnect a provider — removes OAuth tokens and sync logs. */
+/**
+ * Disconnect a provider — calls the disconnect-provider Edge Function (service_role).
+ * Direct Supabase client deletes won't work here because oauth_tokens RLS
+ * only allows service_role deletes — not the anon key the frontend uses.
+ */
 export async function disconnectProvider(provider: 'google' | 'spotify' | 'todoist' | 'strava' | 'notion', userId: string): Promise<void> {
-  // Delete OAuth token
-  await supabase.from('oauth_tokens').delete().eq('user_id', userId).eq('provider', provider);
-
-  // Clear sync logs for related providers
-  const relatedProviders: Record<string, string[]> = {
-    google: ['google_calendar', 'gmail', 'google_tasks', 'youtube_music', 'google_fit'],
-    spotify: ['spotify'],
-    todoist: ['todoist'],
-    strava: ['strava'],
-    notion: ['notion'],
-  };
-  for (const p of relatedProviders[provider] ?? []) {
-    await supabase.from('sync_log').delete().eq('user_id', userId).eq('provider', p);
+  const res = await fetch(`${SUPABASE_FN_URL}/disconnect-provider`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+    body: JSON.stringify({ user_id: userId, provider }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error ?? 'Disconnect failed');
   }
 }
 

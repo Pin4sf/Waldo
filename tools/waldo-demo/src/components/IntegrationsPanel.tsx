@@ -33,6 +33,7 @@ export function IntegrationsPanel({ userId }: Props) {
   const [loading, setLoading] = useState(true);
   const [syncingSet, setSyncingSet] = useState<Set<string>>(new Set());
   const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
   const refreshStatuses = () => fetchSyncStatus(userId).then(setStatuses);
 
@@ -58,9 +59,15 @@ export function IntegrationsPanel({ userId }: Props) {
   const handleDisconnect = async (provider: 'google' | 'spotify' | 'todoist' | 'strava' | 'notion') => {
     if (!confirm(`Disconnect ${provider}? Waldo will lose access to this data source.`)) return;
     setDisconnecting(true);
-    await disconnectProvider(provider, userId);
-    await refreshStatuses();
-    setDisconnecting(false);
+    setDisconnectError(null);
+    try {
+      await disconnectProvider(provider, userId);
+      await refreshStatuses();
+    } catch (err) {
+      setDisconnectError((err as Error).message ?? 'Disconnect failed. Try again.');
+    } finally {
+      setDisconnecting(false);
+    }
   };
 
   const googleConnectUrl = getGoogleConnectUrl(userId);
@@ -81,10 +88,15 @@ export function IntegrationsPanel({ userId }: Props) {
                 </button>
                 <button className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px', color: '#EF4444' }}
                   onClick={() => handleDisconnect('google')} disabled={disconnecting}>
-                  Disconnect
+                  {disconnecting ? 'Disconnecting...' : 'Disconnect'}
                 </button>
                 <span style={{ fontSize: 11, color: '#34D399' }}>Connected</span>
               </>
+            )}
+            {disconnectError && (
+              <span style={{ fontSize: 11, color: '#EF4444', display: 'block', marginTop: 4 }}>
+                {disconnectError}
+              </span>
             )}
             {!anyConnected && <span style={{ fontSize: 11, color: '#9CA3AF' }}>Not connected</span>}
           </div>
