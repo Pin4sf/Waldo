@@ -230,27 +230,32 @@ bot.on('message:voice', async (ctx) => {
     if (!audioRes.ok) throw new Error(`Telegram file fetch failed: ${audioRes.status}`);
     const audioBytes = await audioRes.arrayBuffer();
 
-    // 3. Transcribe via Deepgram (fast, cheap at $0.004/min — no SDK needed)
-    const deepgramKey = Deno.env.get('DEEPGRAM_API_KEY');
+    // 3. Transcribe via Groq (Whisper Large v3 — 2000 req/day free, best multilingual accuracy)
+    // Groq API is OpenAI-compatible. Free tier: groq.com/keys (no credit card needed)
+    const groqKey = Deno.env.get('GROQ_API_KEY');
     let transcript = '';
 
-    if (deepgramKey) {
-      const dgRes = await fetch('https://api.deepgram.com/v1/listen?model=nova-3&punctuate=true&smart_format=true', {
+    if (groqKey) {
+      // Groq expects multipart/form-data with the audio file
+      const formData = new FormData();
+      formData.append('file', new Blob([audioBytes], { type: 'audio/ogg' }), 'voice.ogg');
+      formData.append('model', 'whisper-large-v3-turbo'); // fastest + accurate; use whisper-large-v3 for max accuracy
+      formData.append('response_format', 'text');
+      // Auto-detect language — handles Hindi, English, code-switching automatically
+
+      const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
         method: 'POST',
-        headers: {
-          'Authorization': `Token ${deepgramKey}`,
-          'Content-Type': 'audio/ogg',
-        },
-        body: audioBytes,
+        headers: { 'Authorization': `Bearer ${groqKey}` },
+        body: formData,
       });
-      if (dgRes.ok) {
-        const dgData = await dgRes.json() as Record<string, unknown>;
-        const channels = (dgData as Record<string, unknown>)?.['results']?.['channels'] as Array<Record<string, unknown>>;
-        transcript = channels?.[0]?.['alternatives']?.[0]?.['transcript'] as string ?? '';
+
+      if (groqRes.ok) {
+        transcript = (await groqRes.text()).trim();
+      } else {
+        log('warn', 'groq_transcription_failed', { status: groqRes.status });
       }
     } else {
-      // Fallback: Anthropic Whisper-compatible endpoint if available
-      transcript = '[Voice transcription unavailable — set DEEPGRAM_API_KEY]';
+      transcript = '[Voice transcription unavailable — set GROQ_API_KEY in Supabase secrets]';
     }
 
     if (!transcript.trim()) {
