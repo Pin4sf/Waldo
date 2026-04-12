@@ -194,7 +194,7 @@ export function getToolsForTrigger(triggerType: TriggerMode): Tool[] {
         ...writeNames(['propose_action']),
       ];
     case 'fetch_alert':
-      return readNames(['get_crs', 'get_health', 'read_memory', 'get_spots', 'search_episodes']);
+      return readNames(['get_crs', 'get_health', 'get_schedule', 'get_communication', 'read_memory', 'get_spots', 'search_episodes']);
     case 'evening_review':
       return [
         ...readNames(['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks', 'search_episodes']),
@@ -474,14 +474,20 @@ export async function buildNarrativeContext(
   targetDate: string,
   env: Env,
 ): Promise<{ narrative: string; crsScore: number; zone: string }> {
-  const [crs, health, cal, email, tasks, master, stress] = await Promise.all([
-    queryOne(env, 'crs_scores', `user_id=eq.${userId}&date=eq.${targetDate}&select=score,zone,summary`),
-    queryOne(env, 'health_snapshots', `user_id=eq.${userId}&date=eq.${targetDate}&select=sleep_duration_hours,hrv_rmssd,resting_hr,steps`),
-    queryOne(env, 'calendar_metrics', `user_id=eq.${userId}&date=eq.${targetDate}&select=meeting_load_score,event_count,back_to_back_count,focus_gaps`),
-    queryOne(env, 'email_metrics', `user_id=eq.${userId}&date=eq.${targetDate}&select=total_emails,after_hours_ratio,volume_spike`),
-    queryOne(env, 'task_metrics', `user_id=eq.${userId}&date=eq.${targetDate}&select=pending_count,overdue_count,pending_titles`),
+  // Query ALL dimensions in parallel — the agent should see the full picture
+  const [crs, health, cal, email, tasks, master, stress, mood, recentCrs] = await Promise.all([
+    queryOne(env, 'crs_scores', `user_id=eq.${userId}&date=eq.${targetDate}&select=score,zone,summary,sleep_json,hrv_json,circadian_json,activity_json`),
+    queryOne(env, 'health_snapshots', `user_id=eq.${userId}&date=eq.${targetDate}&select=sleep_duration_hours,sleep_efficiency,hrv_rmssd,resting_hr,steps,exercise_minutes`),
+    // Calendar: try today, fall back to most recent
+    queryOne(env, 'calendar_metrics', `user_id=eq.${userId}&date=eq.${targetDate}&select=meeting_load_score,event_count,back_to_back_count,boundary_violations,total_meeting_minutes,focus_gaps`)
+      .then(r => r ?? queryOne(env, 'calendar_metrics', `user_id=eq.${userId}&order=date.desc&select=date,meeting_load_score,event_count,back_to_back_count,total_meeting_minutes`)),
+    queryOne(env, 'email_metrics', `user_id=eq.${userId}&date=eq.${targetDate}&select=total_emails,sent_count,after_hours_ratio,after_hours_count`)
+      .then(r => r ?? queryOne(env, 'email_metrics', `user_id=eq.${userId}&order=date.desc&select=date,total_emails,after_hours_ratio,after_hours_count`)),
+    queryOne(env, 'task_metrics', `user_id=eq.${userId}&order=date.desc&select=date,pending_count,overdue_count,completed_today,pending_titles`),
     queryOne(env, 'master_metrics', `user_id=eq.${userId}&date=eq.${targetDate}&select=strain,sleep_debt,cognitive_load`),
     queryMany(env, 'stress_events', `user_id=eq.${userId}&date=eq.${targetDate}&select=severity,confidence`),
+    queryOne(env, 'mood_metrics', `user_id=eq.${userId}&order=date.desc&select=date,dominant_mood,avg_energy,avg_valence,late_night_listening,listening_minutes`),
+    queryMany(env, 'crs_scores', `user_id=eq.${userId}&score=gt.0&order=date.desc&limit=7&select=date,score,zone`),
   ]);
 
   const score = (crs?.['score'] as number) ?? -1;
@@ -489,41 +495,137 @@ export async function buildNarrativeContext(
 
   const parts: string[] = [];
 
+  // ─── BODY DIMENSION ────────────────────────────────────────
+  parts.push('=== BODY ===');
   if (score >= 0) {
-    parts.push('=== TODAY\'S PICTURE ===');
-    const factors: string[] = [];
+    parts.push(`Form: ${score}/100 (${zone}). ${(crs?.['summary'] as string) ?? ''}`);
+  } else if (recentCrs.length > 0) {
+    const recent = recentCrs[0]!;
+    parts.push(`No Form score today. Most recent: ${recent['score']} on ${recent['date']} (${recent['zone']}).`);
+  }
 
-    const sleep = health?.['sleep_duration_hours'] as number | null;
-    if (sleep) {
-      factors.push(sleep < 6 ? `short sleep (${sleep}h)` : sleep >= 7.5 ? `solid sleep (${sleep}h)` : `adequate sleep (${sleep}h)`);
+  const sleep = health?.['sleep_duration_hours'] as number | null;
+  const sleepEff = health?.['sleep_efficiency'] as number | null;
+  if (sleep) {
+    const desc = sleep < 5 ? 'very short' : sleep < 6 ? 'short' : sleep < 7 ? 'below target' : sleep < 8 ? 'adequate' : 'solid';
+    parts.push(`Sleep: ${sleep.toFixed(1)}h (${desc})${sleepEff ? `, ${Math.round(sleepEff * 100)}% efficiency` : ''}.`);
+  }
+
+  const hrv = health?.['hrv_rmssd'] as number | null;
+  const rhr = health?.['resting_hr'] as number | null;
+  if (hrv) parts.push(`HRV: ${Math.round(hrv)}ms RMSSD.${rhr ? ` Resting HR: ${Math.round(rhr)} bpm.` : ''}`);
+
+  const steps = health?.['steps'] as number | null;
+  const exercise = health?.['exercise_minutes'] as number | null;
+  if (steps) parts.push(`Steps: ${steps.toLocaleString()}.${exercise ? ` Exercise: ${exercise}min.` : ''}`);
+
+  if (stress.length > 0) {
+    const high = stress.filter((s: any) => s.confidence >= 0.6).length;
+    parts.push(`Stress: ${stress.length} events detected${high > 0 ? ` (${high} high-confidence)` : ''}.`);
+  }
+
+  // 7-day CRS trend
+  if (recentCrs.length >= 3) {
+    const scores = recentCrs.map((r: any) => r.score as number);
+    const avg7 = Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length);
+    const trend = scores[0]! > avg7 + 5 ? 'improving' : scores[0]! < avg7 - 5 ? 'declining' : 'stable';
+    parts.push(`7-day avg: ${avg7}. Trend: ${trend}.`);
+  }
+
+  // ─── SCHEDULE DIMENSION ────────────────────────────────────
+  if (cal) {
+    parts.push('\n=== SCHEDULE ===');
+    const mls = cal['meeting_load_score'] as number;
+    const events = cal['event_count'] as number;
+    const b2b = cal['back_to_back_count'] as number;
+    const totalMin = cal['total_meeting_minutes'] as number;
+    const calDate = (cal['date'] as string) ?? targetDate;
+    const isToday = calDate === targetDate;
+
+    parts.push(`${isToday ? 'Today' : calDate}: ${events} meeting${events !== 1 ? 's' : ''}, ${totalMin ? Math.round(totalMin) + 'min total' : ''}, load ${mls?.toFixed(1) ?? '?'}/15.`);
+    if (b2b > 0) parts.push(`${b2b} back-to-back (no recovery gaps).`);
+    if (mls >= 10) parts.push('Heavy load — protect focus windows.');
+    else if (mls >= 6) parts.push('Moderate load — watch energy after lunch.');
+    else if (mls < 3) parts.push('Light schedule — good day for deep work.');
+
+    const boundaries = cal['boundary_violations'] as number;
+    if (boundaries > 0) parts.push(`${boundaries} meeting${boundaries > 1 ? 's' : ''} outside core hours.`);
+  }
+
+  // ─── COMMUNICATION DIMENSION ───────────────────────────────
+  if (email) {
+    parts.push('\n=== COMMUNICATION ===');
+    const total = email['total_emails'] as number;
+    const afterHoursRatio = email['after_hours_ratio'] as number;
+    const afterHoursCount = email['after_hours_count'] as number;
+    const emailDate = (email['date'] as string) ?? targetDate;
+
+    parts.push(`Email (${emailDate === targetDate ? 'today' : emailDate}): ${total} messages.`);
+    if (afterHoursRatio > 0.4) {
+      parts.push(`After-hours: ${Math.round(afterHoursRatio * 100)}% (${afterHoursCount} emails) — high digital load outside work.`);
+    } else if (afterHoursRatio > 0.15) {
+      parts.push(`After-hours: ${Math.round(afterHoursRatio * 100)}% — moderate.`);
+    } else {
+      parts.push('Clean email boundaries today.');
     }
+  }
 
-    const mls = cal?.['meeting_load_score'] as number | null;
-    if (mls != null && mls > 8) factors.push(`heavy meeting load (MLS ${mls}/15)`);
-    else if (cal?.['event_count']) factors.push(`${cal['event_count']} meetings (MLS ${mls}/15)`);
+  // ─── TASKS DIMENSION ───────────────────────────────────────
+  if (tasks) {
+    parts.push('\n=== TASKS ===');
+    const pending = tasks['pending_count'] as number;
+    const overdue = tasks['overdue_count'] as number;
+    const completed = tasks['completed_today'] as number;
+    const titles = tasks['pending_titles'] as string[] | null;
 
-    const afterHours = email?.['after_hours_ratio'] as number | null;
-    if (afterHours != null && afterHours > 0.3) factors.push(`${(afterHours * 100).toFixed(0)}% emails after hours`);
+    parts.push(`${pending} pending, ${overdue} overdue${completed ? `, ${completed} completed today` : ''}.`);
+    if (overdue >= 3) parts.push('Task pile-up detected — consider deferring or delegating.');
+    if (titles && titles.length > 0) {
+      parts.push(`Urgency queue: ${titles.slice(0, 3).join(', ')}${titles.length > 3 ? ` (+${titles.length - 3} more)` : ''}.`);
+    }
+  }
 
-    const spike = email?.['volume_spike'] as number | null;
-    if (spike != null && spike > 1.5) factors.push(`email volume ${spike.toFixed(1)}x normal`);
+  // ─── MOOD DIMENSION ────────────────────────────────────────
+  if (mood) {
+    parts.push('\n=== MOOD ===');
+    const moodType = mood['dominant_mood'] as string;
+    const energy = mood['avg_energy'] as number;
+    const valence = mood['avg_valence'] as number;
+    const lateNight = mood['late_night_listening'] as boolean;
+    const moodDate = (mood['date'] as string) ?? '';
 
-    const overdue = tasks?.['overdue_count'] as number | null;
-    if (overdue != null && overdue > 3) factors.push(`${overdue} overdue tasks`);
+    parts.push(`Music mood (${moodDate}): ${moodType}. Energy: ${energy?.toFixed(2) ?? '?'}, Valence: ${valence?.toFixed(2) ?? '?'}.`);
+    if (lateNight) parts.push('Late-night listening detected — may affect sleep onset.');
+  }
 
-    if (stress.length > 0) factors.push(`${stress.length} stress events detected`);
+  // ─── MASTER METRICS ────────────────────────────────────────
+  const cogLoad = master?.['cognitive_load'] as Record<string, unknown> | null;
+  const sleepDebt = master?.['sleep_debt'] as Record<string, unknown> | null;
+  const strain = master?.['strain'] as Record<string, unknown> | null;
 
-    const sleepDebt = master?.['sleep_debt'] as Record<string, unknown> | null;
-    if (sleepDebt && (sleepDebt['debtHours'] as number) > 3) factors.push(`${(sleepDebt['debtHours'] as number).toFixed(1)}h sleep debt`);
+  if (cogLoad || sleepDebt || strain) {
+    parts.push('\n=== COMBINED ===');
+    if (cogLoad) parts.push(`Cognitive load: ${(cogLoad['score'] as number)?.toFixed(0) ?? '?'}/100 (${cogLoad['level'] ?? 'unknown'}).`);
+    if (sleepDebt) {
+      const debt = sleepDebt['debtHours'] as number;
+      if (debt > 2) parts.push(`Sleep debt: ${debt.toFixed(1)}h accumulated.`);
+    }
+    if (strain) parts.push(`Day strain: ${(strain['score'] as number)?.toFixed(0) ?? '?'}/21.`);
+  }
 
-    parts.push(factors.length > 0
-      ? `Nap Score ${score}. Contributing factors: ${factors.join(', ')}.`
-      : `Nap Score ${score}. Clean signal today.`
-    );
-
-    const cogLoad = master?.['cognitive_load'] as Record<string, unknown> | null;
-    if (cogLoad && (cogLoad['score'] as number) > 60) {
-      parts.push(`Cognitive load is ${cogLoad['level']} (${cogLoad['score']}/100).`);
+  // ─── Compute inline cognitive load if master_metrics empty ──
+  if (!cogLoad && cal && email) {
+    const mlsVal = (cal['meeting_load_score'] as number) ?? 0;
+    const ahVal = (email['after_hours_ratio'] as number) ?? 0;
+    const overdueVal = (tasks?.['overdue_count'] as number) ?? 0;
+    const sleepVal = sleep ?? 7;
+    const sleepPenalty = sleepVal < 6 ? (6 - sleepVal) * 8 : 0;
+    const inlineCogLoad = Math.min(100, Math.round(
+      (mlsVal / 15) * 30 + ahVal * 25 + Math.min(overdueVal, 10) * 2.5 + sleepPenalty
+    ));
+    if (inlineCogLoad > 0) {
+      const level = inlineCogLoad >= 70 ? 'high' : inlineCogLoad >= 40 ? 'moderate' : 'low';
+      parts.push(`\n=== COMBINED ===\nEstimated cognitive load: ${inlineCogLoad}/100 (${level}).`);
     }
   }
 

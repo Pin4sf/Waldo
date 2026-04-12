@@ -551,7 +551,149 @@ async function buildUserIntelligence(supabase: SupabaseClient, userId: string): 
   }, { onConflict: 'user_id' });
 }
 
-// ─── 5. Provision DO (activate agent brain) ──────────────────────
+// ─── 5. Compute Master Metrics (Cognitive Load + Burnout Trajectory) ──
+
+async function computeMasterMetrics(supabase: SupabaseClient, userId: string): Promise<number> {
+  // Load last 14 days of all dimensions
+  const [{ data: crs14d }, { data: health14d }, { data: cal14d }, { data: email14d }, { data: tasks14d }] = await Promise.all([
+    supabase.from('crs_scores').select('date, score, zone').eq('user_id', userId).gte('score', 0).order('date', { ascending: false }).limit(14),
+    supabase.from('health_snapshots').select('date, sleep_duration_hours, hrv_rmssd, steps, exercise_minutes').eq('user_id', userId).order('date', { ascending: false }).limit(14),
+    supabase.from('calendar_metrics').select('date, meeting_load_score, event_count, back_to_back_count').eq('user_id', userId).order('date', { ascending: false }).limit(14),
+    supabase.from('email_metrics').select('date, total_emails, after_hours_ratio').eq('user_id', userId).order('date', { ascending: false }).limit(14),
+    supabase.from('task_metrics').select('date, pending_count, overdue_count').eq('user_id', userId).order('date', { ascending: false }).limit(14),
+  ]);
+
+  if (!crs14d || crs14d.length < 3) return 0;
+
+  const avgFn = (arr: any[], key: string) => {
+    const nums = (arr ?? []).map((d: any) => d[key]).filter((n: any) => n != null && typeof n === 'number');
+    return nums.length > 0 ? nums.reduce((s: number, n: number) => s + n, 0) / nums.length : null;
+  };
+
+  const rows: any[] = [];
+  const healthMap = new Map((health14d ?? []).map((h: any) => [h.date, h]));
+  const calMap = new Map((cal14d ?? []).map((c: any) => [c.date, c]));
+  const emailMap = new Map((email14d ?? []).map((e: any) => [e.date, e]));
+  const taskMap = new Map((tasks14d ?? []).map((t: any) => [t.date, t]));
+
+  for (const crs of crs14d) {
+    const health = healthMap.get(crs.date) as any;
+    const cal = calMap.get(crs.date) as any;
+    const email = emailMap.get(crs.date) as any;
+    const task = taskMap.get(crs.date) as any;
+
+    // ── Daily Cognitive Load (0-100) ──
+    // Formula: weighted sum of meeting load + email pressure + task pressure + sleep debt impact
+    const mlsComponent = cal ? Math.min(30, (cal.meeting_load_score / 15) * 30) : 0;
+    const emailComponent = email ? Math.min(25, (email.after_hours_ratio ?? 0) * 25 + (email.total_emails > 40 ? 10 : email.total_emails > 25 ? 5 : 0)) : 0;
+    const taskComponent = task ? Math.min(20, (task.overdue_count ?? 0) * 4 + Math.min((task.pending_count ?? 0), 10) * 1) : 0;
+    const sleepDebtComponent = health?.sleep_duration_hours != null
+      ? Math.min(25, Math.max(0, (7 - health.sleep_duration_hours) * 6))
+      : 0;
+
+    const cognitiveLoad = Math.round(Math.min(100, mlsComponent + emailComponent + taskComponent + sleepDebtComponent));
+    const cogLevel = cognitiveLoad >= 75 ? 'overloaded' : cognitiveLoad >= 55 ? 'high' : cognitiveLoad >= 35 ? 'moderate' : 'manageable';
+
+    // ── Day Strain (0-21, WHOOP-style) ──
+    const strainScore = health ? Math.min(21, Math.round(
+      ((health.exercise_minutes ?? 0) / 60) * 5 +
+      ((health.steps ?? 0) / 10000) * 3 +
+      (health.hrv_rmssd && health.hrv_rmssd < 40 ? 3 : 0) +
+      (cal?.meeting_load_score ? (cal.meeting_load_score / 15) * 5 : 0)
+    )) : null;
+
+    // ── Sleep Debt (rolling) ──
+    const sleepTarget = 7.5;
+    const sleepDebt = health?.sleep_duration_hours != null
+      ? Math.max(0, sleepTarget - health.sleep_duration_hours)
+      : 0;
+
+    rows.push({
+      user_id: userId,
+      date: crs.date,
+      cognitive_load: {
+        score: cognitiveLoad,
+        level: cogLevel,
+        components: {
+          meetingLoad: Math.round(mlsComponent),
+          communicationLoad: Math.round(emailComponent),
+          taskLoad: Math.round(taskComponent),
+          sleepDebtImpact: Math.round(sleepDebtComponent),
+        },
+        summary: `Cognitive load ${cognitiveLoad}/100 (${cogLevel}): meetings ${Math.round(mlsComponent)}, email ${Math.round(emailComponent)}, tasks ${Math.round(taskComponent)}, sleep debt ${Math.round(sleepDebtComponent)}.`,
+      },
+      strain: strainScore != null ? {
+        score: strainScore,
+        level: strainScore >= 15 ? 'peak' : strainScore >= 10 ? 'high' : strainScore >= 5 ? 'moderate' : 'recovery',
+        zoneMinutes: [],
+        zoneNames: ['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4', 'Zone 5'],
+        totalActiveMinutes: health?.exercise_minutes ?? 0,
+        peakHR: 0,
+        summary: `Day strain ${strainScore}/21.`,
+      } : null,
+      sleep_debt: {
+        debtHours: +sleepDebt.toFixed(1),
+        direction: health?.sleep_duration_hours && health.sleep_duration_hours < sleepTarget ? 'accumulating' : 'recovering',
+        shortNights: 0,
+        avgSleepHours: health?.sleep_duration_hours ?? 0,
+        summary: sleepDebt > 2 ? `${sleepDebt.toFixed(1)}h deficit tonight.` : 'On target.',
+      },
+    });
+  }
+
+  // ── Burnout Trajectory (computed from 7d trends) ──
+  if (rows.length >= 7) {
+    const recent7 = rows.slice(0, 7);
+    const prev7 = rows.slice(7, 14);
+
+    const recentAvgCog = recent7.reduce((s: number, r: any) => s + r.cognitive_load.score, 0) / recent7.length;
+    const recentAvgCrs = crs14d.slice(0, 7).reduce((s: number, c: any) => s + c.score, 0) / Math.min(7, crs14d.length);
+    const prevAvgCrs = prev7.length > 0
+      ? crs14d.slice(7, 14).reduce((s: number, c: any) => s + c.score, 0) / Math.max(1, crs14d.slice(7).length)
+      : recentAvgCrs;
+
+    const crsDecline = (prevAvgCrs - recentAvgCrs) / Math.max(1, prevAvgCrs); // positive = declining
+    const cogTrend = recentAvgCog / 100; // 0-1 normalized
+
+    // Burnout = weighted: 40% CRS decline + 35% cognitive load + 25% sleep debt trend
+    const avgDebt = recent7.reduce((s: number, r: any) => s + (r.sleep_debt?.debtHours ?? 0), 0) / recent7.length;
+    const burnoutScore = Math.max(-1, Math.min(1,
+      crsDecline * 0.4 + (cogTrend - 0.5) * 0.7 + (avgDebt / 5) * 0.25
+    ));
+    const burnoutStatus = burnoutScore >= 0.5 ? 'at_risk' : burnoutScore >= 0.2 ? 'elevated' : burnoutScore >= -0.1 ? 'stable' : 'recovering';
+
+    // Add burnout to all recent rows
+    for (const row of recent7) {
+      row.burnout_trajectory = {
+        score: +burnoutScore.toFixed(2),
+        status: burnoutStatus,
+        components: {
+          crs_decline: +(crsDecline * 100).toFixed(0),
+          cognitive_avg: +recentAvgCog.toFixed(0),
+          sleep_debt_avg: +avgDebt.toFixed(1),
+        },
+        summary: burnoutStatus === 'at_risk'
+          ? `Burnout risk elevated (${(burnoutScore * 100).toFixed(0)}%). CRS declining, cognitive load high.`
+          : burnoutStatus === 'elevated'
+          ? `Burnout trajectory warming. Watch the next few days.`
+          : `Burnout trajectory stable. Keep going.`,
+      };
+    }
+  }
+
+  // Upsert to master_metrics
+  if (rows.length > 0) {
+    for (let i = 0; i < rows.length; i += 50) {
+      const { error } = await supabase.from('master_metrics').upsert(rows.slice(i, i + 50), { onConflict: 'user_id,date' });
+      if (error) log('error', 'master_metrics_upsert_failed', { batch: i, error: error.message });
+    }
+  }
+
+  log('info', 'master_metrics_computed', { userId, days: rows.length });
+  return rows.length;
+}
+
+// ─── 6. Provision DO (activate agent brain) ──────────────────────
 
 async function provisionDO(userId: string): Promise<boolean> {
   const workerUrl = Deno.env.get('WALDO_WORKER_URL');
@@ -606,8 +748,11 @@ Deno.serve(async (req: Request) => {
     promotePatterns(supabase, userId),
   ]);
 
-  // Build intelligence (depends on baselines + patterns being computed first)
-  await buildUserIntelligence(supabase, userId);
+  // Build intelligence + master metrics (depends on baselines + patterns being computed first)
+  const [, masterDays] = await Promise.all([
+    buildUserIntelligence(supabase, userId),
+    computeMasterMetrics(supabase, userId),
+  ]);
 
   // Provision DO (fire-and-forget — don't block response)
   const doProvisioned = await provisionDO(userId);
