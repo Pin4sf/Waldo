@@ -8,3 +8,4 @@ export { Sidebar } from './Sidebar.js';
 export { RadialGauge } from './RadialGauge.js';
 export { TheHandoff } from './TheHandoff.js';
 export { StackCard, SignalPressureCard, TaskPileUpCard, TodaysWeightCard } from './Phase2Cards.js';
+export { DailyScheduleCard } from './DailyScheduleCard.js';

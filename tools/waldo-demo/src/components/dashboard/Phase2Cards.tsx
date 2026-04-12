@@ -207,6 +207,108 @@ export function StackCard({ data }: StackCardProps) {
           />
         )}
       </div>
+
+      {/* Individual events — today's schedule at a glance */}
+      {data.events && data.events.length > 0 && (
+        <div
+          style={{
+            marginTop: 14,
+            paddingTop: 12,
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              textTransform: 'uppercase' as const,
+              letterSpacing: '0.06em',
+              color: 'var(--text-dim)',
+              display: 'block',
+              marginBottom: 8,
+            }}
+          >
+            Today's schedule
+          </span>
+          {data.events.slice(0, 6).map((ev, i) => {
+            const startHour = ev.startTime
+              ? (() => {
+                  try { return new Date(ev.startTime).getHours(); } catch { return 0; }
+                })()
+              : 0;
+            const isAfterHours = startHour >= 19;
+            const timeStr = ev.startTime
+              ? (() => {
+                  try {
+                    return new Date(ev.startTime)
+                      .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                      .toLowerCase();
+                  } catch { return ''; }
+                })()
+              : '';
+            const durMin = ev.durationMinutes ?? 0;
+            const durStr = durMin < 60
+              ? `${durMin}m`
+              : `${Math.floor(durMin / 60)}h${durMin % 60 > 0 ? ` ${durMin % 60}m` : ''}`;
+
+            return (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '5px 0',
+                  borderBottom: i < data.events.slice(0, 6).length - 1 ? '1px solid var(--border)' : 'none',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--text-dim)',
+                    minWidth: 42,
+                    fontVariantNumeric: 'tabular-nums',
+                    flexShrink: 0,
+                  }}
+                >
+                  {timeStr}
+                </span>
+                <span
+                  style={{
+                    flex: 1,
+                    fontSize: 12,
+                    color: isAfterHours ? 'var(--accent)' : 'var(--text)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={ev.summary}
+                >
+                  {ev.summary}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: 'var(--text-dim)',
+                    background: 'var(--bg-surface-2)',
+                    borderRadius: 4,
+                    padding: '1px 5px',
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {durStr}
+                </span>
+              </div>
+            );
+          })}
+          {data.events.length > 6 && (
+            <span style={{ fontSize: 11, color: 'var(--text-dim)', display: 'block', marginTop: 6 }}>
+              +{data.events.length - 6} more
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

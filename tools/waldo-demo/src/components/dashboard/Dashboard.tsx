@@ -14,6 +14,7 @@ import { TheBrief } from './TheBrief.js';
 import { ThePatrol } from './ThePatrol.js';
 import { TheHandoff } from './TheHandoff.js';
 import { StackCard, SignalPressureCard, TaskPileUpCard, TodaysWeightCard } from './Phase2Cards.js';
+import { DailyScheduleCard } from './DailyScheduleCard.js';
 import { FormCard } from './FormCard.js';
 import { SleepCard } from './SleepCard.js';
 import { LoadCard } from './LoadCard.js';
@@ -417,16 +418,36 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
     } finally { setIsChatting(false); }
   }, [chatInput, isChatting, selectedDate, today, userId]);
 
-  // ─── Build intelligence + bootstrap (full pipeline) ─────────────
+  // ─── Proposal polling — check every 30s for new proposals ────────
+  useEffect(() => {
+    if (isLoadingDates) return; // don't poll until initial load done
+    const poll = setInterval(async () => {
+      const proposal = await cloud.fetchProposals(userId);
+      if (proposal) setPendingProposal(proposal as WaldoProposal);
+    }, 30_000);
+    return () => clearInterval(poll);
+  }, [userId, isLoadingDates]);
+
+  // ─── Proposal approve / reject — refresh Patrol + re-check queue ──
   const handleApproveProposal = useCallback(async (proposalId: string) => {
     await cloud.resolveProposal(proposalId, 'approve');
     setPendingProposal(null);
-  }, []);
+    // Refresh dayData so The Patrol picks up the new "Adjustment executed" entry
+    if (selectedDate) {
+      cloud.fetchDay(selectedDate, userId).then(data => setDayData(data)).catch(() => {});
+    }
+    // Check immediately for any follow-up proposal
+    const next = await cloud.fetchProposals(userId);
+    if (next) setPendingProposal(next as WaldoProposal);
+  }, [selectedDate, userId]);
 
   const handleRejectProposal = useCallback(async (proposalId: string) => {
     await cloud.resolveProposal(proposalId, 'reject');
     setPendingProposal(null);
-  }, []);
+    // Check for another pending proposal
+    const next = await cloud.fetchProposals(userId);
+    if (next) setPendingProposal(next as WaldoProposal);
+  }, [userId]);
 
   const handleBuildIntelligence = useCallback(async () => {
     if (buildingIntel) return;
@@ -850,6 +871,9 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               {/* ── Signal Depth ── */}
               <div className="tier-section-head">Intelligence depth</div>
               <SignalDepthCard />
+
+              {/* Daily schedule — today's events with focus gaps */}
+              <DailyScheduleCard calendar={dayData.calendar} />
 
               {/* ── Phase 2: Productivity context ── */}
               <div className="tier-section-head">Productivity context</div>
