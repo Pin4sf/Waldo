@@ -170,6 +170,102 @@ Waldo interprets the request, sets the cadence, and delivers on schedule with yo
 
 ---
 
+### XI. Digital Day Awareness — Waldo Knows What You Did All Day
+
+Waldo builds a passive picture of your day without screen capture, screenshots, or invasive monitoring. It pieces together your digital footprint from signals you're already generating:
+
+- **App activity context** — from Screen Time (iOS/macOS) or Digital Wellbeing (Android): which apps you used, for how long, at what times — without reading content
+- **Calendar-driven narrative** — your calendar tells a story of your day: what meetings happened, how long, whether you attended
+- **Communication volume patterns** — email/Slack metadata (volume, timing, response gaps) describes your day without reading a word
+- **Task completion signals** — what you actually finished vs planned tells Waldo how the day went
+- **Meeting transcript summaries** — from Waldo's meeting notes, it knows the tone and outcome of your calls
+- **Biometric timeline** — HR, HRV, and activity data provides a physiological read of your day moment-by-moment
+
+Waldo synthesizes these signals into a **Day Summary** — a private, accurate picture of how your day actually went, purely from data you're already generating. No screen reading. No keyboard logging. No screenshots.
+
+This powers the **Evening Review** and the **Morning Wag**: Waldo doesn't ask how your day was. It already knows. It just confirms, enriches, and acts.
+
+**Privacy principle:** Waldo builds this picture from metadata and signals, never from content. It knows you had a 47-minute meeting that elevated your HR by 18 bpm — not what was said in the meeting. It knows you sent 23 emails after 6pm — not what they said.
+
+---
+
+### XII. Talk to Waldo — Voice Interface
+
+Waldo understands voice input. You speak; Waldo responds.
+
+**Input (Speech-to-Text):**
+- Send a voice message on Telegram or WhatsApp — Waldo transcribes and responds
+- Ask health questions hands-free: "Hey Waldo, how did I sleep?" "What's my score today?" "Am I burning out?"
+- Dictate custom routines, capture observations, report how you're feeling
+- Works offline on-device for privacy (on-device transcription option)
+
+**Output (Text-to-Speech):**
+- Waldo reads its Morning Wag aloud — hear your daily briefing while getting ready
+- Voice replies to voice questions — ambient conversation, no screen required
+- Integration with iOS/Android native TTS for in-app playback
+- Future: Waldo as a smart speaker skill (Alexa, Google Home)
+
+**Waldo's voice character:** Warm, calm, matter-of-fact. Never robotic. Matches the dalmatian personality — already handled it, here's what you need to know.
+
+---
+
+### XIII. Calendar Zone Blocking — Waldo Protects Your Time
+
+Waldo doesn't just read your calendar — it writes to it. Based on your biological state, Waldo actively reserves the right time for the right work:
+
+- **Peak zone protection** — automatically blocks your circadian peak window (typically 10am–1pm for most people) for deep work. No meetings allowed unless you override.
+- **Recovery zone enforcement** — after high Day Strain or multiple depleted days, Waldo marks recovery windows on the calendar. Low-priority requests can't land there.
+- **Pre-meeting buffers** — auto-inserts 15-minute gaps before high-stakes meetings so you arrive ready, not flustered
+- **Post-meeting recovery blocks** — after cognitively expensive meetings, blocks transition time before the next commitment
+- **Circadian-aware scheduling** — when you accept a new meeting, Waldo nudges if it conflicts with your biological peak or lands during a predicted dip
+- **"Do Not Schedule" hours** — user-defined or Waldo-suggested evening/morning protection (boundary violations flagged and blocked)
+- **Weekly architecture suggestions** — "Your best week looks like: deep work 9–12 Monday/Wednesday/Friday, meetings clustered Tuesday/Thursday afternoon. Want me to template that?"
+
+**Respects your autonomy:** Waldo suggests and nudges. You always have final say. Every blocked slot can be overridden. The agent learns from your overrides too.
+
+---
+
+### XIV. Collaboration With Other AI Agents — Waldo as the Body API
+
+Waldo doesn't operate in isolation. It becomes the **biological intelligence layer** that other AI agents can query:
+
+**Waldo as an MCP Server (Model Context Protocol)**
+
+Every AI agent being built today — Claude, GPT, Gemini, your custom agents, Cursor, Lindy, Devin — is blind to your body. Waldo fixes this by exposing biological intelligence through the industry-standard MCP protocol:
+
+- `getCRS()` — current Cognitive Readiness Score and zone
+- `getStressLevel()` — current biometric stress signature and confidence
+- `getCognitiveWindow()` — your peak mental performance window for today
+- `getPredictedCRS(tomorrow)` — next-day readiness forecast
+- `getHealthBaseline()` — your personal physiological normal
+- `getSleepDebt()` — accumulated sleep debt and direction
+- `getMeetingContext(last_N)` — insights from your most recent meetings
+
+Any agent with an MCP client can now make biology-aware decisions on your behalf.
+
+**Real-world examples:**
+- Your coding agent (Cursor/Devin) checks your CRS before suggesting you tackle a hard bug at 4pm — recommends waiting until tomorrow morning
+- Your calendar agent (Reclaim/Motion) schedules meetings around your biological peaks, not just calendar gaps
+- Your email agent batches outbound email for when you're in a steady or peak state — not when you're depleted
+- Your journaling agent prompts deeper reflection when your stress indicators are elevated
+
+**Agent-to-Agent Collaboration (A2A Protocol)**
+
+Using the A2A protocol (v1.0, live as of March 2026, 150+ organizations), Waldo can:
+- Receive delegated tasks from other agents: "Manage Shivansh's energy today"
+- Coordinate with specialist agents: sleep agent, nutrition agent, movement agent
+- Publish a public **Agent Card** — so any AI ecosystem can discover Waldo and understand its capabilities
+- Join multi-agent orchestration pipelines where Waldo handles the "biological clearance" layer
+
+**Pack Tier (Teams & Organizations)**
+
+When multiple people use Waldo, agents can coordinate across the group:
+- "Schedule the sprint kickoff when the most people are in peak state"
+- "Don't plan the board debrief on a day when three members are recovering from travel"
+- Team cognitive readiness dashboard for managers and coaches
+
+---
+
 ## Industries & Verticals
 
 ### Who Uses Waldo

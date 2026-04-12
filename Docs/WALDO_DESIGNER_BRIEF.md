@@ -529,7 +529,33 @@ Nori (YC, live now)  ✓     Morning only ✗          Multi        TBD
 Waldo                ✓        ✓         ✓            ✓          Free/$4
 ```
 
-The quadrant of **proactive + channel-delivered + scientifically grounded + device-agnostic + evolving memory** is still empty. That's the design language: confident, specific, already done.
+The quadrant of **proactive + channel-delivered + scientifically grounded + device-agnostic + evolving memory + meeting-aware + voice-enabled** is still empty. That's the design language: confident, specific, already done.
+
+---
+
+## New Capabilities — Design Screens Required (April 2026)
+
+### Voice Interface — Talk to Waldo
+- **Voice message in chat** — microphone button in chat composer. Press → record → Waldo transcribes and responds. Shows waveform animation while recording, transcription text before sending.
+- **Voice reply toggle** — in settings, user can enable Waldo to respond with audio as well as text. Plays Waldo's Morning Wag aloud.
+- **Voice Waldo Mood** — while audio is playing, the dalmatian animates (mouth moves, tail wags). Not cartoonish — subtle, warm.
+- **Empty state for voice setup** — "Tap the mic and ask Waldo anything. Try: 'How did I sleep?'"
+
+### Calendar Zone Blocking — Design These
+- **Zone indicators on a weekly calendar view** — color-coded overlays showing: Peak zone (mint), Recovery zone (rose), Meeting zone (amber), Flexible zone (gray). Waldo's recommended structure vs your actual calendar.
+- **"Waldo blocked this time" chip** — on calendar events Waldo auto-created. Orange border, paw-print icon, "Tap to modify."
+- **Conflict warning card** — when a new meeting lands in a protected zone. "This is your peak window. Still accept?" with CRS context.
+- **Weekly architecture modal** — Waldo's suggested weekly template. "Deep work 9–12 Mon/Wed/Fri. Meetings Tuesday/Thursday PM." Accept / customize / dismiss.
+- **Zone settings screen** — user sets: peak hours, evening cutoff, recovery day rules. Waldo learns and adjusts over time.
+
+### Digital Day Awareness — Day Timeline View (Phase 2)
+- **"How your day actually went" view** — horizontal timeline from wake to sleep. Events: meetings (calendar), activity bursts (HRV/HR spikes), communication waves (email volume), app usage windows (Screen Time), meals (if tracked). Purely visual — no content shown, only patterns.
+- **Day Summary card** — Evening Review shows a condensed narrative: "Long day — 6 meetings, email volume 3x your average, HRV stable through the morning, dropped at 3pm and didn't recover. Bedtime 30 min earlier tonight."
+
+### Agent Collaboration — "Waldo as Body API" Visual
+- **Intelligence Score expansion** — tap on Waldo Intelligence Score → shows which apps/agents have queried Waldo's data. "Cursor checked your readiness at 2pm. Motion scheduled your meeting around your peak."
+- **Agent Card** — in settings/profile, user sees Waldo's public agent card that other agents can discover. Shows what Waldo exposes. Looks like a contact card for an AI.
+- **Connected Agents list** — which external agents have linked to Waldo's biology. Status (active/inactive), last query, permissions granted.
 
 ---
 
