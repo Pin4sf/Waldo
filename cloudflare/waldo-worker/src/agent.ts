@@ -30,6 +30,7 @@ import {
   addEpisode, getRecentEpisodes, getConversationHistory,
   getUnconsolidatedEpisodes, markEpisodesConsolidated,
   getState, setState, wasRecentlySent, markSent, countTodaySent,
+  getEpisodesForArchival, markEpisodesArchived,
 } from './memory';
 import { callLLM } from './llm';
 import type { Message, LLMResult } from './llm';
@@ -37,6 +38,7 @@ import {
   fetchUserProfile, fetchLatestCRS, fetchHealthSnapshot,
   fetchCoreMemoryFromSupabase, syncMemoryToSupabase,
   saveConversationToSupabase, saveAgentLog, sendTelegramMessage,
+  saveWaldoAction, supabaseFetch,
 } from './supabase';
 import {
   getToolsForTrigger, executeTool, buildNarrativeContext,
@@ -555,6 +557,7 @@ export class WaldoAgent extends DurableObject<Env> {
     }
     void saveConversationToSupabase(userId, 'waldo', finalMessage, triggerType, this.env);
     void saveAgentLog(userId, triggerType, totalTokensIn, totalTokensOut, latencyMs, 'sent', costUsd, this.env);
+    void saveWaldoAction(userId, targetDate, triggerType, zone, crsScore, toolsCalled, this.env);
 
     // 9. Deliver via Telegram for proactive triggers
     if (triggerType !== 'conversational' && profile?.telegramChatId) {
@@ -784,6 +787,96 @@ Diary entry:`;
     void syncMemoryToSupabase(userId, `diary_${yesterdayDate}`, diaryEntry, this.env);
 
     console.log(`[WaldoAgent] Compaction complete for ${yesterdayDate}: ${episodes.length} episodes → diary`);
+
+    // Pre-compute today.md so Morning Wag fires in <1s (no Supabase read on delivery)
+    const todayDate = getLocalDate(_timezone);
+    void this.precomputeTodayWorkspace(userId, todayDate);
+
+    // Archive episodes >90 days old to R2 (fire-and-forget, non-blocking)
+    void this.archiveOldEpisodesToR2(userId);
+  }
+
+  // ─── Today.md pre-computation (post-compaction) ────────────────
+
+  private async precomputeTodayWorkspace(userId: string, date: string): Promise<void> {
+    if (!this.env.WALDO_WORKSPACE) return;
+    try {
+      const [crsRes, healthRes, calRes, emailRes, taskRes, spotsRes] = await Promise.all([
+        supabaseFetch(this.env, `crs_scores?user_id=eq.${userId}&date=eq.${date}&select=score,zone,summary&limit=1`),
+        supabaseFetch(this.env, `health_snapshots?user_id=eq.${userId}&date=eq.${date}&select=sleep_duration_hours,sleep_efficiency&limit=1`),
+        supabaseFetch(this.env, `calendar_metrics?user_id=eq.${userId}&date=eq.${date}&select=event_count,meeting_load_score,focus_gaps&limit=1`),
+        supabaseFetch(this.env, `email_metrics?user_id=eq.${userId}&date=eq.${date}&select=total_emails,after_hours_ratio&limit=1`),
+        supabaseFetch(this.env, `task_metrics?user_id=eq.${userId}&date=eq.${date}&select=pending_count,overdue_count&limit=1`),
+        supabaseFetch(this.env, `spots?user_id=eq.${userId}&date=eq.${date}&order=created_at.desc&limit=5&select=title`),
+      ]);
+
+      const crs = crsRes.ok ? ((await crsRes.json() as Array<Record<string, unknown>>)[0]) : null;
+      const health = healthRes.ok ? ((await healthRes.json() as Array<Record<string, unknown>>)[0]) : null;
+      const cal = calRes.ok ? ((await calRes.json() as Array<Record<string, unknown>>)[0]) : null;
+      const email = emailRes.ok ? ((await emailRes.json() as Array<Record<string, unknown>>)[0]) : null;
+      const tasks = taskRes.ok ? ((await taskRes.json() as Array<Record<string, unknown>>)[0]) : null;
+      const spots = spotsRes.ok ? (await spotsRes.json() as Array<Record<string, unknown>>) : [];
+
+      const { generateTodayMd, writeWorkspaceFile } = await import('./workspace.js');
+      const content = generateTodayMd({
+        date,
+        crs: crs ? { score: crs['score'] as number, zone: crs['zone'] as string, summary: (crs['summary'] as string) ?? '' } : undefined,
+        sleep: health?.['sleep_duration_hours']
+          ? { hours: health['sleep_duration_hours'] as number, efficiency: (health['sleep_efficiency'] as number) ?? 0.85 }
+          : undefined,
+        meetings: cal ? {
+          count: (cal['event_count'] as number) ?? 0,
+          loadScore: (cal['meeting_load_score'] as number) ?? 0,
+          focusGaps: (cal['focus_gaps'] as number) ?? 0,
+        } : undefined,
+        email: email ? { total: (email['total_emails'] as number) ?? 0, afterHoursRatio: (email['after_hours_ratio'] as number) ?? 0 } : undefined,
+        tasks: tasks ? { pending: (tasks['pending_count'] as number) ?? 0, overdue: (tasks['overdue_count'] as number) ?? 0 } : undefined,
+        spots: spots.map(s => s['title'] as string).filter(Boolean),
+      });
+      await writeWorkspaceFile(this.env.WALDO_WORKSPACE, userId, 'today.md', content);
+      console.log(`[WaldoAgent] today.md pre-computed for ${date} (${content.length} chars)`);
+    } catch (err) {
+      console.warn('[WaldoAgent] today.md pre-computation failed:', err);
+    }
+  }
+
+  // ─── R2 episode archival (90-day rolling window) ───────────────
+
+  private async archiveOldEpisodesToR2(userId: string): Promise<void> {
+    if (!this.env.WALDO_WORKSPACE) return;
+    try {
+      const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const oldEpisodes = getEpisodesForArchival(this.sql, cutoff);
+      if (oldEpisodes.length === 0) return;
+
+      // Group by YYYY/MM for one R2 file per month
+      const byMonth = new Map<string, typeof oldEpisodes>();
+      for (const ep of oldEpisodes) {
+        const monthKey = ep.created_at.slice(0, 7); // 'YYYY-MM'
+        const group = byMonth.get(monthKey) ?? [];
+        group.push(ep);
+        byMonth.set(monthKey, group);
+      }
+
+      const { readWorkspaceFile, writeWorkspaceFile } = await import('./workspace.js');
+      for (const [monthKey, episodes] of byMonth) {
+        const [yyyy, mm] = monthKey.split('-');
+        const r2Path = `archive/${yyyy}/${mm}/episodes.jsonl`;
+        const existing = await readWorkspaceFile(this.env.WALDO_WORKSPACE, userId, r2Path) ?? '';
+        const newLines = episodes.map(e => JSON.stringify({
+          id: e.id, type: e.type, role: e.role,
+          content: e.content.slice(0, 500),
+          created_at: e.created_at,
+        })).join('\n');
+        const merged = existing ? `${existing}\n${newLines}` : newLines;
+        await writeWorkspaceFile(this.env.WALDO_WORKSPACE, userId, r2Path, merged);
+      }
+
+      markEpisodesArchived(this.sql, oldEpisodes.map(e => e.id));
+      console.log(`[WaldoAgent] Archived ${oldEpisodes.length} episodes to R2 (cutoff: ${cutoff})`);
+    } catch (err) {
+      console.warn('[WaldoAgent] R2 archival failed:', err);
+    }
   }
 
   // ─── Interview flow ────────────────────────────────────────────

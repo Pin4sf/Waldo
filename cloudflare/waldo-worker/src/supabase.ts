@@ -120,6 +120,42 @@ export async function saveAgentLog(
   });
 }
 
+/** Log an agent action to waldo_actions (The Patrol feed). Fire-and-forget. */
+export async function saveWaldoAction(
+  userId: string,
+  date: string,
+  triggerType: string,
+  zone: string,
+  score: number,
+  toolsCalled: string[],
+  env: Env,
+): Promise<void> {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+  const actionMap: Record<string, string> = {
+    morning_wag: 'Sent The Brief',
+    evening_review: 'Sent The Close',
+    fetch_alert: 'Fired The Fetch — stress elevated',
+    conversational: 'Responded to chat',
+    onboarding: 'Completed onboarding step',
+  };
+  const actionText = actionMap[triggerType] ?? `Ran ${triggerType}`;
+  const actionType = triggerType === 'conversational' ? 'reactive' : 'proactive';
+  const reasonText = toolsCalled.length > 0
+    ? `Used ${toolsCalled.slice(0, 3).join(', ')}${toolsCalled.length > 3 ? ` +${toolsCalled.length - 3} more` : ''}`
+    : `${zone} zone · Form ${Math.round(score)}`;
+
+  await supabaseFetch(env, 'waldo_actions', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_id: userId, date, time: timeStr,
+      action: actionText, reason: reasonText,
+      type: actionType,
+    }),
+    headers: { Prefer: 'return=minimal' },
+  });
+}
+
 export async function sendTelegramMessage(chatId: number, text: string, env: Env): Promise<boolean> {
   const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: 'POST',

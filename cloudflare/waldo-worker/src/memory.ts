@@ -137,6 +137,17 @@ export function initSchema(sql: SqlStorage): void {
   } catch {
     // Column already exists — safe to ignore
   }
+
+  // FTS5 full-text search over episode content (Hermes Agent pattern)
+  // Enables: "when did I last have a Monday crash?" cross-session recall
+  try {
+    sql.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS episodes_fts
+      USING fts5(episode_id UNINDEXED, content, tokenize='porter unicode61')
+    `);
+  } catch {
+    // FTS5 not available on this SQLite build — LIKE fallback used instead
+  }
 }
 
 // ─── memory_blocks (Tier 1 + episodic) ───────────────────────────
@@ -237,6 +248,13 @@ export function addEpisode(
     `INSERT INTO episodes (type, role, content, metadata) VALUES (?, ?, ?, ?)`,
     type, role ?? null, content, JSON.stringify(metadata ?? {}),
   );
+  // Mirror to FTS5 index for cross-session recall (graceful if FTS5 unavailable)
+  try {
+    const id = sql.exec('SELECT id FROM episodes ORDER BY rowid DESC LIMIT 1').toArray()[0]?.['id'] as string;
+    if (id) {
+      sql.exec('INSERT INTO episodes_fts(episode_id, content) VALUES (?, ?)', id, content);
+    }
+  } catch { /* FTS5 not available */ }
 }
 
 export function getRecentEpisodes(
@@ -318,4 +336,61 @@ export function countTodaySent(sql: SqlStorage, triggerType: string): number {
     `sent:${triggerType}:%`, `${today}T00:00:00`,
   ).toArray();
   return rows[0]?.['cnt'] as number ?? 0;
+}
+
+// ─── R2 archival helpers ──────────────────────────────────────────
+
+/** Get consolidated episodes older than cutoffDate that haven't been archived yet. */
+export function getEpisodesForArchival(
+  sql: SqlStorage,
+  cutoffDate: string,
+): Array<{ id: string; type: string; role: string | null; content: string; created_at: string }> {
+  return sql.exec(
+    `SELECT id, type, role, content, created_at FROM episodes
+     WHERE consolidated = 1
+       AND archived_to_r2 = 0
+       AND date(created_at) < ?
+     ORDER BY created_at ASC
+     LIMIT 1000`,
+    cutoffDate,
+  ).toArray() as Array<{ id: string; type: string; role: string | null; content: string; created_at: string }>;
+}
+
+/** Mark a list of episode IDs as archived to R2. */
+export function markEpisodesArchived(sql: SqlStorage, ids: string[]): void {
+  for (const id of ids) {
+    sql.exec(`UPDATE episodes SET archived_to_r2 = 1 WHERE id = ?`, id);
+  }
+}
+
+// ─── FTS5 full-text search ────────────────────────────────────────
+
+/**
+ * Search episode content using FTS5 (porter stemming), with LIKE fallback.
+ * Enables: "when did I last have a Monday crash?" cross-session recall.
+ */
+export function searchEpisodes(
+  sql: SqlStorage,
+  query: string,
+  limit = 10,
+): Array<{ type: string; role: string | null; content: string; created_at: string }> {
+  try {
+    return sql.exec(
+      `SELECT e.type, e.role, e.content, e.created_at
+       FROM episodes_fts f
+       JOIN episodes e ON e.id = f.episode_id
+       WHERE episodes_fts MATCH ?
+       ORDER BY rank
+       LIMIT ?`,
+      query, limit,
+    ).toArray() as Array<{ type: string; role: string | null; content: string; created_at: string }>;
+  } catch {
+    // FTS5 unavailable or query syntax error — LIKE fallback
+    return sql.exec(
+      `SELECT type, role, content, created_at FROM episodes
+       WHERE content LIKE ? AND archived_to_r2 = 0
+       ORDER BY created_at DESC LIMIT ?`,
+      `%${query}%`, limit,
+    ).toArray() as Array<{ type: string; role: string | null; content: string; created_at: string }>;
+  }
 }

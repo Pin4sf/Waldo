@@ -10,7 +10,7 @@
 import type { Env } from './types';
 import type { SqlStorage } from './memory';
 import { supabaseFetch, syncMemoryToSupabase } from './supabase';
-import { sanitizeMemoryValue, writeMemory } from './memory';
+import { sanitizeMemoryValue, writeMemory, searchEpisodes } from './memory';
 import type { Tool } from './llm';
 
 // ─── Tool type for Claude API ────────────────────────────────────
@@ -113,6 +113,18 @@ const READ_TOOLS: Tool[] = [
       required: [],
     },
   },
+  {
+    name: 'search_episodes',
+    description: 'Search historical Waldo episodes for a keyword or phrase. Use to answer questions like "when did I last have a Monday crash?" or "what did I say about my board meeting?". Returns matching episode content with dates.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Keyword or phrase to search for in episode history.' },
+        limit: { type: 'number', description: 'Max results to return (default 10).' },
+      },
+      required: ['query'],
+    },
+  },
 ];
 
 const WRITE_TOOLS: Tool[] = [
@@ -126,6 +138,31 @@ const WRITE_TOOLS: Tool[] = [
         value: { type: 'string', description: 'What to remember (plain text, no instructions or code)' },
       },
       required: ['key', 'value'],
+    },
+  },
+  {
+    name: 'propose_action',
+    description: 'Propose a calendar or task action for the user to approve before execution. Use for L2 autonomy: suggest + one-tap approve. Never execute calendar/task changes directly — always propose first.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', description: 'Action category: calendar.create, calendar.move, task.create, task.defer' },
+        description: { type: 'string', description: 'Human-readable description shown to user. E.g. "Block 2h focus window Thursday 10am".' },
+        proposed_actions: {
+          type: 'array',
+          description: 'List of concrete actions to execute if approved.',
+          items: {
+            type: 'object',
+            properties: {
+              action: { type: 'string' },
+              target: { type: 'string' },
+              params: { type: 'object' },
+            },
+          },
+        },
+        rationale: { type: 'string', description: 'Why Waldo is suggesting this (1 sentence, grounded in data).' },
+      },
+      required: ['type', 'description', 'proposed_actions'],
     },
   },
 ];
@@ -148,17 +185,24 @@ const WORKSPACE_TOOLS: Tool[] = [
 
 export function getToolsForTrigger(triggerType: TriggerMode): Tool[] {
   const readNames = (names: string[]) => READ_TOOLS.filter(t => names.includes(t.name));
+  const writeNames = (names: string[]) => WRITE_TOOLS.filter(t => names.includes(t.name));
 
   switch (triggerType) {
     case 'morning_wag':
-      return readNames(['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks']);
+      return [
+        ...readNames(['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks', 'search_episodes']),
+        ...writeNames(['propose_action']),
+      ];
     case 'fetch_alert':
-      return readNames(['get_crs', 'get_health', 'read_memory', 'get_spots']);
+      return readNames(['get_crs', 'get_health', 'read_memory', 'get_spots', 'search_episodes']);
     case 'evening_review':
-      return readNames(['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks']);
+      return [
+        ...readNames(['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks', 'search_episodes']),
+        ...writeNames(['propose_action']),
+      ];
     case 'onboarding':
-      return [...readNames(['read_memory']), ...WRITE_TOOLS];
-    default: // conversational
+      return [...readNames(['read_memory']), ...writeNames(['update_memory'])];
+    default: // conversational — full access
       return [...READ_TOOLS, ...WRITE_TOOLS, ...WORKSPACE_TOOLS];
   }
 }
@@ -356,6 +400,51 @@ export async function executeTool(
       void syncMemoryToSupabase(userId, key, safe, env);
 
       return `Remembered: ${key} = ${safe.slice(0, 50)}`;
+    }
+
+    case 'search_episodes': {
+      const query = String(input?.query ?? '').trim();
+      const limit = Math.min((input?.limit as number) ?? 10, 25);
+      if (!query) return 'search_episodes requires a query.';
+      const results = searchEpisodes(sql, query, limit);
+      if (results.length === 0) return `No episodes found matching "${query}".`;
+      return JSON.stringify(results.map(e => ({
+        date: e.created_at.slice(0, 10),
+        type: e.type,
+        role: e.role,
+        content: e.content.slice(0, 200),
+      })));
+    }
+
+    case 'propose_action': {
+      const { type, description, proposed_actions, rationale } = input as {
+        type?: string;
+        description?: string;
+        proposed_actions?: Array<{ action: string; target?: string; params?: Record<string, unknown> }>;
+        rationale?: string;
+      };
+      if (!type || !description || !Array.isArray(proposed_actions) || proposed_actions.length === 0) {
+        return 'propose_action failed: type, description, and proposed_actions (non-empty array) are required.';
+      }
+      const res = await supabaseFetch(env, 'waldo_proposals', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: userId,
+          type,
+          description,
+          proposed_actions,
+          rationale: rationale ?? null,
+          status: 'pending',
+        }),
+        headers: { Prefer: 'return=representation' },
+      });
+      if (!res.ok) {
+        const err = await res.text().catch(() => res.status.toString());
+        return `Proposal creation failed (${res.status}): ${err.slice(0, 100)}`;
+      }
+      const data = await res.json() as Array<{ id: string }>;
+      const proposalId = data[0]?.id ?? 'unknown';
+      return JSON.stringify({ proposal_id: proposalId, status: 'pending', description });
     }
 
     case 'read_workspace': {
