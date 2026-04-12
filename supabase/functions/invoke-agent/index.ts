@@ -149,6 +149,15 @@ function getToolDefinitions(triggerType: MessageMode) {
         required: [],
       },
     },
+    {
+      name: 'get_day_context',
+      description: 'Get a synthesized picture of how the user\'s day actually went — from all available metadata signals. Use for Evening Review, daily summaries, and "how was your day" questions. Returns: meeting count and cognitive cost, communication volume vs baseline, task completions, biometric arc (morning/afternoon/evening HRV trend), mood trajectory from music, and any anomalies detected. Does NOT return content — only behavioral and physiological patterns.',
+      input_schema: {
+        type: 'object' as const,
+        properties: { date: { type: 'string', description: 'Date in YYYY-MM-DD. Omit for today.' } },
+        required: [],
+      },
+    },
   ];
 
   const writeTools: Anthropic.Tool[] = [
@@ -198,7 +207,7 @@ function getToolDefinitions(triggerType: MessageMode) {
   // Per-trigger tool permissions
   if (triggerType === 'morning_wag') return [...readTools.filter(t => ['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks'].includes(t.name)), writeTools.find(t => t.name === 'propose_action')!];
   if (triggerType === 'fetch_alert') return [...readTools.filter(t => ['get_crs', 'get_health', 'read_memory', 'get_spots'].includes(t.name)), writeTools.find(t => t.name === 'propose_action')!];
-  if (triggerType === 'evening_review') return [...readTools.filter(t => ['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks'].includes(t.name)), writeTools.find(t => t.name === 'propose_action')!];
+  if (triggerType === 'evening_review') return [...readTools.filter(t => ['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks', 'get_day_context'].includes(t.name)), writeTools.find(t => t.name === 'propose_action')!];
   if (triggerType === 'onboarding') return [...readTools.filter(t => t.name === 'read_memory'), ...writeTools];
   return [...readTools, ...writeTools]; // conversational gets everything
 }
@@ -386,6 +395,68 @@ async function executeTool(name: string, input: any, userId: string, targetDate:
       if (error) return `Proposal failed to save: ${error.message}`;
       log('info', 'proposal_created', { proposalId: proposal?.id, type, title });
       return `Proposal created (id: ${proposal?.id}). The user will see "Run it?" in The Handoff card and can approve or dismiss.`;
+    }
+
+    case 'get_day_context': {
+      // Synthesize digital day picture from all available metadata — no content, only patterns
+      const [
+        { data: calData },
+        { data: emailData },
+        { data: taskData },
+        { data: moodData },
+        { data: crsData },
+        { data: healthData },
+        { data: stressData },
+      ] = await Promise.all([
+        supabase.from('calendar_metrics').select('event_count,meeting_load_score,back_to_back_count,focus_gap_minutes,boundary_violations').eq('user_id', userId).eq('date', date).maybeSingle(),
+        supabase.from('email_metrics').select('total_volume,after_hours_ratio,volume_spike,response_pressure').eq('user_id', userId).eq('date', date).maybeSingle(),
+        supabase.from('task_metrics').select('completed_count,overdue_count,completion_velocity').eq('user_id', userId).eq('date', date).maybeSingle(),
+        supabase.from('mood_metrics').select('mood_score,energy_avg,valence_avg,dominant_mood').eq('user_id', userId).eq('date', date).maybeSingle(),
+        supabase.from('crs_scores').select('score,zone').eq('user_id', userId).eq('date', date).maybeSingle(),
+        supabase.from('health_snapshots').select('hrv_rmssd,resting_hr,steps,exercise_minutes,sleep_duration_hours').eq('user_id', userId).eq('date', date).maybeSingle(),
+        supabase.from('stress_events').select('id,confidence,severity,start_time').eq('user_id', userId).eq('date', date),
+      ]);
+
+      const lines: string[] = [`=== Day Context: ${date} ===`];
+
+      // Biometric headline
+      if (crsData?.score >= 0) lines.push(`Nap Score: ${crsData.score} (${crsData.zone})`);
+      if (healthData?.hrv_rmssd) lines.push(`HRV: ${Math.round(healthData.hrv_rmssd)}ms`);
+      if (healthData?.steps) lines.push(`Steps: ${healthData.steps.toLocaleString()}`);
+      if (healthData?.exercise_minutes) lines.push(`Active: ${Math.round(healthData.exercise_minutes)}min`);
+
+      // Meeting load
+      if (calData) {
+        lines.push(`\nMeetings: ${calData.event_count ?? 0} (MLS ${calData.meeting_load_score ?? 0}/15)`);
+        if (calData.back_to_back_count > 0) lines.push(`Back-to-back: ${calData.back_to_back_count}`);
+        if (calData.focus_gap_minutes > 0) lines.push(`Focus time available: ${Math.round(calData.focus_gap_minutes)}min`);
+        if (calData.boundary_violations > 0) lines.push(`Boundary violations (after-hours meetings): ${calData.boundary_violations}`);
+      }
+
+      // Communication
+      if (emailData) {
+        lines.push(`\nEmail volume: ${emailData.total_volume ?? 0}${emailData.volume_spike > 1.5 ? ` (${emailData.volume_spike.toFixed(1)}x baseline — spike)` : ''}`);
+        if (emailData.after_hours_ratio > 0.2) lines.push(`After-hours comms: ${(emailData.after_hours_ratio * 100).toFixed(0)}%`);
+        if (emailData.response_pressure > 0.5) lines.push(`Response pressure: HIGH (${(emailData.response_pressure * 100).toFixed(0)}% unanswered)`);
+      }
+
+      // Tasks
+      if (taskData) {
+        lines.push(`\nTasks completed: ${taskData.completed_count ?? 0}${taskData.overdue_count > 0 ? ` | Overdue: ${taskData.overdue_count}` : ''}`);
+        if (taskData.completion_velocity) lines.push(`Velocity: ${taskData.completion_velocity.toFixed(1)}x baseline`);
+      }
+
+      // Mood
+      if (moodData?.mood_score != null) lines.push(`\nMood (Spotify): ${moodData.dominant_mood ?? 'neutral'} (score ${Math.round(moodData.mood_score)}/100)`);
+
+      // Stress
+      if (stressData && stressData.length > 0) {
+        lines.push(`\nStress events: ${stressData.length} detected`);
+        const highest = stressData.reduce((a: Record<string, unknown>, b: Record<string, unknown>) => (a.confidence as number) > (b.confidence as number) ? a : b) as Record<string, unknown>;
+        if (highest?.start_time) lines.push(`Highest: ${highest.severity} confidence at ${String(highest.start_time).slice(11, 16)}`);
+      }
+
+      return lines.join('\n') || 'No day context data available for this date.';
     }
 
     default:

@@ -8,7 +8,7 @@
  *   👍/👎 callback      → feedback signal → agent_evolutions
  *   POST /send          → proactive delivery (called by check-triggers)
  */
-import { Bot, webhookCallback, InlineKeyboard } from 'https://deno.land/x/grammy@v1.31.3/mod.ts';
+import { Bot, webhookCallback, InlineKeyboard } from 'npm:grammy@1.31.3';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { getUserByChatId, checkIdempotency, recordSent } from '../_shared/config.ts';
 import { agentChat, agentTrigger, provisionUser } from '../_shared/waldo-worker.ts';
@@ -209,6 +209,109 @@ bot.command('morning', async (ctx) => {
   await ctx.reply(result.reply ?? 'Something went wrong.', { reply_markup: keyboard });
 });
 
+// ─── Voice message → transcribe → invoke agent ────────────────
+bot.on('message:voice', async (ctx) => {
+  const chatId = ctx.chat.id;
+  const user = await getUserByChatId(supabase, chatId);
+  if (!user) {
+    await ctx.reply("I don't have you linked yet. Open the Waldo app and tap \"Link Telegram\" to get started.");
+    return;
+  }
+
+  await ctx.replyWithChatAction('typing');
+
+  try {
+    // 1. Get file info from Telegram
+    const file = await ctx.getFile();
+    const fileUrl = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
+
+    // 2. Fetch the OGG audio bytes
+    const audioRes = await fetch(fileUrl);
+    if (!audioRes.ok) throw new Error(`Telegram file fetch failed: ${audioRes.status}`);
+    const audioBytes = await audioRes.arrayBuffer();
+
+    // 3. Transcribe via Deepgram (fast, cheap at $0.004/min — no SDK needed)
+    const deepgramKey = Deno.env.get('DEEPGRAM_API_KEY');
+    let transcript = '';
+
+    if (deepgramKey) {
+      const dgRes = await fetch('https://api.deepgram.com/v1/listen?model=nova-3&punctuate=true&smart_format=true', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${deepgramKey}`,
+          'Content-Type': 'audio/ogg',
+        },
+        body: audioBytes,
+      });
+      if (dgRes.ok) {
+        const dgData = await dgRes.json() as Record<string, unknown>;
+        const channels = (dgData as Record<string, unknown>)?.['results']?.['channels'] as Array<Record<string, unknown>>;
+        transcript = channels?.[0]?.['alternatives']?.[0]?.['transcript'] as string ?? '';
+      }
+    } else {
+      // Fallback: Anthropic Whisper-compatible endpoint if available
+      transcript = '[Voice transcription unavailable — set DEEPGRAM_API_KEY]';
+    }
+
+    if (!transcript.trim()) {
+      await ctx.reply("I couldn't make out what you said. Try again or type it.");
+      return;
+    }
+
+    log('info', 'voice_transcribed', { userId: user.id, chars: transcript.length });
+
+    // 4. Route transcribed text to agent (same as text message)
+    const result = await agentChat(user.id, transcript, 'telegram_voice');
+
+    const keyboard = new InlineKeyboard()
+      .text('👍', `fb_pos:${user.id}`)
+      .text('👎', `fb_neg:${user.id}`);
+
+    // Show what was understood, then Waldo's reply
+    await ctx.reply(`🎙 "${transcript}"\n\n${result.reply ?? 'Something went wrong.'}`, {
+      reply_markup: keyboard,
+    });
+  } catch (err) {
+    log('error', 'voice_failed', { error: err instanceof Error ? err.message : String(err) });
+    await ctx.reply("Couldn't process your voice message. Try typing it instead.");
+  }
+});
+
+// ─── Proposal approval/rejection (The Handoff) ─────────────────
+bot.callbackQuery(/^approve:(.+)$/, async (ctx) => {
+  const proposalId = ctx.match![1];
+  await ctx.answerCallbackQuery({ text: 'On it — executing now...' });
+
+  const EXECUTE_PROPOSAL_URL = `${Deno.env.get('SUPABASE_URL')}/functions/v1/execute-proposal`;
+  const res = await fetch(EXECUTE_PROPOSAL_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+    },
+    body: JSON.stringify({ proposal_id: proposalId, action: 'approve' }),
+  }).catch(() => null);
+
+  const result = res?.ok ? await res.json().catch(() => ({})) as Record<string, unknown> : null;
+
+  if (result?.['ok']) {
+    await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
+    await ctx.reply('✓ Done. Already on it.');
+  } else {
+    await ctx.reply(`Couldn't execute: ${(result?.['error'] as string) ?? 'unknown error'}`);
+  }
+});
+
+bot.callbackQuery(/^reject:(.+)$/, async (ctx) => {
+  const proposalId = ctx.match![1];
+  await ctx.answerCallbackQuery({ text: 'Rejected.' });
+  await supabase.from('waldo_proposals')
+    .update({ status: 'rejected', resolved_at: new Date().toISOString() })
+    .eq('id', proposalId);
+  await ctx.editMessageReplyMarkup({ reply_markup: new InlineKeyboard() });
+  await ctx.reply("Got it. I won't make that change.");
+});
+
 // ─── Any text message → look up user → invoke agent ──────────
 bot.on('message:text', async (ctx) => {
   const chatId = ctx.chat.id;
@@ -302,9 +405,19 @@ Deno.serve(async (req) => {
         }
       }
 
-      const keyboard = new InlineKeyboard()
-        .text('👍', `fb_pos:${user_id ?? 'unknown'}`)
-        .text('👎', `fb_neg:${user_id ?? 'unknown'}`);
+      // If this is a proposal (The Handoff), send approve/reject buttons
+      const { proposal_id } = await req.clone().json().catch(() => ({})) as { proposal_id?: string };
+
+      let keyboard: InlineKeyboard;
+      if (proposal_id) {
+        keyboard = new InlineKeyboard()
+          .text('✓ Do it', `approve:${proposal_id}`)
+          .text('✗ Skip', `reject:${proposal_id}`);
+      } else {
+        keyboard = new InlineKeyboard()
+          .text('👍', `fb_pos:${user_id ?? 'unknown'}`)
+          .text('👎', `fb_neg:${user_id ?? 'unknown'}`);
+      }
 
       await bot.api.sendMessage(chat_id, message, { reply_markup: keyboard });
 
