@@ -41,6 +41,7 @@
       },
       "package": "com.waldo.app",
       "versionCode": 1,
+      "minSdkVersion": 26,
       "permissions": [
         "android.permission.health.READ_HEART_RATE",
         "android.permission.health.READ_HEART_RATE_VARIABILITY",
@@ -50,9 +51,14 @@
         "android.permission.health.READ_EXERCISE",
         "android.permission.health.READ_RESTING_HEART_RATE",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_HEALTH"
+        "android.permission.FOREGROUND_SERVICE_HEALTH",
+        "android.permission.ACTIVITY_RECOGNITION"
+      ],
+      "intentFilters": [
+        {
+          "action": "androidx.health.connect.client.SHOW_PERMISSIONS_RATIONALE"
+        }
       ]
     },
     "plugins": [
