@@ -170,7 +170,7 @@ export async function fetchDates(userId = DEFAULT_USER_ID): Promise<DateEntry[]>
 export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<DayResponse> {
   const [
     { data: crs }, { data: health }, { data: stress },
-    { data: calMetrics }, { data: emailMetrics }, { data: taskMetrics },
+    { data: calMetrics }, { data: calEvents }, { data: emailMetrics }, { data: taskMetrics },
     { data: masterMetrics }, { data: activity }, { data: patterns },
     { data: waldoActionsRaw },
   ] = await Promise.all([
@@ -178,6 +178,8 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
     supabase.from('health_snapshots').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('stress_events').select('*').eq('user_id', userId).eq('date', date),
     supabase.from('calendar_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
+    supabase.from('calendar_events').select('summary, start_time, end_time, duration_minutes, attendee_count, is_recurring, location')
+      .eq('user_id', userId).eq('date', date).order('start_time', { ascending: true }),
     supabase.from('email_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('task_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('master_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
@@ -243,7 +245,16 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       meetingLoadScore: calMetrics.meeting_load_score,
       totalMeetingMinutes: calMetrics.total_meeting_minutes,
       eventCount: calMetrics.event_count, backToBackCount: calMetrics.back_to_back_count,
-      focusGaps: calMetrics.focus_gaps ?? [], events: [],
+      focusGaps: calMetrics.focus_gaps ?? [],
+      events: (calEvents ?? []).map((e: any) => ({
+        name: e.summary ?? 'Untitled',
+        startTime: e.start_time,
+        endTime: e.end_time,
+        durationMinutes: e.duration_minutes ?? 0,
+        attendeeCount: e.attendee_count ?? 0,
+        isRecurring: e.is_recurring ?? false,
+        location: e.location ?? null,
+      })),
       boundaryViolations: calMetrics.boundary_violations ?? 0,
     } : null,
     email: emailMetrics ? {
