@@ -220,6 +220,8 @@ interface CrsDay {
   hrv_json: Record<string, unknown>;
   circadian_json: Record<string, unknown>;
   activity_json: Record<string, unknown>;
+  pillars_json: Record<string, unknown>;
+  pillar_drag_json: Record<string, unknown>;
   components_with_data: number;
   summary: string;
 }
@@ -295,9 +297,12 @@ function computeCrsForDay(date: string, b: DailyBucket, avgSdnn7d: number | null
   }
 
   if (components < 1) {
+    const emptyPillars = { recovery: 0, cass: 0, ilas: 0 };
+    const emptyDrag = { sleep: 0, hrv: 0, circadian: 0, activity: 0, primary: 'sleep' };
     return {
       date, score: -1, zone: 'low', components_with_data: 0,
       sleep_json: {}, hrv_json: {}, circadian_json: {}, activity_json: {},
+      pillars_json: emptyPillars, pillar_drag_json: emptyDrag,
       summary: 'No data',
     };
   }
@@ -316,13 +321,33 @@ function computeCrsForDay(date: string, b: DailyBucket, avgSdnn7d: number | null
   const score = Math.round(Math.max(0, Math.min(100, raw)));
   const zone = score >= 80 ? 'peak' : score >= 60 ? 'moderate' : 'low';
 
+  // ─── Pillar engine (mirrors SQL backfill logic) ──────────────────
+  // Recovery (0.50) = sleep | CASS (0.35) = HRV | ILAS (0.15) = circadian + activity
+  const ilas = Math.round((circadianScore + activityScore) / 2);
+  const pillars_json = { recovery: sleepScore, cass: hrvScore, ilas };
+  const neutral = 75;
+  const sleepDrag  = +(((neutral - sleepScore) * 0.50).toFixed(1));
+  const hrvDrag    = +(((neutral - hrvScore)   * 0.35).toFixed(1));
+  const circDrag   = +(((neutral - circadianScore) * 0.075).toFixed(1));
+  const actDrag    = +(((neutral - activityScore) * 0.075).toFixed(1));
+  const maxDrag    = Math.max(sleepDrag, hrvDrag, circDrag, actDrag);
+  const primaryDrag = maxDrag === sleepDrag ? 'sleep'
+    : maxDrag === hrvDrag ? 'hrv'
+    : maxDrag === circDrag ? 'circadian'
+    : 'activity';
+  const pillar_drag_json = {
+    sleep: sleepDrag, hrv: hrvDrag, circadian: circDrag, activity: actDrag,
+    primary: primaryDrag,
+  };
+
   return {
     date, score, zone, components_with_data: components,
     sleep_json: { score: sleepScore, hours: +sleepHours.toFixed(2), dataAvailable: hasSleep },
     hrv_json:   { score: hrvScore, sdnn: avgSdnn ? +avgSdnn.toFixed(1) : null, dataAvailable: hasHrv },
     circadian_json: { score: circadianScore, dataAvailable: hasSleep },
     activity_json:  { score: activityScore, steps: b.steps, exerciseMin: +b.exerciseMin.toFixed(0), dataAvailable: hasActivity },
-    summary: `Nap Score ${score} (${zone}) — ${sleepHours.toFixed(1)}h sleep, ${b.steps.toLocaleString()} steps`,
+    pillars_json, pillar_drag_json,
+    summary: `Form ${score} (${zone}) — ${sleepHours.toFixed(1)}h sleep, ${b.steps.toLocaleString()} steps`,
   };
 }
 
