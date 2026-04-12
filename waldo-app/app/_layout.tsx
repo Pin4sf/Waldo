@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React from 'react';
+import { PipelineProvider } from '@/services/pipeline-provider';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -44,14 +45,18 @@ export default function RootLayout() {
     <AppErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <QueryClientProvider client={queryClient}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: '#FAFAF8' },
-              animation: 'fade',
-            }}
-          />
-          <StatusBar style="dark" />
+          {/* PipelineProvider initialises Health Connect (Android) / HealthKit (iOS)
+              immediately on app start — before any screen mounts. */}
+          <PipelineProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#FAFAF8' },
+                animation: 'fade',
+              }}
+            />
+            <StatusBar style="dark" />
+          </PipelineProvider>
         </QueryClientProvider>
       </GestureHandlerRootView>
     </AppErrorBoundary>

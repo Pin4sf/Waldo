@@ -4,12 +4,15 @@ import {
   ScrollView, StyleSheet, Text, View, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AdjustmentCard }  from '@/components/AdjustmentCard';
-import { HealthStatCard }  from '@/components/HealthStatCard';
-import { MorningWagCard }  from '@/components/MorningWagCard';
-import { NapScoreGauge }   from '@/components/NapScoreGauge';
-import { SpotCard }        from '@/components/SpotCard';
+import { AdjustmentCard }    from '@/components/AdjustmentCard';
+import { HealthStatCard }    from '@/components/HealthStatCard';
+import { MorningWagCard }    from '@/components/MorningWagCard';
+import { NapScoreGauge }     from '@/components/NapScoreGauge';
+import { SpotCard }          from '@/components/SpotCard';
 import { WaldoIllustration, type WaldoState } from '@/components/WaldoIllustration';
+import { FormCard }          from '@/components/FormCard';
+import { LoadCard }          from '@/components/LoadCard';
+import { SleepStagesCard }   from '@/components/SleepStagesCard';
 import { colors, fonts, fontSize, spacing, borderRadius } from '@/theme';
 import { useDashboardData, useAvailableDates, type Zone } from '@/hooks/useWaldoData';
 
@@ -33,6 +36,7 @@ export default function DashboardScreen() {
   const {
     napScore, zone, date, morningWag, spots, adjustments,
     healthStats, loading, crsComponents, stressEvents,
+    sleepHours, sleepEfficiency, sleepDeepPct, sleepRemPct,
   } = useDashboardData(selected);
 
   const hero        = HERO[zone];
@@ -117,6 +121,66 @@ export default function DashboardScreen() {
         {/* Morning Wag */}
         <MorningWagCard message={morningWag.message} score={morningWag.score} time={morningWag.time} />
 
+        {/* ── Figma cards — Form / Load / Sleep ────────────────────── */}
+        <View style={styles.section}>
+          <Text style={[styles.secTitle, { paddingHorizontal:spacing.lg, marginBottom:spacing.sm }]}>Today's signals</Text>
+
+          {/* Form card */}
+          <FormCard
+            score={napScore}
+            zone={zone}
+            summary={
+              zone === 'peak'     ? 'Peak window. Your hardest thinking goes here.' :
+              zone === 'steady'   ? 'Good baseline. Watch your meeting load this afternoon.' :
+              zone === 'flagging' ? 'Running lower than usual. Protect your focus blocks.' :
+                                   'Rough day biologically. Keep it gentle.'
+            }
+            components={crsComponents}
+            lastRead={morningWag.time}
+          />
+
+          {/* Load card */}
+          {healthStats.some(s => s.label === 'Day strain') && (() => {
+            const s = healthStats.find(h => h.label === 'Day strain');
+            const strainVal = typeof s?.value === 'number' ? s.value : parseFloat(String(s?.value ?? '0'));
+            const level = strainVal >= 15 ? 'hard day' : strainVal >= 10 ? 'moderate day' : strainVal >= 4 ? 'light day' : 'rest day';
+            return (
+              <LoadCard
+                strain={strainVal}
+                strainLevel={level}
+                zone={zone}
+                avgStrain={Math.round(strainVal * 0.85)}
+                peakHR={undefined}
+                activeMinutes={0}
+                lastRead={morningWag.time}
+              />
+            );
+          })()}
+
+          {/* Sleep stages card */}
+          {sleepHours && sleepHours > 0 && (
+            <SleepStagesCard
+              zone={zone}
+              durationHours={sleepHours}
+              stages={{
+                core:  Math.max(0, 1 - (sleepDeepPct ?? 0) - (sleepRemPct ?? 0) - 0.05),
+                deep:  sleepDeepPct ?? 0.15,
+                rem:   sleepRemPct  ?? 0.20,
+                awake: 0.05,
+              }}
+              summary={
+                (sleepDeepPct ?? 0) < 0.10
+                  ? `Low deep sleep — only ${Math.round((sleepDeepPct ?? 0) * 100)}% of the night.`
+                  : sleepHours < 6
+                  ? `Short night at ${sleepHours.toFixed(1)}h. Sleep debt is building.`
+                  : `${sleepHours.toFixed(1)}h sleep, ${Math.round((sleepEfficiency ?? 0.85) * 100)}% efficiency.`
+              }
+              sleepScore={crsComponents ? Math.round(crsComponents.sleep) : undefined}
+              lastRead={morningWag.time}
+            />
+          )}
+        </View>
+
         {/* Adjustments */}
         {adjustments.length > 0 && (
           <View style={styles.section}>
@@ -130,7 +194,7 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* Signal details */}
+        {/* Signal details grid */}
         <View style={styles.section}>
           <View style={styles.secHeader}>
             <Text style={styles.secTitle}>Signal details</Text>
