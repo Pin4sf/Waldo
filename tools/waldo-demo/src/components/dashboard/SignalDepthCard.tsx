@@ -13,16 +13,16 @@ interface SignalDepthCardProps {
 }
 
 const ALL_SOURCES = [
-  { key: 'apple_health', label: 'Apple Health', icon: '♥' },
-  { key: 'google_fit', label: 'Google Fit', icon: '🏃' },
-  { key: 'google_calendar', label: 'Calendar', icon: '📅' },
-  { key: 'gmail', label: 'Email', icon: '✉' },
-  { key: 'google_tasks', label: 'Tasks', icon: '✓' },
-  { key: 'spotify', label: 'Music', icon: '♫' },
-  { key: 'rescuetime', label: 'Screen Time', icon: '📱' },
-  { key: 'telegram', label: 'Telegram', icon: '💬' },
-  { key: 'weather', label: 'Weather', icon: '☀' },
-  { key: 'air_quality', label: 'Air Quality', icon: '🌬' },
+  { key: 'apple_health',    label: 'Apple Health / XML', icon: '♥',  category: 'health' },
+  { key: 'google_fit',      label: 'Google Fit (Android)', icon: '🏃', category: 'health' },
+  { key: 'google_calendar', label: 'Calendar', icon: '📅', category: 'workspace' },
+  { key: 'gmail',           label: 'Email',    icon: '✉',  category: 'workspace' },
+  { key: 'google_tasks',    label: 'Tasks',    icon: '✓',  category: 'workspace' },
+  { key: 'spotify',         label: 'Music',    icon: '♫',  category: 'lifestyle' },
+  { key: 'todoist',         label: 'Todoist',  icon: '☑',  category: 'workspace' },
+  { key: 'strava',          label: 'Strava',   icon: '⚡',  category: 'health' },
+  { key: 'telegram',        label: 'Telegram', icon: '💬', category: 'infra' },
+  { key: 'weather',         label: 'Weather + AQI', icon: '☀', category: 'infra' },
 ];
 
 function DepthArc({ connected, total, size = 140 }: { connected: number; total: number; size?: number }) {

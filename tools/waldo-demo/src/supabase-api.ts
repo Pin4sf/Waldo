@@ -497,40 +497,62 @@ export async function fetchSummary(userId = DEFAULT_USER_ID) {
 
 /** Fetch ALL integration statuses + sync logs for a user. */
 export async function fetchSyncStatus(userId = DEFAULT_USER_ID): Promise<SyncStatus[]> {
-  const [{ data: tokens }, { data: logs }] = await Promise.all([
+  const [
+    { data: tokens }, { data: logs },
+    { data: healthRow }, { data: userRow }, { data: weatherRow },
+  ] = await Promise.all([
     supabase.from('oauth_tokens').select('provider, scopes, expires_at, updated_at').eq('user_id', userId),
     supabase.from('sync_log').select('provider, last_sync_at, last_sync_status, records_synced, last_error').eq('user_id', userId),
+    // Health data: connected if any snapshot has real biometric data
+    supabase.from('health_snapshots').select('date').eq('user_id', userId)
+      .not('hrv_rmssd', 'is', null).limit(1).maybeSingle(),
+    // Telegram: connected if user has a chat ID linked
+    supabase.from('users').select('telegram_chat_id').eq('id', userId).maybeSingle(),
+    // Weather: connected if any snapshot has weather enrichment
+    supabase.from('health_snapshots').select('date').eq('user_id', userId)
+      .not('weather', 'is', null).limit(1).maybeSingle(),
   ]);
-  const token = tokens?.find(t => t.provider === 'google') ?? null;
 
-  const { data: spotifyToken } = await supabase
-    .from('oauth_tokens').select('id').eq('user_id', userId).eq('provider', 'spotify').maybeSingle();
+  const googleToken  = tokens?.find((t: any) => t.provider === 'google') ?? null;
+  const spotifyToken = tokens?.find((t: any) => t.provider === 'spotify') ?? null;
+  const todoistToken = tokens?.find((t: any) => t.provider === 'todoist') ?? null;
+  const stravaToken  = tokens?.find((t: any) => t.provider === 'strava') ?? null;
 
-  const providers = ['google_calendar', 'gmail', 'google_tasks', 'google_fit', 'spotify', 'youtube_music'];
-  return providers.map(provider => {
-    const log = (logs ?? []).find((l: any) => l.provider === provider);
-    const isSpotify = provider === 'spotify';
-    const connected = isSpotify ? spotifyToken !== null : token !== null;
-    const label = provider === 'google_calendar' ? 'Google Calendar'
-      : provider === 'gmail' ? 'Gmail'
-      : provider === 'google_tasks' ? 'Google Tasks'
-      : provider === 'google_fit' ? 'Google Fit (Android health)'
-      : provider === 'spotify' ? 'Spotify'
-      : 'YouTube Music';
+  const hasHealthData = healthRow !== null;
+  const hasTelegram   = userRow?.telegram_chat_id !== null && userRow?.telegram_chat_id !== undefined;
+  const hasWeather    = weatherRow !== null;
 
-    return {
-      provider,
-      label,
-      connected,
-      status: !connected ? 'not_connected'
-        : log?.last_sync_status === 'ok' ? 'ok'
-        : log?.last_sync_status ?? 'pending',
-      lastSyncAt: log?.last_sync_at ?? null,
-      recordsSynced: log?.records_synced ?? 0,
-      lastError: log?.last_error ?? null,
-      tokenExpiry: token?.expires_at ?? null,
-    };
+  const log = (provider: string) => (logs ?? []).find((l: any) => l.provider === provider) ?? null;
+
+  const makeStatus = (
+    provider: string, label: string, connected: boolean, syncLog: any = null, tokenExpiry: string | null = null,
+  ): SyncStatus => ({
+    provider, label, connected,
+    status: !connected ? 'not_connected'
+      : syncLog?.last_sync_status === 'ok' ? 'ok'
+      : syncLog?.last_sync_status ?? 'active',
+    lastSyncAt: syncLog?.last_sync_at ?? null,
+    recordsSynced: syncLog?.records_synced ?? 0,
+    lastError: syncLog?.last_error ?? null,
+    tokenExpiry,
   });
+
+  return [
+    // ── Health ─────────────────────────────────────────────────────
+    makeStatus('apple_health', 'Apple Health / XML', hasHealthData),
+    makeStatus('google_fit',   'Google Fit (Android)', !!googleToken, log('google_fit'), googleToken?.expires_at),
+    // ── Google Workspace ───────────────────────────────────────────
+    makeStatus('google_calendar', 'Google Calendar', !!googleToken, log('google_calendar'), googleToken?.expires_at),
+    makeStatus('gmail',           'Gmail',            !!googleToken, log('gmail'),           googleToken?.expires_at),
+    makeStatus('google_tasks',    'Google Tasks',     !!googleToken, log('google_tasks'),    googleToken?.expires_at),
+    // ── 3rd Party ──────────────────────────────────────────────────
+    makeStatus('spotify', 'Spotify',  !!spotifyToken, log('spotify')),
+    makeStatus('todoist', 'Todoist',  !!todoistToken, log('todoist')),
+    makeStatus('strava',  'Strava',   !!stravaToken,  log('strava')),
+    // ── Always-on infrastructure ───────────────────────────────────
+    makeStatus('telegram', 'Telegram Bot', hasTelegram),
+    makeStatus('weather',  'Weather + AQI', hasWeather),
+  ];
 }
 
 /** Get the Google OAuth connect URL for a user. */
