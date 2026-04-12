@@ -267,16 +267,19 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       const cl = masterMetrics.cognitive_load;
       const components = cl.components ?? {};
       const vals = [components.sleepDebtImpact, components.meetingLoad, components.communicationLoad, components.taskLoad]
-        .filter((v: any) => v !== null && v !== undefined && !isNaN(v));
-      const computedScore = vals.length > 0 ? Math.round(vals.reduce((a: number, b: number) => a + b, 0) / vals.length) : null;
+        .filter((v: any) => v !== null && v !== undefined && !isNaN(Number(v)));
+      const computedScore = vals.length > 0 ? Math.round(vals.reduce((a: number, b: number) => a + Number(b), 0) / vals.length) : null;
+      const rawScore = Number(cl.score);
       return {
         ...cl,
-        score: (cl.score !== null && cl.score !== undefined && !isNaN(cl.score)) ? cl.score : computedScore,
+        score: (!isNaN(rawScore) && rawScore !== null) ? rawScore : computedScore,
+        // Sanitize summary to remove NaN artifacts from old DB rows
+        summary: cl.summary ? String(cl.summary).replace(/NaN\/\d+/g, '--/100').replace(/NaN/g, '--') : cl.summary,
         components: {
-          sleepDebtImpact: components.sleepDebtImpact ?? 0,
-          meetingLoad: components.meetingLoad ?? 0,
-          communicationLoad: components.communicationLoad ?? 0,
-          taskLoad: components.taskLoad ?? 0,
+          sleepDebtImpact: Number(components.sleepDebtImpact) || 0,
+          meetingLoad: Number(components.meetingLoad) || 0,
+          communicationLoad: Number(components.communicationLoad) || 0,
+          taskLoad: Number(components.taskLoad) || 0,
         },
       };
     })() : null,

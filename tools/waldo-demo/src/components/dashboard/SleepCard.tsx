@@ -23,6 +23,19 @@ function formatDuration(hours: number): string {
   return m > 0 ? `${h}h ${m}min` : `${h}h`;
 }
 
+/** Format ISO timestamp or time string → "11pm" / "7:30am" */
+function formatSleepTime(raw: string): string {
+  if (!raw) return '';
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return raw; // not parseable — return as-is
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      .toLowerCase().replace(':00', ''); // "11pm" not "11:00pm"
+  } catch {
+    return raw;
+  }
+}
+
 /** Generate step-path hypnogram from stage percentages */
 function buildHypnogram(
   stages: { core: number; deep: number; rem: number; awake: number },
@@ -163,11 +176,11 @@ export function SleepCard({ data }: SleepCardProps) {
             {/* Time labels below */}
             <text x={14} y={chartH + 14} textAnchor="start"
               fill="#9a9a96" fontSize={8} fontFamily="'DM Sans', sans-serif">
-              {sleep.bedtime || '11pm'}
+              {formatSleepTime(sleep.bedtime) || '11pm'}
             </text>
             <text x={chartW + 14} y={chartH + 14} textAnchor="end"
               fill="#9a9a96" fontSize={8} fontFamily="'DM Sans', sans-serif">
-              {sleep.wakeTime || '7am'}
+              {formatSleepTime(sleep.wakeTime) || '7am'}
             </text>
           </svg>
         </div>

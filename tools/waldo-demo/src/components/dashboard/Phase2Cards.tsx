@@ -594,7 +594,7 @@ export function TodaysWeightCard({ data }: TodaysWeightCardProps) {
             color: scoreCol,
           }}
         >
-          {data.score}
+          {isNaN(data.score) ? '--' : data.score}
         </span>
         <div style={{ paddingBottom: 6 }}>
           <span
@@ -626,7 +626,7 @@ export function TodaysWeightCard({ data }: TodaysWeightCardProps) {
             fontFamily: 'var(--font-body)',
           }}
         >
-          {data.summary}
+          {data.summary?.replace(/NaN\/\d+/g, '--/100').replace(/NaN/g, '--')}
         </p>
       )}
 
