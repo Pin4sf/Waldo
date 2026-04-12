@@ -26,41 +26,63 @@
     ]
   },
   "hooks": {
-    "Notification": [{
-      "matcher": "",
-      "hooks": [{
-        "type": "command",
-        "command": "osascript -e 'display notification \"Claude Code needs attention\" with title \"Waldo\"' 2>/dev/null || true"
-      }]
-    }],
-    "PreToolUse": [{
-      "matcher": "Bash",
-      "hooks": [{
-        "type": "command",
-        "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/block-no-verify.sh\""
-      }]
-    }],
-    "PostToolUse": [{
-      "matcher": "Write|Edit",
-      "hooks": [{
-        "type": "command",
-        "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/auto-format.sh\"",
-        "timeout": 15000
-      }]
-    }, {
-      "matcher": "Edit",
-      "hooks": [{
-        "type": "command",
-        "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/post-edit-typecheck.sh\"",
-        "timeout": 30000
-      }]
-    }],
-    "Stop": [{
-      "matcher": "",
-      "hooks": [{
-        "type": "command",
-        "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/check-console-log.sh\""
-      }]
-    }]
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude Code needs attention\" with title \"Waldo\"' 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/block-no-verify.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/auto-format.sh\"",
+            "timeout": 15000
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/post-edit-typecheck.sh\"",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(dirname \"$0\")/../../.claude/hooks/check-console-log.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "playwright@claude-plugins-official": true
   }
 }

@@ -2,12 +2,12 @@
 
 > **What this document is:** The consolidated agent architecture for Waldo — a personal cognitive operating system that combines **body intelligence** (health signals from wearables), **task intelligence** (planning, organization, getting things done), and **proactive agency** (acts before you ask). This is the definitive reference for HOW the agent thinks, learns, communicates, and evolves.
 >
-> **Sources:** 14 production-grade agent systems — Pi Mono, OpenClaw, PicoClaw, OpenFang, CoPaw, Paperclip, OpenViking (ByteDance), Swarms, Agency-Agents, Agent-Skills-for-Context-Engineering, context-hub (Andrew Ng), Context Engineering (HumanLayer/YC), **Production Agent Platform** (enterprise-grade Brain + Orchestrator + Execution architecture, running on Pi Mono), and **NemoClaw** (NVIDIA's enterprise agent governance framework — versioned blueprints, declarative policies, operator-in-the-loop escalation, multi-model routing)
+> **Sources:** 16 production-grade agent systems — Pi Mono, OpenClaw, PicoClaw, OpenFang, CoPaw, Paperclip, OpenViking (ByteDance), Swarms, Agency-Agents, Agent-Skills-for-Context-Engineering, context-hub (Andrew Ng), Context Engineering (HumanLayer/YC), **Production Agent Platform** (enterprise-grade Brain + Orchestrator + Execution architecture, running on Pi Mono), **NemoClaw** (NVIDIA's enterprise agent governance framework — versioned blueprints, declarative policies, operator-in-the-loop escalation, multi-model routing), **Hermes Agent** (Nous Research — 38K+ stars, MIT license, self-hosted self-improving agent with GEPA evolutionary optimization, FTS5 cross-session search, skills-as-procedural-memory, 40+ tools, 12-platform messaging gateway, memory context fencing, structured context compression), and **MemPalace** (28.5K stars — spatial memory via Method of Loci, 96.6% recall on LongMemEval, wing/room/hall/tunnel taxonomy, temporal knowledge graph on SQLite, 170-token wake-up cost, typed memory halls, cross-domain tunnels)
 >
 > **Relationship to Master Reference:** Master Reference defines WHAT to build. This document defines HOW the agent should behave. Use BOTH when building Phase D (Agent Core) and Phase E (Proactive Delivery).
 >
 >
-> **Last updated:** March 2026
+> **Last updated:** April 2026
 
 ---
 
@@ -480,6 +480,79 @@ async runDailyCompaction(do: DurableObject) {
 - **Weekly (Sunday 8 PM UTC):** Diary entries → deep pattern mining → update recent_insights. Deeper Claude call.
 
 This matches the AtlanClaw pattern exactly and should be built into Phase D, not deferred to Phase G.
+
+### Dreaming Mode — The Nightly Intelligence Cycle (Phase D → Phase G progression)
+
+**Source:** AtlanClaw daily compaction + Hermes Agent GEPA self-evolution + sleep-time compute research (Meta PAHF paper, Letta/MemGPT) + Claude Code AutoDream consolidation
+
+Waldo's "Dreaming Mode" is the umbrella term for everything the agent does while the user sleeps. It is the nightly intelligence cycle that makes the agent smarter every single day — without any user interaction.
+
+**The Dreaming Mode Pipeline (runs at 2 AM local via DO alarm):**
+
+```typescript
+async function dreamingMode(do: DurableObject) {
+  // Phase 1: CONSOLIDATE — Episodic → Diary (Phase D, day 1)
+  // Summarize yesterday's episodes into a diary entry in memory_blocks
+  // "Yesterday: CRS 63, 3 conversations, breathing exercise accepted,
+  //  afternoon Fetch Alert dismissed. Quiet day."
+  await runDailyCompaction(do);
+
+  // Phase 2: PROMOTE — Diary → Patterns (Phase D, day 1)
+  // If the same observation appears 3+ times, promote to persistent pattern
+  // "User dismisses afternoon Fetch Alerts 70% of the time → adjust timing"
+  await promoteValidatedPatterns(do);
+
+  // Phase 3: PRE-COMPUTE — Tomorrow's Morning Wag context (Phase E)
+  // Pre-assemble tomorrow's health context, calendar, tasks, weather
+  // Result cached → Morning Wag delivery in <3 seconds
+  await preComputeMorningContext(do);
+
+  // Phase 4: EVOLVE — Behavioral parameter optimization (Phase G)
+  // Review accumulated feedback signals (thumbs up/down, dismissals,
+  // corrections). Apply rule-based evolution (3+ signals required).
+  // "User prefers shorter messages → reduce verbosity by 1 notch"
+  await applyPendingEvolutions(do);
+
+  // Phase 5: DREAM — Deep pattern mining (Phase G, weekly only)
+  // Run on Sunday nights. Cross-correlate weeks of diary entries.
+  // Discover Constellation patterns: "Monday syndrome", "caffeine-sleep link"
+  // Uses Claude Sonnet (more expensive, deeper reasoning)
+  if (isSundayNight()) {
+    await deepPatternMining(do);
+  }
+
+  // Phase 6: SELF-IMPROVE — GEPA evolutionary optimization (Phase 3+)
+  // Read execution traces → understand failure patterns → propose
+  // targeted improvements to skills, tool descriptions, prompt sections.
+  // Evaluate against golden tests. Keep winners, discard losers.
+  // Identity (soul files) stays immutable. Only behavioral params evolve.
+  // Inspired by Hermes Agent's GEPA (ICLR 2026 Oral paper).
+  if (hasEnoughTraces(30)) { // Minimum 30 traces before first run
+    await runEvolutionaryOptimization(do);
+  }
+}
+```
+
+**Why "Dreaming":** Humans consolidate memories during sleep — the hippocampus replays the day's events and transfers important patterns to long-term cortical storage. Waldo does the same thing at 2 AM. The agent "dreams" about your day, consolidates what matters, discards what doesn't, and wakes up smarter. This is not a metaphor — it's the literal architecture.
+
+**Dreaming Mode by Phase:**
+
+| Phase | What Happens at 2 AM | Impact |
+|-------|---------------------|--------|
+| **D (day 1)** | Consolidate episodes → diary entry. Promote patterns. | Memory stays fresh. Agent remembers yesterday. |
+| **E** | + Pre-compute Morning Wag context. | Morning Wag delivers in <3 seconds. |
+| **G** | + Apply behavioral evolutions. + Weekly deep pattern mining. | Agent adapts to user. Constellation grows. |
+| **Phase 3+** | + GEPA evolutionary optimization of skills and prompts. | Agent self-improves without human intervention. |
+
+**Key constraints:**
+- Dreaming Mode NEVER modifies soul files, safety rules, or CRS algorithm weights
+- Evolution requires 3+ consistent signals (no single bad day warps behavior)
+- Max 2 parameter changes per weekly evolution cycle
+- All changes logged in `agent_evolutions` table with auto-revert capability
+- Sunday deep mining uses Sonnet ($0.003/user/week); daily compaction uses Haiku ($0.0003/user/night)
+- Total Dreaming Mode cost: ~$0.002/user/day ($0.06/user/month)
+
+**The competitive advantage:** No other agent does this. ChatGPT forgets between sessions. Nori doesn't evolve. WHOOP doesn't learn preferences. Waldo gets measurably smarter every single night — and the user never has to do anything. They just sleep while Waldo dreams.
 
 ---
 
