@@ -78,6 +78,7 @@ See [Data Flow & Diagrams](diagrams.md#memory-architecture-5-tier-cognitive-scie
 - Rules pre-filter (60-80% skip) + prompt caching (90% savings on cached tokens)
 - Semantic caching (47-73% reduction for repetitive queries)
 - Code Mode (81% token reduction via Dynamic Workers, Phase E)
+- **Cloudflare Sandbox** (GA April 2026) for Python-based Code Mode, chart rendering, user routines — see [architecture-roadmap.md](./architecture-roadmap.md#the-execution-layer-gap--where-cloudflare-sandbox-fits)
 - Markdown over JSON (34% savings), CSV for tabular data (40-50% savings)
 - Anthropic Batch API (50% discount) for overnight Constellation analysis
 

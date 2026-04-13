@@ -181,4 +181,101 @@ ALTER TABLE episodes ADD COLUMN r2_key TEXT;
 
 ---
 
+## Cloudflare Sandbox — Execution Layer (Phase E+)
+
+**Decision:** Adopt Cloudflare Sandbox (GA April 2026) as the third compute tier for Waldo when Code Mode, data visualization, or user-defined routines are required. Not needed for MVP.
+
+> Source: [Cloudflare Sandbox GA announcement, April 2026](https://blog.cloudflare.com/sandbox-ga/)
+
+### The Three-Tier Compute Model
+
+| Tier | Product | When Used | Per-User Cost |
+|---|---|---|---|
+| **Tier 1 — Workers/DO** | V8 isolate + SQLite + R2 | Agent reasoning, tool calls, memory I/O | ~$0.001/month (hibernates) |
+| **Tier 2 — Edge Functions** | Deno serverless | OAuth flows, webhooks, pg_cron targets | Pay-per-invocation |
+| **Tier 3 — Sandbox (NEW)** | Container with shell + Python + filesystem | Code Mode, data viz, file parsing, user routines | Active CPU only (zero idle) |
+
+### What Sandbox Unlocks for Waldo
+
+**1. Code Mode — 60-75% cost reduction**
+Today: Morning Wag costs ~$0.01 per call (Haiku + tool loop). Many computations are deterministic — cognitive load formulas, pattern correlations, trend math. Move these to Python in Sandbox; agent calls Sandbox for computation, uses Claude only for the narrative wrapper.
+
+**2. Real chart generation in chat**
+User: *"Show me my sleep trend this month"*
+→ Agent runs `pandas + matplotlib` in Sandbox → PNG uploaded to R2 → image URL returned in chat. The agent draws actual charts.
+
+**3. Advanced health file parsing**
+Current Apple Health XML parsing happens in-browser (fragile, memory-bound). Moving to Sandbox unlocks:
+- Garmin `.fit` files (requires `fitparse` — can't run in Workers)
+- Whoop exports, Oura exports, any CSV format
+- 500MB+ XML without browser crashes
+
+**4. User-configurable routines (Phase G+)**
+From spec: *"Every Sunday evening, tell me my recovery outlook for next week."*
+Sandbox is purpose-built for this — user-defined logic runs in isolation, credentials injected via egress proxy, never touches the DO or Edge Functions.
+
+**5. GEPA evolutionary optimization (Phase 3+)**
+ICLR 2026 paper requires real Python + genetic algorithms ($2-10 per run). Sandbox is the only way to execute this on Cloudflare infrastructure.
+
+### Cost Model with Sandbox (per user/month)
+
+| Layer | Current | With Sandbox (Phase E) |
+|---|---|---|
+| DO (hibernates when idle) | ~$0.001 | ~$0.001 |
+| Edge Functions | ~$0.02 | ~$0.02 |
+| Claude Haiku (tokens) | $0.30–0.54 | **$0.08–0.15** (Code Mode replaces deterministic work) |
+| R2 workspace | ~$0.001 | ~$0.001 |
+| Sandbox compute | — | **~$0.02–0.05** (Active CPU only) |
+| **Total** | **$0.32–0.56** | **$0.12–0.22** |
+
+**Net: 60–65% per-user cost reduction at scale.** Sandbox compute cost < LLM tokens it replaces.
+
+### Sandbox vs Dynamic Workers — When to Use Which
+
+| Criterion | Dynamic Workers (V8 isolate) | Sandbox (container) |
+|---|---|---|
+| Startup time | 2ms | 2s (warm from snapshot) |
+| Language | JS/TS only | Python, JS, TS, any shell-runnable |
+| Persistent state | No | Yes (interpreter state across calls) |
+| Filesystem | No | Yes (real Linux FS + inotify) |
+| Background processes | No | Yes (dev servers, long-running jobs) |
+| Network | RPC stubs only | Egress proxy with credential injection |
+| Best for | Short, deterministic TS snippets (Code Mode core) | Python data analysis, visualization, file parsing, user scripts |
+
+**Rule of thumb:** Dynamic Workers for sub-second computation in Code Mode. Sandbox for anything requiring Python libraries, filesystem, or stateful interpreters.
+
+### Integration Architecture (Phase E+)
+
+```
+User message → DO (agent brain)
+  ├── Tier 1 work: tool calls, memory, ReAct → DO itself
+  ├── Tier 2 work: OAuth, webhooks → Edge Functions
+  └── Tier 3 work:
+      ├── Code Mode deterministic function → Dynamic Worker (2ms)
+      ├── Python data analysis / chart → Sandbox (2s warm)
+      └── User-defined routine → Sandbox (isolated, credential-injected)
+```
+
+### Implementation Roadmap
+
+| Phase | Sandbox Capability | Trigger |
+|---|---|---|
+| **E** | Code Mode for Morning Wag pre-compute (cognitive load, trend math) | When per-user LLM cost exceeds $0.50/month at scale |
+| **E** | `render_chart` agent tool (pandas + matplotlib) | When users request visualizations in chat |
+| **F** | Upgraded health file parser (Apple/Garmin/Oura/Whoop) | When we support non-Apple wearables beyond Health Connect |
+| **G** | User-configurable routines | When we ship personalization layer |
+| **3+** | GEPA evolutionary self-improvement | When agent self-evolution is the priority |
+
+### Security Posture
+
+Sandbox adds a hard isolation boundary we currently don't have:
+- **Credential injection via egress proxy** — agent never sees raw tokens
+- **Per-execution filesystem** — ephemeral, wiped after snapshot
+- **Active CPU pricing** — no idle cost exploits
+- **R2 snapshots** — audit-safe, rewindable state
+
+This matters for: HIPAA-adjacent workloads, Pack tier (enterprise), any feature that runs user-supplied code.
+
+---
+
 > **Full DO architecture:** [Docs/WALDO_SCALING_INFRASTRUCTURE.md](https://github.com/Pin4sf/Waldo/blob/main/Docs/WALDO_SCALING_INFRASTRUCTURE.md)
