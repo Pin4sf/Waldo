@@ -158,6 +158,33 @@ function getToolDefinitions(triggerType: MessageMode) {
         required: [],
       },
     },
+    {
+      name: 'get_screen_time',
+      description: 'Get RescueTime screen time metrics: productive vs distracted hours, productivity score 0-100, top category, late-night screen usage. Use when user asks about focus, productivity, or digital habits.',
+      input_schema: {
+        type: 'object' as const,
+        properties: { date: { type: 'string', description: 'Date in YYYY-MM-DD. Omit for most recent.' } },
+        required: [],
+      },
+    },
+    {
+      name: 'get_master_metrics',
+      description: 'Get master metrics: Daily Cognitive Load (0-100), Day Strain (0-21), Sleep Debt (hours), Burnout Trajectory (-1 to +1), Recovery-Load Balance. These are the "how overloaded am I?" and "am I heading toward burnout?" numbers. Use for high-level wellbeing queries.',
+      input_schema: {
+        type: 'object' as const,
+        properties: { date: { type: 'string', description: 'Date in YYYY-MM-DD. Omit for most recent.' } },
+        required: [],
+      },
+    },
+    {
+      name: 'get_correlations',
+      description: 'Get cross-domain correlations Waldo has discovered: meeting load vs next-day CRS, after-hours email vs sleep, task overload vs energy. Use when user asks "how does X affect Y?" questions.',
+      input_schema: {
+        type: 'object' as const,
+        properties: {},
+        required: [],
+      },
+    },
   ];
 
   const writeTools: Anthropic.Tool[] = [
@@ -292,13 +319,55 @@ async function executeTool(name: string, input: any, userId: string, targetDate:
     case 'get_schedule': {
       const { data } = await supabase.from('calendar_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle();
       if (!data) return 'No calendar data for this date.';
-      return JSON.stringify({ mls: data.meeting_load_score, events: data.event_count, minutes: data.total_meeting_minutes, back_to_back: data.back_to_back_count, boundary_violations: data.boundary_violations, focus_gaps: data.focus_gaps });
+      const focusGaps = (data.focus_gaps as Array<{ durationMinutes?: number }>) ?? [];
+      const focusMinutes = focusGaps.reduce((s, g) => s + (g.durationMinutes ?? 0), 0);
+      const focusTimeScore = Math.min(100, Math.round((focusMinutes / 480) * 100));
+      const scheduleDensity = Math.min(100, Math.round(
+        ((data.meeting_load_score ?? 0) / 15) * 60 +
+        ((data.back_to_back_count ?? 0) as number) * 10 +
+        ((data.boundary_violations ?? 0) as number) * 8
+      ));
+      const longestGap = focusGaps.reduce((max, g) => Math.max(max, g.durationMinutes ?? 0), 0);
+      return JSON.stringify({
+        mls: data.meeting_load_score, events: data.event_count, minutes: data.total_meeting_minutes,
+        back_to_back: data.back_to_back_count, boundary_violations: data.boundary_violations,
+        focus_gaps: focusGaps,
+        focus_time_score: focusTimeScore,
+        focus_minutes_total: focusMinutes,
+        longest_focus_gap_min: longestGap,
+        schedule_density: scheduleDensity,
+        interpretation: scheduleDensity >= 70 ? 'heavy' : scheduleDensity >= 40 ? 'moderate' : 'light',
+      });
     }
 
     case 'get_communication': {
       const { data } = await supabase.from('email_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle();
       if (!data) return 'No email data for this date.';
-      return JSON.stringify({ total: data.total_emails, sent: data.sent_count, received: data.received_count, after_hours: (data.after_hours_ratio * 100).toFixed(0) + '%', threads: data.unique_threads, volume_spike: data.volume_spike.toFixed(1) + 'x' });
+      const total = data.total_emails ?? 0;
+      const afterHours = data.after_hours_ratio ?? 0;
+      const spike = data.volume_spike ?? 1;
+      const csi = Math.round(
+        Math.min(40, (total / 50) * 40) +
+        afterHours * 35 +
+        Math.min(25, Math.max(0, (spike - 1) * 25))
+      );
+      const sent = data.sent_count ?? 0;
+      const received = data.received_count ?? 0;
+      const responseRatio = received > 0 ? sent / received : 0;
+      const responsePressure = Math.min(100, Math.round((received / 30) * 40 + Math.min(60, responseRatio * 30)));
+      return JSON.stringify({
+        total, sent, received,
+        after_hours_ratio: afterHours,
+        after_hours_pct: (afterHours * 100).toFixed(0) + '%',
+        threads: data.unique_threads,
+        volume_spike: spike.toFixed(1) + 'x',
+        csi,
+        response_pressure: responsePressure,
+        csi_level: csi >= 70 ? 'high' : csi >= 40 ? 'moderate' : 'low',
+        interpretation: afterHours > 0.4 ? 'boundary violations — work bleeding into recovery'
+          : spike > 1.5 ? 'volume spike — unusual pressure today'
+          : 'normal',
+      });
     }
 
     case 'read_memory': {
@@ -330,21 +399,111 @@ async function executeTool(name: string, input: any, userId: string, targetDate:
     case 'get_mood': {
       const { data } = await supabase.from('mood_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle();
       if (!data) return 'No music/mood data for this date.';
+      const energy = data.avg_energy ?? 0;
+      const valence = data.avg_valence ?? 0;
+      const moodScore = Math.round((valence * 0.6 + energy * 0.4) * 100);
       return JSON.stringify({
         provider: data.provider, tracks: data.tracks_played,
-        energy: data.avg_energy, valence: data.avg_valence, tempo: data.avg_tempo,
+        energy, valence, tempo: data.avg_tempo,
         listening_min: data.listening_minutes, late_night: data.late_night_listening,
         mood: data.dominant_mood,
+        mood_score: moodScore,
       });
     }
 
     case 'get_tasks': {
       const { data } = await supabase.from('task_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle();
       if (!data) return 'No task data for this date.';
+      // Compute task-energy match from today's CRS
+      const { data: crs } = await supabase.from('crs_scores').select('score').eq('user_id', userId).eq('date', date).maybeSingle();
+      const pending = data.pending_count ?? 0;
+      const overdue = data.overdue_count ?? 0;
+      const velocity = data.velocity ?? 0;
+      const procrastinationIndex = Math.min(30, overdue * 2 + (velocity < 0.3 ? 5 : velocity < 0.7 ? 2 : 0));
+      const crsScore = crs?.score ?? 50;
+      const taskLoadScore = Math.min(100, pending * 3 + overdue * 5);
+      const taskEnergyMatch = Math.max(0, 100 - Math.abs(crsScore - taskLoadScore));
       return JSON.stringify({
-        pending: data.pending_count, overdue: data.overdue_count,
-        completed_today: data.completed_today, velocity: data.velocity,
+        pending, overdue,
+        completed_today: data.completed_today, velocity,
         urgent_titles: data.pending_titles ?? [],
+        procrastination_index: procrastinationIndex,
+        task_energy_match: taskEnergyMatch,
+        task_load_score: taskLoadScore,
+        current_energy: crsScore,
+        interpretation: overdue >= 3 ? 'pile-up detected — defer or delegate'
+          : taskLoadScore > 70 && crsScore < 50 ? 'overload risk'
+          : taskLoadScore < 30 && crsScore > 70 ? 'under-utilized — peak energy for deep work'
+          : 'on track',
+      });
+    }
+
+    case 'get_screen_time': {
+      const { data } = await supabase.from('screen_time_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle();
+      if (!data) {
+        const { data: recent } = await supabase.from('screen_time_metrics').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle();
+        if (!recent) return 'No RescueTime screen time data. Connect RescueTime to track screen habits.';
+        return JSON.stringify({ ...recent, note: 'most recent available' });
+      }
+      const productive = data.productive_hours ?? 0;
+      const distracted = data.distracted_hours ?? 0;
+      const total = productive + distracted + (data.neutral_hours ?? 0);
+      const screenQuality = total > 0 ? Math.round((productive / total) * 100) : 0;
+      return JSON.stringify({
+        productive_hours: productive, distracted_hours: distracted,
+        neutral_hours: data.neutral_hours, total_hours: data.total_hours,
+        productivity_score: data.productivity_score,
+        top_category: data.top_category,
+        late_night_screen: data.late_night_screen,
+        focus_sessions: data.focus_sessions ?? 0,
+        screen_quality: screenQuality,
+        interpretation: screenQuality >= 70 ? 'high-quality screen time'
+          : screenQuality >= 50 ? 'mixed — moderate distraction'
+          : 'low quality — distraction dominant',
+      });
+    }
+
+    case 'get_master_metrics': {
+      const { data } = await supabase.from('master_metrics').select('*').eq('user_id', userId).eq('date', date).maybeSingle();
+      if (!data) {
+        const { data: recent } = await supabase.from('master_metrics').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle();
+        if (!recent) return 'No master metrics computed yet. Run build-intelligence.';
+        return JSON.stringify({ ...recent, note: 'most recent available' });
+      }
+      return JSON.stringify({
+        cognitive_load: data.cognitive_load,
+        day_strain: data.strain,
+        sleep_debt: data.sleep_debt,
+        burnout_trajectory: data.burnout_trajectory,
+        recovery_load_balance: data.strain && data.sleep_debt
+          ? ((data.strain.score ?? 0) - ((data.sleep_debt.debtHours ?? 0) * 2)).toFixed(1)
+          : null,
+        interpretation: data.burnout_trajectory?.status === 'at_risk' ? 'burnout risk elevated — protect recovery'
+          : (data.cognitive_load?.score ?? 0) >= 70 ? 'cognitive overload today'
+          : (data.sleep_debt?.debtHours ?? 0) > 3 ? 'sleep debt accumulating'
+          : 'metrics in sustainable range',
+      });
+    }
+
+    case 'get_correlations': {
+      const [{ data: correlations }, { data: patterns }] = await Promise.all([
+        supabase.from('spots').select('date, title, detail, severity').eq('user_id', userId).eq('type', 'correlation').order('date', { ascending: false }).limit(10),
+        supabase.from('patterns').select('type, summary, confidence, evidence_count').eq('user_id', userId).order('confidence', { ascending: false }).limit(10),
+      ]);
+      const correlationsList = correlations ?? [];
+      const patternsList = patterns ?? [];
+      if (correlationsList.length === 0 && patternsList.length === 0) {
+        return 'No cross-domain correlations discovered yet. Waldo needs more data across multiple sources.';
+      }
+      return JSON.stringify({
+        correlations: correlationsList.map((s: any) => ({ date: s.date, title: s.title, detail: s.detail, severity: s.severity })),
+        promoted_patterns: patternsList.map((p: any) => ({
+          type: p.type, summary: p.summary,
+          confidence: ((p.confidence ?? 0) * 100).toFixed(0) + '%',
+          evidence_count: p.evidence_count,
+        })),
+        total_correlations: correlationsList.length,
+        total_patterns: patternsList.length,
       });
     }
 

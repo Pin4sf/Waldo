@@ -125,6 +125,33 @@ const READ_TOOLS: Tool[] = [
       required: ['query'],
     },
   },
+  {
+    name: 'get_screen_time',
+    description: 'Get RescueTime screen time metrics for a date: productive vs distracting hours, productivity score 0-100, top category, late-night screen usage. Use when user asks about focus, productivity, or digital habits.',
+    input_schema: {
+      type: 'object',
+      properties: { date: { type: 'string', description: 'Date in YYYY-MM-DD. Omit for most recent.' } },
+      required: [],
+    },
+  },
+  {
+    name: 'get_master_metrics',
+    description: 'Get master metrics for a date: Daily Cognitive Load (0-100), Day Strain (0-21), Sleep Debt (hours), Burnout Trajectory (-1 to +1), Recovery-Load Balance. These are the "how overloaded am I?" and "am I heading toward burnout?" numbers. Use for high-level wellbeing queries.',
+    input_schema: {
+      type: 'object',
+      properties: { date: { type: 'string', description: 'Date in YYYY-MM-DD. Omit for most recent.' } },
+      required: [],
+    },
+  },
+  {
+    name: 'get_correlations',
+    description: 'Get cross-domain correlations Waldo has discovered: meeting load vs next-day CRS, after-hours email vs sleep, task overload vs energy. Use when user asks "how does X affect Y?" questions.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
 ];
 
 const WRITE_TOOLS: Tool[] = [
@@ -190,19 +217,19 @@ export function getToolsForTrigger(triggerType: TriggerMode): Tool[] {
   switch (triggerType) {
     case 'morning_wag':
       return [
-        ...readNames(['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks', 'search_episodes']),
+        ...readNames(['get_crs', 'get_health', 'get_schedule', 'get_communication', 'get_trends', 'read_memory', 'get_mood', 'get_tasks', 'get_master_metrics', 'search_episodes']),
         ...writeNames(['propose_action']),
       ];
     case 'fetch_alert':
-      return readNames(['get_crs', 'get_health', 'get_schedule', 'get_communication', 'read_memory', 'get_spots', 'search_episodes']);
+      return readNames(['get_crs', 'get_health', 'get_schedule', 'get_communication', 'read_memory', 'get_spots', 'get_master_metrics', 'search_episodes']);
     case 'evening_review':
       return [
-        ...readNames(['get_crs', 'get_health', 'get_schedule', 'get_trends', 'read_memory', 'get_mood', 'get_tasks', 'search_episodes']),
+        ...readNames(['get_crs', 'get_health', 'get_schedule', 'get_communication', 'get_trends', 'read_memory', 'get_mood', 'get_tasks', 'get_screen_time', 'get_master_metrics', 'search_episodes']),
         ...writeNames(['propose_action']),
       ];
     case 'onboarding':
       return [...readNames(['read_memory']), ...writeNames(['update_memory'])];
-    default: // conversational — full access
+    default: // conversational — full access (including new tools)
       return [...READ_TOOLS, ...WRITE_TOOLS, ...WORKSPACE_TOOLS];
   }
 }
@@ -313,21 +340,62 @@ export async function executeTool(
         `user_id=eq.${userId}&date=eq.${date}&select=meeting_load_score,event_count,total_meeting_minutes,back_to_back_count,boundary_violations,focus_gaps`
       );
       if (!row) return 'No calendar data for this date.';
+      const focusGaps = (row['focus_gaps'] as Array<{ durationMinutes: number; quality?: number }>) ?? [];
+      // Focus Time Score (0-100): weighted sum of focus gap minutes scaled to 8-hour target
+      const focusMinutes = focusGaps.reduce((s, g) => s + (g.durationMinutes ?? 0), 0);
+      const focusTimeScore = Math.min(100, Math.round((focusMinutes / 480) * 100));
+      // Schedule Density (0-100): inverse of focus time, weighted by MLS
+      const scheduleDensity = Math.min(100, Math.round(
+        ((row['meeting_load_score'] as number) / 15) * 60 +
+        ((row['back_to_back_count'] as number) ?? 0) * 10 +
+        ((row['boundary_violations'] as number) ?? 0) * 8
+      ));
+      const longestGap = focusGaps.reduce((max, g) => Math.max(max, g.durationMinutes ?? 0), 0);
       return JSON.stringify({
         mls: row['meeting_load_score'], events: row['event_count'], minutes: row['total_meeting_minutes'],
-        back_to_back: row['back_to_back_count'], boundary_violations: row['boundary_violations'], focus_gaps: row['focus_gaps'],
+        back_to_back: row['back_to_back_count'], boundary_violations: row['boundary_violations'],
+        focus_gaps: focusGaps,
+        focus_time_score: focusTimeScore,          // NEW — 0-100
+        focus_minutes_total: focusMinutes,         // NEW — raw minutes
+        longest_focus_gap_min: longestGap,         // NEW — biggest single block
+        schedule_density: scheduleDensity,         // NEW — 0-100 how packed
+        interpretation: scheduleDensity >= 70 ? 'heavy' : scheduleDensity >= 40 ? 'moderate' : 'light',
       });
     }
 
     case 'get_communication': {
       const row = await queryOne(env, 'email_metrics',
-        `user_id=eq.${userId}&date=eq.${date}&select=total_emails,sent_count,received_count,after_hours_ratio,unique_threads,volume_spike`
+        `user_id=eq.${userId}&date=eq.${date}&select=total_emails,sent_count,received_count,after_hours_ratio,after_hours_count,unique_threads,volume_spike`
       );
       if (!row) return 'No email data for this date.';
+      const total = (row['total_emails'] as number) ?? 0;
+      const afterHours = (row['after_hours_ratio'] as number) ?? 0;
+      const spike = (row['volume_spike'] as number) ?? 1;
+      // Communication Stress Index (0-100): weighted combo of volume, after-hours, and spike
+      const volumeLoad = Math.min(40, (total / 50) * 40);
+      const ahLoad = afterHours * 35;
+      const spikeLoad = Math.min(25, Math.max(0, (spike - 1) * 25));
+      const csi = Math.round(volumeLoad + ahLoad + spikeLoad);
+      // Response Pressure (0-100): sent-to-received ratio normalized + volume
+      const sent = (row['sent_count'] as number) ?? 0;
+      const received = (row['received_count'] as number) ?? 0;
+      const responseRatio = received > 0 ? sent / received : 0;
+      const responsePressure = Math.min(100, Math.round(
+        (received / 30) * 40 + Math.min(60, responseRatio * 30)
+      ));
       return JSON.stringify({
-        total: row['total_emails'], sent: row['sent_count'], received: row['received_count'],
-        after_hours: ((row['after_hours_ratio'] as number) * 100).toFixed(0) + '%',
-        threads: row['unique_threads'], volume_spike: (row['volume_spike'] as number).toFixed(1) + 'x',
+        total, sent, received,
+        after_hours_ratio: afterHours,
+        after_hours_count: row['after_hours_count'],
+        after_hours_pct: (afterHours * 100).toFixed(0) + '%',
+        threads: row['unique_threads'],
+        volume_spike: spike.toFixed(1) + 'x',
+        csi,                                       // NEW — Communication Stress Index 0-100
+        response_pressure: responsePressure,       // NEW — 0-100
+        csi_level: csi >= 70 ? 'high' : csi >= 40 ? 'moderate' : 'low',
+        interpretation: afterHours > 0.4 ? 'boundary violations — work bleeding into recovery'
+          : spike > 1.5 ? 'volume spike — unusual pressure today'
+          : 'normal',
       });
     }
 
@@ -365,21 +433,51 @@ export async function executeTool(
     case 'get_mood': {
       const row = await queryOne(env, 'mood_metrics', `user_id=eq.${userId}&date=eq.${date}&select=provider,tracks_played,avg_energy,avg_valence,avg_tempo,listening_minutes,late_night_listening,dominant_mood`);
       if (!row) return 'No music/mood data for this date.';
+      const energy = (row['avg_energy'] as number) ?? 0;
+      const valence = (row['avg_valence'] as number) ?? 0;
+      // Mood Score (0-100): weighted combination of valence and energy
+      const moodScore = Math.round((valence * 0.6 + energy * 0.4) * 100);
       return JSON.stringify({
         provider: row['provider'], tracks: row['tracks_played'],
-        energy: row['avg_energy'], valence: row['avg_valence'], tempo: row['avg_tempo'],
+        energy, valence, tempo: row['avg_tempo'],
         listening_min: row['listening_minutes'], late_night: row['late_night_listening'],
         mood: row['dominant_mood'],
+        mood_score: moodScore,                     // NEW — 0-100
+        interpretation: late_night_interpret(row['late_night_listening'] as boolean, energy, valence),
       });
     }
 
     case 'get_tasks': {
       const row = await queryOne(env, 'task_metrics', `user_id=eq.${userId}&date=eq.${date}&select=pending_count,overdue_count,completed_today,velocity,pending_titles`);
       if (!row) return 'No task data for this date.';
+      // Also get today's CRS for task-energy match
+      const crs = await queryOne(env, 'crs_scores', `user_id=eq.${userId}&date=eq.${date}&select=score,zone`);
+      const pending = (row['pending_count'] as number) ?? 0;
+      const overdue = (row['overdue_count'] as number) ?? 0;
+      const velocity = (row['velocity'] as number) ?? 0;
+      // Procrastination Index (0-30 days): rough estimate from overdue ratio + low velocity
+      const procrastinationIndex = Math.min(30,
+        overdue * 2 + (velocity < 0.3 ? 5 : velocity < 0.7 ? 2 : 0)
+      );
+      // Task-Energy Match (0-100): high when energy matches task load
+      const crsScore = (crs?.['score'] as number) ?? 50;
+      const taskLoadScore = Math.min(100, (pending * 3 + overdue * 5));
+      // Match is good when: low tasks + low energy OR high tasks + high energy
+      // Bad when: high tasks + low energy (overload) OR low tasks + high energy (waste)
+      const energyTaskDelta = Math.abs(crsScore - taskLoadScore);
+      const taskEnergyMatch = Math.max(0, 100 - energyTaskDelta);
       return JSON.stringify({
-        pending: row['pending_count'], overdue: row['overdue_count'],
-        completed_today: row['completed_today'], velocity: row['velocity'],
+        pending, overdue,
+        completed_today: row['completed_today'], velocity,
         urgent_titles: row['pending_titles'] ?? [],
+        procrastination_index: procrastinationIndex,    // NEW — 0-30
+        task_energy_match: taskEnergyMatch,             // NEW — 0-100
+        task_load_score: taskLoadScore,                 // NEW — 0-100
+        current_energy: crsScore,
+        interpretation: overdue >= 3 ? 'pile-up detected — defer or delegate'
+          : taskLoadScore > 70 && crsScore < 50 ? 'overload risk — low energy against high load'
+          : taskLoadScore < 30 && crsScore > 70 ? 'under-utilized — peak energy for deep work'
+          : 'on track',
       });
     }
 
@@ -461,9 +559,120 @@ export async function executeTool(
       }
     }
 
+    case 'get_screen_time': {
+      const row = await queryOne(env, 'screen_time_metrics',
+        `user_id=eq.${userId}&date=eq.${date}&select=productive_hours,distracted_hours,neutral_hours,total_hours,productivity_score,top_category,late_night_screen,focus_sessions`
+      );
+      if (!row) {
+        // Try most recent if today has no data
+        const recent = await queryOne(env, 'screen_time_metrics',
+          `user_id=eq.${userId}&order=date.desc&limit=1&select=date,productive_hours,distracted_hours,neutral_hours,total_hours,productivity_score,top_category,late_night_screen,focus_sessions`
+        );
+        if (!recent) return 'No RescueTime screen time data. Connect RescueTime to track screen habits.';
+        return JSON.stringify({
+          date: recent['date'],
+          productive_hours: recent['productive_hours'], distracted_hours: recent['distracted_hours'],
+          neutral_hours: recent['neutral_hours'], total_hours: recent['total_hours'],
+          productivity_score: recent['productivity_score'],
+          top_category: recent['top_category'],
+          late_night_screen: recent['late_night_screen'],
+          focus_sessions: recent['focus_sessions'],
+          note: 'most recent available',
+        });
+      }
+      const productive = (row['productive_hours'] as number) ?? 0;
+      const distracted = (row['distracted_hours'] as number) ?? 0;
+      const total = productive + distracted + ((row['neutral_hours'] as number) ?? 0);
+      // Screen Time Quality (0-100): productive ratio
+      const screenQuality = total > 0 ? Math.round((productive / total) * 100) : 0;
+      return JSON.stringify({
+        productive_hours: productive, distracted_hours: distracted,
+        neutral_hours: row['neutral_hours'], total_hours: row['total_hours'],
+        productivity_score: row['productivity_score'],
+        top_category: row['top_category'],
+        late_night_screen: row['late_night_screen'],
+        focus_sessions: row['focus_sessions'] ?? 0,
+        screen_quality: screenQuality,                  // NEW — 0-100
+        interpretation: screenQuality >= 70 ? 'high-quality screen time'
+          : screenQuality >= 50 ? 'mixed — moderate distraction'
+          : 'low quality — distraction dominant',
+      });
+    }
+
+    case 'get_master_metrics': {
+      const row = await queryOne(env, 'master_metrics',
+        `user_id=eq.${userId}&date=eq.${date}&select=cognitive_load,strain,sleep_debt,burnout_trajectory,resilience`
+      );
+      if (!row) {
+        const recent = await queryOne(env, 'master_metrics',
+          `user_id=eq.${userId}&order=date.desc&limit=1&select=date,cognitive_load,strain,sleep_debt,burnout_trajectory,resilience`
+        );
+        if (!recent) return 'No master metrics computed yet. Run build-intelligence to compute.';
+        return JSON.stringify({ ...recent, note: 'most recent available' });
+      }
+      const cog = row['cognitive_load'] as any;
+      const strain = row['strain'] as any;
+      const debt = row['sleep_debt'] as any;
+      const burnout = row['burnout_trajectory'] as any;
+      return JSON.stringify({
+        cognitive_load: cog ? {
+          score: cog.score, level: cog.level,
+          components: cog.components, summary: cog.summary,
+        } : null,
+        day_strain: strain ? { score: strain.score, level: strain.level, summary: strain.summary } : null,
+        sleep_debt: debt ? { hours: debt.debtHours, direction: debt.direction, summary: debt.summary } : null,
+        burnout_trajectory: burnout ? {
+          score: burnout.score,              // -1 to +1
+          status: burnout.status,            // recovering / stable / elevated / at_risk
+          components: burnout.components,
+          summary: burnout.summary,
+        } : null,
+        recovery_load_balance: strain && debt
+          ? (strain.score - (debt.debtHours * 2)).toFixed(1)  // NEW — heuristic balance
+          : null,
+        interpretation: burnout?.status === 'at_risk' ? 'burnout risk elevated — protect recovery'
+          : cog?.score >= 70 ? 'cognitive overload today'
+          : debt?.debtHours > 3 ? 'sleep debt accumulating'
+          : 'metrics in sustainable range',
+      });
+    }
+
+    case 'get_correlations': {
+      // Returns cross-domain correlations from spots table (type=correlation) + patterns
+      const [correlationSpots, allPatterns] = await Promise.all([
+        queryMany(env, 'spots', `user_id=eq.${userId}&type=eq.correlation&order=date.desc&limit=10&select=date,title,detail,severity`),
+        queryMany(env, 'patterns', `user_id=eq.${userId}&order=confidence.desc&limit=10&select=type,summary,confidence,evidence_count`),
+      ]);
+      if (correlationSpots.length === 0 && allPatterns.length === 0) {
+        return 'No cross-domain correlations discovered yet. Waldo needs more data across multiple sources.';
+      }
+      return JSON.stringify({
+        correlations: correlationSpots.map(s => ({
+          date: s['date'], title: s['title'], detail: s['detail'],
+          severity: s['severity'],
+        })),
+        promoted_patterns: allPatterns.map(p => ({
+          type: p['type'], summary: p['summary'],
+          confidence: ((p['confidence'] as number) * 100).toFixed(0) + '%',
+          evidence_count: p['evidence_count'],
+        })),
+        total_correlations: correlationSpots.length,
+        total_patterns: allPatterns.length,
+      });
+    }
+
     default:
       return `Unknown tool: ${name}`;
   }
+}
+
+// Helper for mood interpretation
+function late_night_interpret(lateNight: boolean, energy: number, valence: number): string {
+  if (lateNight && energy > 0.7) return 'late-night high-energy listening — may delay sleep onset';
+  if (lateNight) return 'late-night listening detected';
+  if (valence < 0.3) return 'low valence — melancholic mood';
+  if (energy > 0.8 && valence > 0.7) return 'energized and positive';
+  return 'normal listening pattern';
 }
 
 // ─── Narrative Synthesis ─────────────────────────────────────────
