@@ -26,35 +26,15 @@ const ZONE_COLORS: Record<string, string> = {
 
 /** Generate a plausible energy curve from CRS + sleep data */
 function defaultEnergyCurve(score: number): number[] {
-  const curve: number[] = [];
-  const normalized = score / 100;
-  for (let h = 0; h < 24; h++) {
-    let energy: number;
-    if (h >= 0 && h < 6) {
-      // Sleep hours — low
-      energy = 0.15 + Math.random() * 0.1;
-    } else if (h >= 6 && h < 8) {
-      // Waking up — ramping
-      energy = 0.3 + (h - 6) * 0.2 + Math.random() * 0.1;
-    } else if (h >= 8 && h < 12) {
-      // Morning peak
-      energy = 0.7 + normalized * 0.3 + Math.random() * 0.05;
-    } else if (h >= 12 && h < 14) {
-      // Post-lunch dip
-      energy = 0.5 + normalized * 0.15 + Math.random() * 0.05;
-    } else if (h >= 14 && h < 18) {
-      // Afternoon — moderate
-      energy = 0.45 + normalized * 0.2 + Math.random() * 0.05;
-    } else if (h >= 18 && h < 21) {
-      // Evening wind-down
-      energy = 0.35 + (21 - h) * 0.05 + Math.random() * 0.05;
-    } else {
-      // Late night
-      energy = 0.2 + Math.random() * 0.1;
-    }
-    curve.push(Math.min(1, Math.max(0.1, energy)));
-  }
-  return curve;
+  const normalized = Math.max(0.2, score / 100);
+  return Array.from({ length: 24 }, (_, h) => {
+    const circadianWave = 0.5 + 0.5 * Math.sin(((h - 4) / 24) * Math.PI * 2);
+    const afternoonDip = h >= 12 && h <= 14 ? 0.12 : 0;
+    const eveningFade = h >= 18 ? (h - 18) * 0.035 : 0;
+    const overnightFloor = h < 6 || h > 22 ? 0.18 : 0;
+    const base = overnightFloor || (0.24 + circadianWave * 0.48 + normalized * 0.18 - afternoonDip - eveningFade);
+    return Math.max(0.12, Math.min(1, parseFloat(base.toFixed(3))));
+  });
 }
 
 export function RadialGauge({ score, zone, hourlyEnergy, size = 200, compact = false, showLabels }: RadialGaugeProps) {

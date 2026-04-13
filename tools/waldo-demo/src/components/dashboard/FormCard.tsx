@@ -46,7 +46,8 @@ function CrsDayChart({ score }: { score: number }) {
     else if (h < 15) v = 0.62 + normalized * 0.15;
     else if (h < 18) v = 0.58 + normalized * 0.12 - (h - 15) * 0.01;
     else v = 0.50 + normalized * 0.1 - (h - 18) * 0.02;
-    v = Math.max(0.3, Math.min(1, v + (Math.random() - 0.5) * 0.02));
+    v += Math.sin(h * 1.7) * 0.012;
+    v = Math.max(0.3, Math.min(1, v));
     hourlyValues.push({ h, v });
   }
 

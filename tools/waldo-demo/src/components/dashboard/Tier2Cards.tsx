@@ -12,31 +12,69 @@
  */
 import { useState } from 'react';
 import type { DayResponse } from '../../types.js';
+import type { DashboardHistoryContext } from './history.js';
 
-interface CardProps { data: DayResponse; }
+interface CardProps {
+  data: DayResponse;
+  history?: DashboardHistoryContext;
+}
 
 // ─── Shared helpers ────────────────────────────────────────────────────────
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
 
-function seeded(seed: number): () => number {
-  let s = seed;
-  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0xffffffff; };
+function fallbackSeries(length: number, current: number, span: number, min: number, max: number) {
+  return Array.from({ length }, (_, index) => {
+    if (index === length - 1) return current;
+    const wave = Math.sin((index + 1) * 1.7 + current * 0.05) * span;
+    const drift = Math.cos((index + 1) * 0.65) * (span * 0.35);
+    return Math.round(clamp(current + wave + drift, min, max));
+  });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HRV CARD
-// ─────────────────────────────────────────────────────────────────────────────
-
-function generateHRVHistory(todayAvg: number): { day: number; value: number }[] {
-  const rand = seeded(Math.round(todayAvg * 31));
-  return Array.from({ length: 30 }, (_, i) => ({
-    day: i,
-    value: Math.round(clamp(todayAvg + (rand() - 0.5) * 24, 20, 120)),
-  }));
+function cleanSeries(values: Array<number | null> | undefined, fallback: number[]) {
+  const cleaned = (values ?? []).filter((value): value is number => value !== null && Number.isFinite(value));
+  return cleaned.length > 1 ? cleaned : fallback;
 }
 
-export function HRVCard({ data }: CardProps) {
+function buildSleepStepPath(
+  stages: { core: number; deep: number; rem: number; awake: number },
+  width: number,
+  height: number,
+) {
+  const order = ['awake', 'core', 'deep', 'core', 'rem', 'core', 'deep', 'core', 'rem', 'awake'] as const;
+  const weights = {
+    awake: stages.awake,
+    rem: stages.rem,
+    core: stages.core,
+    deep: stages.deep,
+  };
+  const stageY: Record<(typeof order)[number], number> = {
+    awake: height * 0.16,
+    rem: height * 0.34,
+    core: height * 0.58,
+    deep: height * 0.82,
+  };
+
+  const total = Object.values(weights).reduce((sum, value) => sum + value, 0) || 1;
+  const dominant = Object.entries(weights).sort((a, b) => b[1] - a[1]).map(([key]) => key) as Array<(typeof order)[number]>;
+  const points = order.map((stage, index) => {
+    const emphasis = weights[stage] / total;
+    const resolvedStage = emphasis > 0.12 ? stage : dominant[index % dominant.length] ?? 'core';
+    return {
+      x: (index / (order.length - 1)) * width,
+      y: stageY[resolvedStage],
+    };
+  });
+
+  let path = `M ${points[0]!.x} ${points[0]!.y}`;
+  for (let index = 1; index < points.length; index += 1) {
+    path += ` H ${points[index]!.x} V ${points[index]!.y}`;
+  }
+  return path;
+}
+
+export function HRVCard({ data, history }: CardProps) {
   const [expanded, setExpanded] = useState(false);
   const hrv = data.hrv;
   const crsHrv = data.crs.hrv;
@@ -52,33 +90,38 @@ export function HRVCard({ data }: CardProps) {
   }
 
   const todayVal = hrv?.avg ?? 0;
-  const history = generateHRVHistory(todayVal);
-  const baselineAvg = Math.round(history.reduce((s, d) => s + d.value, 0) / history.length);
+  const historyValues = cleanSeries(history?.hrv30d, fallbackSeries(30, todayVal, 12, 20, 120));
+  const previousValue = history?.previousEntry?.hrvAvg ?? historyValues[historyValues.length - 2] ?? null;
+  const baselineAvg = Math.round(historyValues.reduce((sum, value) => sum + value, 0) / historyValues.length);
   const baselineLo = Math.round(baselineAvg * 0.85);
   const baselineHi = Math.round(baselineAvg * 1.15);
 
   const zone = todayVal >= baselineHi ? 'above' : todayVal >= baselineLo ? 'within' : 'below';
+  const compactDelta = previousValue === null ? todayVal - baselineAvg : todayVal - previousValue;
+  const compactLabel = compactDelta <= -3 ? 'Dropping' : compactDelta >= 3 ? 'Rising' : 'Stable';
   const zoneLabel = zone === 'above' ? 'Strong' : zone === 'within' ? 'Baseline' : 'Low';
   const zoneColor = zone === 'above' ? '#34D399' : zone === 'within' ? '#FBBF24' : '#F87171';
 
   const chartW = 240, chartH = 80, padL = 8, padR = 8, padT = 10, padB = 10;
   const innerW = chartW - padL - padR;
   const innerH = chartH - padT - padB;
-  const allVals = history.map(d => d.value);
+  const allVals = historyValues;
   const minV = Math.min(...allVals, baselineLo) - 5;
   const maxV = Math.max(...allVals, baselineHi) + 5;
-  const toX = (i: number) => padL + (i / 29) * innerW;
+  const maxIndex = Math.max(1, historyValues.length - 1);
+  const toX = (i: number) => padL + (i / maxIndex) * innerW;
   const toY = (v: number) => padT + innerH - ((v - minV) / (maxV - minV)) * innerH;
 
-  const linePath = history.map((d, i) => `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(d.value)}`).join(' ');
-  const todayX = toX(29);
+  const linePath = historyValues.map((value, i) => `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(value)}`).join(' ');
+  const todayX = toX(historyValues.length - 1);
   const todayY = toY(todayVal);
 
-  // Compact mini sparkline
-  const miniW = 80, miniH = 32;
-  const miniToX = (i: number) => (i / 29) * miniW;
-  const miniToY = (v: number) => miniH - ((v - minV) / (maxV - minV)) * miniH;
-  const miniPath = history.map((d, i) => `${i === 0 ? 'M' : 'L'} ${miniToX(i)} ${miniToY(d.value)}`).join(' ');
+  const compactSeries = historyValues.slice(-7);
+  const compactMaxIndex = Math.max(1, compactSeries.length - 1);
+  const compactToX = (index: number) => 18 + (index / compactMaxIndex) * 150;
+  const compactToY = (value: number) => 74 - ((value - minV) / (maxV - minV)) * 24;
+  const compactAverageY = compactToY(baselineAvg);
+  const arrow = compactDelta >= 0 ? '↑' : '↓';
 
   if (!expanded) {
     return (
@@ -86,19 +129,57 @@ export function HRVCard({ data }: CardProps) {
         <div className="card-compact-row">
           {/* Visual-first: chart takes right side prominently */}
           <div className="card-compact-text">
-            <span className={`zone-badge zone-${zone === 'above' ? 'peak' : zone === 'within' ? 'steady' : 'flagging'}`}>{zoneLabel}</span>
+            <span className="zone-badge">{compactLabel}</span>
             <h3 className="dash-card-title">HRV</h3>
             <p className="dash-card-narrative">{crsHrv.factors?.[0] ?? `${todayVal}ms · ${zoneLabel.toLowerCase()} vs baseline.`}</p>
           </div>
           <div className="card-compact-visual">
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 26, fontWeight: 500, fontFamily: 'var(--font-body)', color: zoneColor }}>{todayVal}<span style={{ fontSize: 10, color: '#9a9a96' }}>ms</span></div>
-              <svg width={100} height={40} viewBox={`0 0 ${miniW} ${miniH}`} style={{ marginTop: 4 }}>
-                <rect x={0} y={miniToY(baselineHi)} width={miniW} height={Math.max(1, miniToY(baselineLo) - miniToY(baselineHi))} fill="rgba(251,148,63,0.15)" rx={2} />
-                <path d={miniPath} fill="none" stroke={zoneColor} strokeWidth={1.5} strokeLinecap="round" />
-                <circle cx={miniToX(29)} cy={miniToY(todayVal)} r={3} fill={zoneColor} />
+            <div style={{
+              background: 'white',
+              border: '1px solid rgba(26,26,26,0.08)',
+              borderRadius: 16,
+              padding: '14px 16px 12px',
+              minWidth: 226,
+            }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, border: '1px solid rgba(26,26,26,0.08)', borderRadius: 12, padding: '8px 10px', marginBottom: 16 }}>
+                <span style={{ fontSize: 18, fontWeight: 500, lineHeight: 1, color: '#1a1a1a' }}>{Math.round(todayVal)} ms</span>
+                <span style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 6,
+                  background: '#fb943f',
+                  color: 'white',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}>{arrow}</span>
+              </div>
+              <svg width={184} height={54} viewBox="0 0 184 54">
+                <line x1={12} y1={compactAverageY} x2={172} y2={compactAverageY} stroke="#fb943f" strokeWidth={1.5} />
+                <text x={12} y={compactAverageY + 11} textAnchor="start" fill="#d0ccc5" fontSize={7} fontFamily="'DM Sans', sans-serif">avg</text>
+                {compactSeries.map((value, index) => {
+                  const isToday = index === compactSeries.length - 1;
+                  const isYesterday = !isToday && previousValue !== null && value === previousValue && index === compactSeries.length - 2;
+                  return (
+                    <circle
+                      key={`${value}-${index}`}
+                      cx={compactToX(index)}
+                      cy={compactToY(value)}
+                      r={isToday ? 5 : 4.5}
+                      fill={isToday ? '#3485ff' : isYesterday ? '#fb943f' : 'white'}
+                      stroke={isToday ? '#3485ff' : isYesterday ? '#fb943f' : '#d4d4d0'}
+                      strokeWidth={1.2}
+                    />
+                  );
+                })}
               </svg>
-              <div style={{ fontSize: 8, color: '#9a9a96', marginTop: 2 }}>30-day · baseline band</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, fontSize: 11, color: '#9a9a96' }}>
+                <span>Yesterday</span>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#fb943f', display: 'inline-block' }} />
+                <span>{previousValue !== null ? Math.round(previousValue) : baselineAvg}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -143,11 +224,11 @@ export function HRVCard({ data }: CardProps) {
 
       {/* Stat pills */}
       <div className="component-bars" style={{ marginTop: 10 }}>
-        {[
-          { label: 'Today', value: `${todayVal}ms`, status: zoneLabel.toLowerCase() },
-          { label: 'Min (30d)', value: `${Math.min(...allVals)}ms`, status: '--' },
-          { label: 'Max (30d)', value: `${Math.max(...allVals)}ms`, status: '--' },
-          { label: 'Baseline', value: `${baselineLo}–${baselineHi}ms`, status: 'your range' },
+          {[
+            { label: 'Today', value: `${todayVal}ms`, status: zoneLabel.toLowerCase() },
+            { label: 'Min (30d)', value: `${Math.min(...allVals)}ms`, status: '--' },
+            { label: 'Max (30d)', value: `${Math.max(...allVals)}ms`, status: '--' },
+            { label: 'Baseline', value: `${baselineLo}–${baselineHi}ms`, status: 'your range' },
         ].map((row, i) => (
           <div key={i} className="component-row">
             <div className="component-label">
@@ -439,20 +520,7 @@ export function MotionCard({ data }: CardProps) {
 // SLEEP DEBT CARD
 // ─────────────────────────────────────────────────────────────────────────────
 
-function generateSleepDebtHistory(debtHours: number): number[] {
-  const rand = seeded(Math.round(debtHours * 100));
-  const vals: number[] = [];
-  let running = Math.max(0, debtHours + (rand() - 0.5) * 1.5);
-  for (let i = 0; i < 7; i++) {
-    running = clamp(running + (rand() - 0.6) * 0.8, 0, 6);
-    vals.push(parseFloat(running.toFixed(1)));
-  }
-  // Last day = today's value
-  vals[6] = debtHours;
-  return vals;
-}
-
-export function SleepDebtCard({ data }: CardProps) {
+export function SleepDebtCard({ data, history }: CardProps) {
   const [expanded, setExpanded] = useState(false);
   const debt = data.sleepDebt;
 
@@ -467,29 +535,32 @@ export function SleepDebtCard({ data }: CardProps) {
   }
 
   const { debtHours, direction } = debt;
-  const history = generateSleepDebtHistory(debtHours);
+  const historyValues = cleanSeries(
+    history?.sleepDebt7d,
+    fallbackSeries(7, Math.round(debtHours * 10) / 10, 0.8, 0, 6).map((value) => parseFloat(value.toFixed(1))),
+  ).map((value) => parseFloat(value.toFixed(1)));
   const zoneLabel = debtHours <= 0.5 ? 'Repaid' : debtHours <= 1.5 ? 'Mild' : debtHours <= 3 ? 'Moderate' : 'High';
   const zoneColor = debtHours <= 0.5 ? '#34D399' : debtHours <= 1.5 ? '#FBBF24' : '#F87171';
   const arrow = direction === 'increasing' ? '↑' : direction === 'decreasing' ? '↓' : '→';
 
   // Stepped path
   const chartW = 200, chartH = 60;
-  const maxVal = Math.max(...history, 2);
+  const maxVal = Math.max(...historyValues, 2);
   const toX = (i: number) => (i / 6) * chartW;
   const toY = (v: number) => chartH - (v / maxVal) * chartH;
 
-  let stepPath = `M ${toX(0)} ${toY(history[0] ?? 0)}`;
-  for (let i = 1; i < history.length; i++) {
-    stepPath += ` H ${toX(i)} V ${toY(history[i] ?? 0)}`;
+  let stepPath = `M ${toX(0)} ${toY(historyValues[0] ?? 0)}`;
+  for (let i = 1; i < historyValues.length; i++) {
+    stepPath += ` H ${toX(i)} V ${toY(historyValues[i] ?? 0)}`;
   }
 
   // Compact mini version
   const miniW = 80, miniH = 36;
   const mToX = (i: number) => (i / 6) * miniW;
   const mToY = (v: number) => miniH - (v / maxVal) * miniH;
-  let miniStep = `M ${mToX(0)} ${mToY(history[0] ?? 0)}`;
-  for (let i = 1; i < history.length; i++) {
-    miniStep += ` H ${mToX(i)} V ${mToY(history[i] ?? 0)}`;
+  let miniStep = `M ${mToX(0)} ${mToY(historyValues[0] ?? 0)}`;
+  for (let i = 1; i < historyValues.length; i++) {
+    miniStep += ` H ${mToX(i)} V ${mToY(historyValues[i] ?? 0)}`;
   }
 
   if (!expanded) {
@@ -510,7 +581,7 @@ export function SleepDebtCard({ data }: CardProps) {
               <svg width={100} height={40} viewBox={`0 0 ${miniW} ${miniH}`} style={{ marginTop: 4 }}>
                 <path d={`${miniStep} V ${miniH} H ${mToX(0)} Z`} fill={zoneColor} opacity={0.08} />
                 <path d={miniStep} fill="none" stroke={zoneColor} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx={mToX(6)} cy={mToY(history[6] ?? 0)} r={3} fill={zoneColor} />
+                <circle cx={mToX(6)} cy={mToY(historyValues[6] ?? 0)} r={3} fill={zoneColor} />
               </svg>
               <div style={{ fontSize: 8, color: '#9a9a96', marginTop: 2 }}>7-day · {direction}</div>
             </div>
@@ -544,7 +615,7 @@ export function SleepDebtCard({ data }: CardProps) {
           {/* Step line */}
           <path d={stepPath} fill="none" stroke={zoneColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
           {/* Today dot */}
-          <circle cx={toX(6)} cy={toY(history[6] ?? 0)} r={4} fill={zoneColor} />
+          <circle cx={toX(6)} cy={toY(historyValues[6] ?? 0)} r={4} fill={zoneColor} />
         </svg>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#9a9a96', marginTop: 4 }}>
           <span>6 days ago</span>
@@ -586,15 +657,7 @@ export function SleepDebtCard({ data }: CardProps) {
 // RESTING HR CARD
 // ─────────────────────────────────────────────────────────────────────────────
 
-function generateRHRHistory(today: number): number[] {
-  const rand = seeded(Math.round(today * 7));
-  return Array.from({ length: 7 }, (_, i) => {
-    if (i === 6) return today;
-    return Math.round(clamp(today + (rand() - 0.5) * 8, 40, 100));
-  });
-}
-
-export function RestingHRCard({ data }: CardProps) {
+export function RestingHRCard({ data, history }: CardProps) {
   const [expanded, setExpanded] = useState(false);
   const rhr = data.restingHR;
 
@@ -608,18 +671,18 @@ export function RestingHRCard({ data }: CardProps) {
     );
   }
 
-  const history = generateRHRHistory(rhr);
-  const trend = history[6]! > history[5]! ? 'rising' : history[6]! < history[5]! ? 'dropping' : 'stable';
+  const historyValues = cleanSeries(history?.rhr7d, fallbackSeries(7, rhr, 5, 40, 100));
+  const trend = historyValues[6]! > historyValues[5]! ? 'rising' : historyValues[6]! < historyValues[5]! ? 'dropping' : 'stable';
   const trendArrow = trend === 'rising' ? '↑' : trend === 'dropping' ? '↓' : '→';
   const trendColor = trend === 'rising' ? '#F87171' : trend === 'dropping' ? '#34D399' : '#9a9a96';
   const zoneLabel = rhr < 60 ? 'Athletic' : rhr < 72 ? 'Normal' : rhr < 85 ? 'Elevated' : 'High';
   const zoneColor = rhr < 60 ? '#34D399' : rhr < 72 ? '#34D399' : rhr < 85 ? '#FBBF24' : '#F87171';
 
   const miniW = 80, miniH = 32;
-  const minV = Math.min(...history) - 3, maxV = Math.max(...history) + 3;
+  const minV = Math.min(...historyValues) - 3, maxV = Math.max(...historyValues) + 3;
   const mToX = (i: number) => (i / 6) * miniW;
   const mToY = (v: number) => miniH - ((v - minV) / (maxV - minV)) * miniH;
-  const miniPath = history.map((v, i) => `${i === 0 ? 'M' : 'L'} ${mToX(i)} ${mToY(v)}`).join(' ');
+  const miniPath = historyValues.map((v, i) => `${i === 0 ? 'M' : 'L'} ${mToX(i)} ${mToY(v)}`).join(' ');
 
   if (!expanded) {
     return (
@@ -648,7 +711,7 @@ export function RestingHRCard({ data }: CardProps) {
   const chartW = 220, chartH = 70;
   const toX = (i: number) => 16 + (i / 6) * (chartW - 32);
   const toY = (v: number) => 10 + (chartH - 20) - ((v - minV) / (maxV - minV)) * (chartH - 20);
-  const fullPath = history.map((v, i) => `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(v)}`).join(' ');
+  const fullPath = historyValues.map((v, i) => `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(v)}`).join(' ');
   const days = ['6d', '5d', '4d', '3d', '2d', '1d', 'today'];
 
   return (
@@ -664,7 +727,7 @@ export function RestingHRCard({ data }: CardProps) {
       <div style={{ background: 'white', border: '1px solid rgba(26,26,26,0.08)', borderRadius: 16, padding: '16px 12px' }}>
         <svg width="100%" viewBox={`0 0 ${chartW} ${chartH}`}>
           <path d={fullPath} fill="none" stroke={zoneColor} strokeWidth={2} strokeLinecap="round" />
-          {history.map((v, i) => (
+          {historyValues.map((v, i) => (
             <circle key={i} cx={toX(i)} cy={toY(v)} r={i === 6 ? 4 : 2.5} fill={i === 6 ? trendColor : zoneColor} opacity={i === 6 ? 1 : 0.6} />
           ))}
           {days.map((d, i) => (
@@ -688,7 +751,7 @@ export function RestingHRCard({ data }: CardProps) {
 // SLEEP SCORE CARD
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function SleepScoreCard({ data }: CardProps) {
+export function SleepScoreCard({ data, history }: CardProps) {
   const [expanded, setExpanded] = useState(false);
   const sleep = data.sleep;
   const crsSleep = data.crs.sleep;
@@ -716,29 +779,13 @@ export function SleepScoreCard({ data }: CardProps) {
 
   // Stepped hypnogram (simplified — same as SleepCard)
   const chartW = 220, chartH = 70;
-  const stageY: Record<string, number> = { awake: 10, rem: 25, core: 45, deep: 60 };
-  const segs = 20;
-  const pts: { x: number; y: number }[] = [];
-  const rand = seeded(Math.round(sleep.durationHours * 100));
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    const x = t * chartW;
-    const cp = (t * 4) % 1;
-    let stage = 'core';
-    if (t < 0.04 || t > 0.96) stage = 'awake';
-    else if (cp < 0.15) stage = 'core';
-    else if (cp < 0.35) stage = t < 0.5 ? 'deep' : 'core';
-    else if (cp < 0.55) stage = 'core';
-    else if (cp < 0.75) stage = 'rem';
-    else stage = rand() < 0.12 ? 'awake' : 'core';
-    pts.push({ x, y: stageY[stage]! });
-  }
-  let hypnogram = `M ${pts[0]!.x} ${pts[0]!.y}`;
-  for (let i = 1; i < pts.length; i++) hypnogram += ` H ${pts[i]!.x} V ${pts[i]!.y}`;
+  const hypnogram = buildSleepStepPath(sleep.stages, chartW, chartH);
 
   const totalH = Math.floor(sleep.durationHours);
   const totalM = Math.round((sleep.durationHours - totalH) * 60);
   const durationStr = totalM > 0 ? `${totalH}h ${totalM}m` : `${totalH}h`;
+  const recentSleepHours = cleanSeries(history?.sleepHours7d, fallbackSeries(7, sleep.durationHours, 0.6, 4, 9));
+  const previousSleep = history?.previousEntry?.sleepHours ?? recentSleepHours[recentSleepHours.length - 2] ?? null;
 
   if (!expanded) {
     return (
@@ -762,6 +809,9 @@ export function SleepScoreCard({ data }: CardProps) {
                 {stageConfig.map(s => (
                   <span key={s.key} style={{ fontSize: 7, color: s.color, fontWeight: 500 }}>{s.label}</span>
                 ))}
+              </div>
+              <div style={{ fontSize: 8, color: '#9a9a96', marginTop: 4 }}>
+                {previousSleep !== null ? `yesterday · ${previousSleep.toFixed(1)}h` : 'last night'}
               </div>
             </div>
           </div>

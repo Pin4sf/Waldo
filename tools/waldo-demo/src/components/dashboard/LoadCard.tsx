@@ -6,9 +6,11 @@
  */
 import { useState } from 'react';
 import type { DayResponse } from '../../types.js';
+import type { DashboardHistoryContext } from './history.js';
 
 interface LoadCardProps {
   data: DayResponse;
+  history?: DashboardHistoryContext;
 }
 
 
@@ -24,7 +26,7 @@ function barWidthPct(minutes: number, maxMinutes: number): number {
   return Math.min(100, (minutes / maxMinutes) * 100);
 }
 
-export function LoadCard({ data }: LoadCardProps) {
+export function LoadCard({ data, history }: LoadCardProps) {
   const [expanded, setExpanded] = useState(false);
   if (!data) return null;
   const { strain, crs } = data;
@@ -44,7 +46,14 @@ export function LoadCard({ data }: LoadCardProps) {
   const zoneMinutes = strain.zoneMinutes ?? [];
   const zoneNames = strain.zoneNames ?? [];
   const maxZoneMin = Math.max(...zoneMinutes, 60);
-  const isUp = (strain.score ?? 0) >= 10;
+  const loadScore = strain.score ?? 0;
+  const recentStrain = history?.strain7d.filter((value): value is number => value !== null) ?? [];
+  const avgRef = Math.max(1, Math.round((recentStrain.length > 0
+    ? recentStrain.reduce((sum, value) => sum + value, 0) / recentStrain.length
+    : loadScore * 0.85) * 10) / 10);
+  const previousScore = history?.previousEntry?.strainScore ?? null;
+  const referenceScore = previousScore ?? avgRef;
+  const isUp = loadScore >= referenceScore;
 
   const zones = zoneMinutes.slice(0, 5).map((mins, i) => ({
     label: zoneNames[i] ?? `Zone ${i + 1}`,
@@ -57,8 +66,6 @@ export function LoadCard({ data }: LoadCardProps) {
   }));
 
   // ── Bullet graph helpers ──────────────────────────────────────
-  const loadScore = strain.score ?? 0;
-  const avgRef = Math.max(1, Math.round(loadScore * 0.85)); // simulated 7-day avg
   const BULLET_ZONES = [
     { label: 'Rest', max: 7, color: 'rgba(59,249,211,0.15)' },
     { label: 'Low', max: 11, color: 'rgba(251,191,36,0.12)' },
@@ -101,7 +108,7 @@ export function LoadCard({ data }: LoadCardProps) {
     hour: 'numeric', minute: '2-digit', hour12: true,
   }).toLowerCase();
 
-  const yesterdayScore = Math.max(0, (strain.score ?? 0) - 2);
+  const yesterdayScore = Math.max(0, previousScore ?? avgRef);
 
   // ── Compact card (default) ────────────────────────────────
   if (!expanded) {
@@ -124,11 +131,11 @@ export function LoadCard({ data }: LoadCardProps) {
             {/* Score + arrow */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div className="dash-score-badge">
-                <span className="dash-score-badge-value">{strain.score}/21</span>
+                <span className="dash-score-badge-value">{loadScore.toFixed(loadScore % 1 === 0 ? 0 : 1)}/21</span>
                 <div className="dash-score-arrow">{isUp ? '↑' : '↓'}</div>
               </div>
               <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontStyle: 'italic', color: '#9a9a96' }}>
-                avg {avgRef}/21
+                {previousScore !== null ? `yesterday · ${previousScore.toFixed(previousScore % 1 === 0 ? 0 : 1)}/21` : `avg ${avgRef}/21`}
               </span>
             </div>
             {/* Bullet graph */}
@@ -178,11 +185,11 @@ export function LoadCard({ data }: LoadCardProps) {
       <div className="dash-legend-panel" style={{ marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <div className="dash-score-badge">
-            <span className="dash-score-badge-value">{strain.score}/21</span>
+            <span className="dash-score-badge-value">{loadScore.toFixed(loadScore % 1 === 0 ? 0 : 1)}/21</span>
             <div className="dash-score-arrow">{isUp ? '↑' : '↓'}</div>
           </div>
           <span style={{ fontFamily: 'var(--font-body)', fontSize: 11, fontStyle: 'italic', color: '#9a9a96' }}>
-            7-day avg · {avgRef}/21
+            {previousScore !== null ? `Yesterday · ${previousScore.toFixed(previousScore % 1 === 0 ? 0 : 1)}/21` : `7-day avg · ${avgRef}/21`}
           </span>
         </div>
         {/* Full-width bullet graph */}
@@ -236,9 +243,9 @@ export function LoadCard({ data }: LoadCardProps) {
             <span className="component-label-status">on track</span>
           </div>
           <div className="component-value">
-            <span className="component-score">{yesterdayScore}</span>
+            <span className="component-score">{yesterdayScore.toFixed(yesterdayScore % 1 === 0 ? 0 : 1)}</span>
             <div className="component-bar-track">
-              <div className="component-bar-fill" style={{ width: `${barWidthPct(yesterdayScore, 21) * 100 / 21}%` }} />
+              <div className="component-bar-fill" style={{ width: `${(yesterdayScore / 21) * 100}%` }} />
             </div>
           </div>
         </div>
