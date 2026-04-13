@@ -4,9 +4,11 @@
  * Compact: badge + title + narrative + timestamp (left), colored hypnogram panel (right)
  */
 import type { DayResponse } from '../../types.js';
+import type { DashboardHistoryContext } from './history.js';
 
 interface SleepCardProps {
   data: DayResponse;
+  history?: DashboardHistoryContext;
 }
 
 // Figma colors for each stage band
@@ -20,7 +22,7 @@ const STAGE_CONFIG = [
 function formatDuration(hours: number): string {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
-  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+  return m > 0 ? `${h} h ${m} min` : `${h} h`;
 }
 
 /** Format ISO timestamp or time string → "11pm" / "7:30am" */
@@ -36,59 +38,57 @@ function formatSleepTime(raw: string): string {
   }
 }
 
-/** Generate step-path hypnogram from stage percentages */
-function buildHypnogram(
-  stages: { core: number; deep: number; rem: number; awake: number },
-  width: number,
-  height: number,
-): string {
-  const stageY: Record<string, number> = {
-    awake: height * 0.14,
-    rem:   height * 0.36,
-    core:  height * 0.61,
-    deep:  height * 0.86,
+function allocateBarStages(stages: { core: number; deep: number; rem: number; awake: number }, count = 11) {
+  const weights = [
+    { key: 'deep' as const, value: stages.deep },
+    { key: 'rem' as const, value: stages.rem },
+    { key: 'core' as const, value: stages.core },
+    { key: 'awake' as const, value: stages.awake },
+  ];
+  const total = weights.reduce((sum, item) => sum + item.value, 0) || 1;
+  const counts = Object.fromEntries(weights.map(({ key, value }) => [key, Math.max(value > 0 ? 1 : 0, Math.round((value / total) * count))])) as Record<'core' | 'deep' | 'rem' | 'awake', number>;
+
+  let assigned = counts.core + counts.deep + counts.rem + counts.awake;
+  while (assigned > count) {
+    const reducible = (['core', 'rem', 'deep', 'awake'] as const)
+      .find((key) => counts[key] > 1);
+    if (!reducible) break;
+    counts[reducible] -= 1;
+    assigned -= 1;
+  }
+  while (assigned < count) {
+    counts.core += 1;
+    assigned += 1;
+  }
+
+  const layout = new Array<'core' | 'deep' | 'rem' | 'awake'>(count).fill('core');
+  const preferredSlots: Record<'core' | 'deep' | 'rem' | 'awake', number[]> = {
+    deep: [1, 7],
+    rem: [2, 5, 9],
+    awake: [4, 8],
+    core: [0, 3, 6, 10],
   };
 
-  const total = stages.awake + stages.rem + stages.core + stages.deep || 1;
-  const segs = 24;
-  const pts: { x: number; y: number }[] = [];
-
-  for (let i = 0; i <= segs; i++) {
-    const t = i / segs;
-    const x = t * width;
-    const cyclePos = (t * 4) % 1;
-    let stage: string;
-
-    if (t < 0.04 || t > 0.96) {
-      stage = 'awake';
-    } else if (cyclePos < 0.12) {
-      stage = 'core';
-    } else if (cyclePos < 0.30) {
-      stage = t < 0.5 ? 'deep' : 'core';
-    } else if (cyclePos < 0.50) {
-      stage = 'core';
-    } else if (cyclePos < 0.72) {
-      stage = 'rem';
-    } else {
-      stage = Math.random() < 0.12 ? 'awake' : 'core';
+  (['deep', 'rem', 'awake', 'core'] as const).forEach((stage) => {
+    let remaining = counts[stage];
+    preferredSlots[stage].forEach((slot) => {
+      if (remaining > 0 && slot < count && layout[slot] === 'core') {
+        layout[slot] = stage;
+        remaining -= 1;
+      }
+    });
+    for (let index = 0; index < count && remaining > 0; index += 1) {
+      if (layout[index] === 'core' && stage !== 'core') {
+        layout[index] = stage;
+        remaining -= 1;
+      }
     }
+  });
 
-    // Bias toward actual stage ratios
-    const rand = Math.random();
-    if (rand < stages.awake / total * 0.3) stage = 'awake';
-    if (rand < stages.deep / total * 0.4) stage = 'deep';
-
-    pts.push({ x, y: stageY[stage]! });
-  }
-
-  let path = `M ${pts[0]!.x} ${pts[0]!.y}`;
-  for (let i = 1; i < pts.length; i++) {
-    path += ` H ${pts[i]!.x} V ${pts[i]!.y}`;
-  }
-  return path;
+  return layout;
 }
 
-export function SleepCard({ data }: SleepCardProps) {
+export function SleepCard({ data, history }: SleepCardProps) {
   if (!data) return null;
   const { sleep, crs } = data;
 
@@ -107,11 +107,15 @@ export function SleepCard({ data }: SleepCardProps) {
   const durationStr = formatDuration(sleep.durationHours);
   const sleepFactors = crs.sleep?.factors ?? [];
   const narrative = sleepFactors.length > 0 ? sleepFactors[0]! : `${durationStr} total sleep.`;
-
-  const chartW = 198;
-  const chartH = 110;
-  const bandH = chartH / 4;
-  const hypnogram = buildHypnogram(sleep.stages, chartW, chartH);
+  const previousSleepHours = history?.previousEntry?.sleepHours ?? null;
+  const previousLabel = previousSleepHours ? formatDuration(previousSleepHours) : null;
+  const delta = previousSleepHours === null ? null : sleep.durationHours - previousSleepHours;
+  const deltaIsPositive = delta === null ? true : delta >= 0;
+  const stageBars = allocateBarStages(sleep.stages).map((stage, index) => {
+    const height = [42, 64, 78, 36, 54, 68, 44, 72, 58, 66, 40][index]!;
+    const color = STAGE_CONFIG.find((item) => item.key === stage)?.line ?? '#3485ff';
+    return { stage, height, color };
+  });
 
   return (
     <div className="dash-card">
@@ -127,62 +131,74 @@ export function SleepCard({ data }: SleepCardProps) {
           </span>
         </div>
 
-        {/* Right: Figma-style hypnogram panel */}
+        {/* Right: Figma-style stage panel */}
         <div style={{
           background: 'white',
           border: '1px solid rgba(26,26,26,0.08)',
           borderRadius: 16,
-          overflow: 'hidden',
+          padding: '18px 18px 16px',
+          minWidth: 258,
           flexShrink: 0,
-          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 18,
         }}>
-          <svg width={chartW + 30} height={chartH + 20} viewBox={`0 0 ${chartW + 30} ${chartH + 20}`}>
-            {/* Colored stage bands */}
-            {STAGE_CONFIG.map((band, i) => (
-              <rect
-                key={band.key}
-                x={14} y={i * bandH}
-                width={chartW} height={bandH}
-                fill={band.bg}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 10,
+              border: '1px solid rgba(26,26,26,0.08)',
+              borderRadius: 12,
+              padding: '8px 10px',
+              fontSize: 18,
+              fontWeight: 500,
+              color: '#1a1a1a',
+              lineHeight: 1,
+            }}>
+              <span>{durationStr}</span>
+              <span style={{
+                width: 20,
+                height: 20,
+                borderRadius: 6,
+                background: '#fb943f',
+                color: 'white',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 12,
+                fontWeight: 700,
+              }}>
+                {deltaIsPositive ? '↑' : '↓'}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, minHeight: 82 }}>
+            {stageBars.map((bar, index) => (
+              <div
+                key={`${bar.stage}-${index}`}
+                style={{
+                  width: 9,
+                  height: bar.height,
+                  borderRadius: 999,
+                  background: bar.color,
+                }}
               />
             ))}
+          </div>
 
-            {/* Stage labels (centered in each band) */}
-            {STAGE_CONFIG.map((band, i) => (
-              <text
-                key={`lbl-${band.key}`}
-                x={(chartW + 14) / 2 + 7}
-                y={i * bandH + bandH / 2}
-                textAnchor="middle" dominantBaseline="central"
-                fill="#9a9a96" fontSize={8}
-                fontFamily="'DM Sans', sans-serif"
-              >
-                {band.label}
-              </text>
-            ))}
-
-            {/* Vertical time markers */}
-            <line x1={14} y1={0} x2={14} y2={chartH} stroke="rgba(26,26,26,0.1)" strokeWidth={0.8} />
-            <line x1={chartW + 14} y1={0} x2={chartW + 14} y2={chartH} stroke="rgba(26,26,26,0.1)" strokeWidth={0.8} />
-
-            {/* Hypnogram step-path */}
-            <path
-              d={`M ${hypnogram.slice(1)}`}
-              fill="none" stroke="#1a1a1a" strokeWidth={1.5} opacity={0.55}
-              strokeLinecap="round" strokeLinejoin="round"
-              transform="translate(14, 0)"
-            />
-
-            {/* Time labels below */}
-            <text x={14} y={chartH + 14} textAnchor="start"
-              fill="#9a9a96" fontSize={8} fontFamily="'DM Sans', sans-serif">
-              {formatSleepTime(sleep.bedtime) || '11pm'}
-            </text>
-            <text x={chartW + 14} y={chartH + 14} textAnchor="end"
-              fill="#9a9a96" fontSize={8} fontFamily="'DM Sans', sans-serif">
-              {formatSleepTime(sleep.wakeTime) || '7am'}
-            </text>
-          </svg>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#9a9a96' }}>
+            <span>Yesterday</span>
+            <span style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: '#fb943f',
+              display: 'inline-block',
+            }} />
+            <span>{previousLabel ?? formatSleepTime(sleep.bedtime) ?? 'Last night'}</span>
+          </div>
         </div>
       </div>
     </div>

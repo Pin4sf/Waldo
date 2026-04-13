@@ -28,6 +28,7 @@ import { WaldoCalendar } from './WaldoCalendar.js';
 import { IntegrationsPanel } from '../IntegrationsPanel.js';
 import { ConversationHistory } from '../ConversationHistory.js';
 import { ConstellationView } from '../ConstellationView.js';
+import type { DashboardHistoryContext } from './history.js';
 import * as cloud from '../../supabase-api.js';
 import type { DateEntry, DayResponse, WaldoResponse, SpotData, PatternData, SyncStatus, WaldoProposal } from '../../types.js';
 
@@ -509,20 +510,23 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
     }
   }, []);
 
-  // ─── Health history arrays — built from allDates for chart cards ──
-  // These replace seeded-random fake history in Tier2Cards / LoadCard.
-  // Pass to cards that need sparklines / trend charts.
-  const healthHistory = useMemo(() => {
-    const last30 = allDates.slice(-30);
-    const last7  = allDates.slice(-7);
+  // ─── Health history arrays — anchored to the selected date ───────────
+  const healthHistory = useMemo<DashboardHistoryContext>(() => {
+    const selectedIndex = selectedDate ? allDates.findIndex(d => d.date === selectedDate) : -1;
+    const endIndex = selectedIndex >= 0 ? selectedIndex + 1 : allDates.length;
+    const upToSelected = allDates.slice(0, endIndex);
+    const last30 = upToSelected.slice(-30);
+    const last7 = upToSelected.slice(-7);
+
     return {
-      hrv30d:       last30.map(d => d.hrvAvg),
-      rhr7d:        last7.map(d => d.restingHR),
-      sleepDebt7d:  last7.map(d => d.sleepDebtHours),
-      strain7d:     last7.map(d => d.strainScore),
+      hrv30d: last30.map(d => d.hrvAvg),
+      rhr7d: last7.map(d => d.restingHR),
+      sleepDebt7d: last7.map(d => d.sleepDebtHours),
+      strain7d: last7.map(d => d.strainScore),
       sleepHours7d: last7.map(d => d.sleepHours),
+      previousEntry: selectedIndex > 0 ? allDates[selectedIndex - 1] ?? null : null,
     };
-  }, [allDates]);
+  }, [allDates, selectedDate]);
 
   // ─── Intelligence feed items for center column ─────────────────
   const intelligenceFeed = useMemo((): FetchEvent[] => {
@@ -855,17 +859,17 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
             <>
               {/* ── Tier 1: Agent outputs ── */}
               <FormCard data={dayData} onDrillDown={handleDrillDown} />
-              <LoadCard data={dayData} />
-              <SleepCard data={dayData} />
+              <LoadCard data={dayData} history={healthHistory} />
+              <SleepCard data={dayData} history={healthHistory} />
 
               {/* ── Tier 2: Component metrics ── */}
               <div className="tier-section-head">Body signals</div>
-              <div data-card-id="sleep-score"><SleepScoreCard data={dayData} /></div>
-              <div data-card-id="hrv"><HRVCard data={dayData} /></div>
+              <div data-card-id="sleep-score"><SleepScoreCard data={dayData} history={healthHistory} /></div>
+              <div data-card-id="hrv"><HRVCard data={dayData} history={healthHistory} /></div>
               <div data-card-id="circadian"><CircadianCard data={dayData} /></div>
               <div data-card-id="motion"><MotionCard data={dayData} /></div>
-              <SleepDebtCard data={dayData} />
-              {dayData.restingHR !== null && <RestingHRCard data={dayData} />}
+              <SleepDebtCard data={dayData} history={healthHistory} />
+              {dayData.restingHR !== null && <RestingHRCard data={dayData} history={healthHistory} />}
               <BodyReadings data={dayData} />
 
               {/* ── Signal Depth ── */}
