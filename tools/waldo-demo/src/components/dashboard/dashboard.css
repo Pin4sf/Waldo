@@ -6,7 +6,7 @@
 
 .dashboard {
   display: grid;
-  grid-template-columns: 220px 1fr 380px;
+  grid-template-columns: 220px 1fr 440px;
   height: 100vh;
   overflow: hidden;
   background: var(--bg);
@@ -14,7 +14,7 @@
 
 @media (max-width: 1024px) {
   .dashboard {
-    grid-template-columns: 56px 1fr 340px;
+    grid-template-columns: 56px 1fr 380px;
   }
   .sidebar-item span:not(.sidebar-icon) { display: none; }
   .sidebar-brand .sidebar-logo { font-size: 16px; }

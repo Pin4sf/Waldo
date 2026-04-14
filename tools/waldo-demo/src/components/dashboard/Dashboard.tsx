@@ -22,6 +22,7 @@ import { HRVCard, CircadianCard, MotionCard, SleepDebtCard, RestingHRCard, Sleep
 import { SignalDepthCard } from './SignalDepthCard.js';
 import { TheClose } from './TheClose.js';
 import { TheSlopeCard } from './TheSlopeCard.js';
+import { TodaysBriefCard } from './TodaysBriefCard.js';
 import { BodyReadings } from './BodyReadings.js';
 import { FetchCard, spotsToFetchEvents } from './FetchCard.js';
 import type { FetchEvent } from './FetchCard.js';
@@ -586,6 +587,16 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               isLoading={isLoadingDates || isLoadingWag}
               timestamp={`Today · ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
             />
+
+{/* Today's Brief — daily intelligence timeline (Figma 297:5981) */}
+            {dayData && (
+              <TodaysBriefCard
+                data={dayData}
+                morningWag={morningWag}
+                onApproveHandoff={() => handleApproveProposal(pendingProposal?.id ?? '')}
+                pendingProposal={!!pendingProposal}
+              />
+            )}
 
             {/* Intelligence summary */}
             {intelligenceSummary && (
