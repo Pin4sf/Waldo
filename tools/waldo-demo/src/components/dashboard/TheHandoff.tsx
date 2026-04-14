@@ -4,9 +4,10 @@
  * Waldo proposes an action → user approves or rejects → execute-proposal runs it.
  * States: none (ghost) | pending (live proposal) | executing (in-flight)
  *       | approved ("Already on it.") | rejected | expired
+ *       | walkthrough (voice states: listening → processing → confirmed)
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { WaldoProposal } from '../../types.js';
 
 interface TheHandoffProps {
@@ -21,7 +22,8 @@ const sectionLabel: React.CSSProperties = {
 };
 
 export function TheHandoff({ proposal, onApprove, onReject }: TheHandoffProps) {
-  const [localStatus, setLocalStatus] = useState<'idle' | 'executing' | 'done' | 'rejected'>('idle');
+  const [localStatus, setLocalStatus] = useState<'idle' | 'executing' | 'done' | 'rejected' | 'listening' | 'processing' | 'confirmed'>('idle');
+  const listenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleApprove = async () => {
     if (!proposal || localStatus !== 'idle') return;
@@ -39,6 +41,115 @@ export function TheHandoff({ proposal, onApprove, onReject }: TheHandoffProps) {
     setLocalStatus('rejected');
     await onReject(proposal.id).catch(() => {});
   };
+
+  const handleWalkthrough = () => {
+    if (!proposal) return;
+    setLocalStatus('listening');
+    // Simulate Waldo listening for 2s → processing 1.5s → confirmed
+    listenTimerRef.current = setTimeout(() => {
+      setLocalStatus('processing');
+      listenTimerRef.current = setTimeout(() => {
+        setLocalStatus('confirmed');
+      }, 1500);
+    }, 2000);
+  };
+
+  // ── Walkthrough voice states ──────────────────────────────────────
+  if (localStatus === 'listening') {
+    return (
+      <>
+        <style>{`
+          @keyframes waveform-bar {
+            0%, 100% { transform: scaleY(0.3); }
+            50%       { transform: scaleY(1); }
+          }
+          .wf-bar { animation: waveform-bar 0.8s ease-in-out infinite; transform-origin: bottom; }
+          .wf-bar:nth-child(1) { animation-delay: 0s; }
+          .wf-bar:nth-child(2) { animation-delay: 0.1s; }
+          .wf-bar:nth-child(3) { animation-delay: 0.2s; }
+          .wf-bar:nth-child(4) { animation-delay: 0.3s; }
+          .wf-bar:nth-child(5) { animation-delay: 0.4s; }
+          .wf-bar:nth-child(6) { animation-delay: 0.15s; }
+          .wf-bar:nth-child(7) { animation-delay: 0.25s; }
+        `}</style>
+        <div className="dash-card" style={{ borderLeft: '3px solid #2388ff' }}>
+          <span style={sectionLabel}>The Handoff</span>
+          <div style={{ padding: '20px 0 16px', textAlign: 'center' }}>
+            {/* Waveform animation */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, height: 32, marginBottom: 16 }}>
+              {[10, 18, 26, 32, 28, 20, 12].map((h, i) => (
+                <div
+                  key={i}
+                  className="wf-bar"
+                  style={{
+                    width: 4, height: h, borderRadius: 3,
+                    background: '#2388ff', display: 'inline-block',
+                  }}
+                />
+              ))}
+            </div>
+            <p style={{ fontFamily: 'var(--font-headline)', fontSize: 22, fontWeight: 400, color: 'var(--text)', margin: '0 0 6px' }}>
+              Go ahead. I'm listening.
+            </p>
+            <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
+              Tell me what to adjust — I'll update the plan.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (localStatus === 'processing') {
+    return (
+      <div className="dash-card" style={{ borderLeft: '3px solid #2388ff' }}>
+        <span style={sectionLabel}>The Handoff</span>
+        <div style={{ padding: '20px 0 16px', textAlign: 'center' }}>
+          <img src="/thinking-light-mode.svg" alt="Waldo thinking" style={{ width: 48, height: 48, marginBottom: 12 }} />
+          <p style={{ fontFamily: 'var(--font-headline)', fontSize: 20, fontWeight: 400, color: 'var(--text)', margin: '0 0 4px' }}>
+            Updating the plan...
+          </p>
+          <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
+            Give me a second.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (localStatus === 'confirmed') {
+    return (
+      <div className="dash-card" style={{ borderLeft: '3px solid var(--accent)' }}>
+        <span style={sectionLabel}>The Handoff</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, marginBottom: 16 }}>
+          <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 14, flexShrink: 0 }}>✓</span>
+          <span style={{ fontFamily: 'var(--font-headline)', fontSize: 22, fontWeight: 400, color: 'var(--accent)' }}>Updated. Ready to run it now?</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={handleApprove}
+            style={{
+              padding: '11px 28px', border: 'none', borderRadius: 'var(--radius-sm)',
+              background: '#1A1A1A', color: '#FAFAF8', fontFamily: 'var(--font-body)',
+              fontSize: 15, fontWeight: 500, cursor: 'pointer',
+            }}
+          >
+            Run it.
+          </button>
+          <button
+            onClick={() => setLocalStatus('rejected')}
+            style={{
+              padding: '11px 24px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)',
+              background: 'transparent', color: 'var(--text-muted)', fontFamily: 'var(--font-body)',
+              fontSize: 15, fontWeight: 400, cursor: 'pointer',
+            }}
+          >
+            Not now
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Check localStatus FIRST — these must survive after proposal is cleared from parent
   if (localStatus === 'done') {
@@ -108,7 +219,7 @@ export function TheHandoff({ proposal, onApprove, onReject }: TheHandoffProps) {
           </p>
         )}
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 20, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, marginTop: 20, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             className="handoff-run-btn"
             onClick={handleApprove}
@@ -126,13 +237,26 @@ export function TheHandoff({ proposal, onApprove, onReject }: TheHandoffProps) {
           </button>
 
           <button
-            className="handoff-reject-btn"
-            onClick={handleReject}
+            onClick={handleWalkthrough}
             disabled={localStatus === 'executing'}
             style={{
               padding: '11px 24px', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)',
               background: 'transparent', color: 'var(--text-muted)', fontFamily: 'var(--font-body)',
               fontSize: 15, fontWeight: 400, cursor: 'pointer', transition: 'background 0.15s ease, color 0.15s ease',
+            }}
+            type="button"
+          >
+            Walk me through it first
+          </button>
+
+          <button
+            className="handoff-reject-btn"
+            onClick={handleReject}
+            disabled={localStatus === 'executing'}
+            style={{
+              padding: '11px 20px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+              background: 'transparent', color: 'var(--text-dim)', fontFamily: 'var(--font-body)',
+              fontSize: 14, fontWeight: 400, cursor: 'pointer', transition: 'background 0.15s ease, color 0.15s ease',
             }}
             type="button"
           >

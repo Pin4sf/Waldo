@@ -2,6 +2,7 @@ import { StrictMode, Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
+import { DemoPage } from './DemoPage.js';
 import './styles.css';
 import './components/dashboard/dashboard.css';
 
@@ -55,10 +56,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
   }
 }
 
+const isDemo = window.location.pathname === '/demo';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      {isDemo ? <DemoPage /> : <App />}
     </ErrorBoundary>
   </StrictMode>,
 );
