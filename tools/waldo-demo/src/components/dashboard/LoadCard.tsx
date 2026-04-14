@@ -48,13 +48,13 @@ export function LoadCard({ data, history }: LoadCardProps) {
   const maxZoneMin = Math.max(...zoneMinutes, 60);
   const loadScore = strain.score ?? 0;
   const recentStrain = history?.strain7d.filter((value): value is number => value !== null) ?? [];
-  const avgRef = Math.max(1, Math.round((recentStrain.length > 0
-    ? recentStrain.reduce((sum, value) => sum + value, 0) / recentStrain.length
-    : loadScore * 0.85) * 10) / 10);
+  // Use real 7-day avg if history exists; omit reference line if no real history
+  const avgRef = recentStrain.length > 1 ? Math.max(1, Math.round((recentStrain.reduce((sum, value) => sum + value, 0) / recentStrain.length) * 10) / 10) : null;
+
   // Prefer real yesterday's strain from DB, fall back to history context
   const previousScore = data.yesterday?.strain ?? history?.previousEntry?.strainScore ?? null;
-  const referenceScore = previousScore ?? avgRef;
-  const isUp = loadScore >= referenceScore;
+  const referenceScore = previousScore ?? avgRef ?? null;
+  const isUp = referenceScore !== null ? loadScore >= referenceScore : true;
 
   const zones = zoneMinutes.slice(0, 5).map((mins, i) => ({
     label: zoneNames[i] ?? `Zone ${i + 1}`,
@@ -93,7 +93,7 @@ export function LoadCard({ data, history }: LoadCardProps) {
         {/* Today's bar */}
         <rect x={0} y={h * 0.25} width={toX(loadScore)} height={h * 0.5} fill={barColor} rx={2} />
         {/* 7-day avg reference line */}
-        <line x1={toX(avgRef)} y1={h * 0.1} x2={toX(avgRef)} y2={h * 0.9} stroke="rgba(26,26,26,0.5)" strokeWidth={1.5} />
+        {avgRef !== null && <line x1={toX(avgRef)} y1={h * 0.1} x2={toX(avgRef)} y2={h * 0.9} stroke="rgba(26,26,26,0.5)" strokeWidth={1.5} />}
         {/* Zone labels (expanded only) */}
         {!compact && BULLET_ZONES.map((bz, i) => {
           const prev = i === 0 ? 0 : BULLET_ZONES[i - 1]!.max;
@@ -109,7 +109,7 @@ export function LoadCard({ data, history }: LoadCardProps) {
     hour: 'numeric', minute: '2-digit', hour12: true,
   }).toLowerCase();
 
-  const yesterdayScore = Math.max(0, previousScore ?? avgRef);
+  const yesterdayScore = Math.max(0, previousScore ?? avgRef ?? 0);
 
   // ── Compact card (default) ────────────────────────────────
   if (!expanded) {

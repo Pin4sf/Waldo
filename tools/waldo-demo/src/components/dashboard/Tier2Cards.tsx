@@ -23,18 +23,15 @@ interface CardProps {
 
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)); }
 
-function fallbackSeries(length: number, current: number, span: number, min: number, max: number) {
-  return Array.from({ length }, (_, index) => {
-    if (index === length - 1) return current;
-    const wave = Math.sin((index + 1) * 1.7 + current * 0.05) * span;
-    const drift = Math.cos((index + 1) * 0.65) * (span * 0.35);
-    return Math.round(clamp(current + wave + drift, min, max));
-  });
+/** Extract real values from history. Returns null if fewer than 2 data points. */
+function cleanSeries(values: Array<number | null> | undefined): number[] | null {
+  const cleaned = (values ?? []).filter((value): value is number => value !== null && Number.isFinite(value));
+  return cleaned.length > 1 ? cleaned : null;
 }
 
-function cleanSeries(values: Array<number | null> | undefined, fallback: number[]) {
-  const cleaned = (values ?? []).filter((value): value is number => value !== null && Number.isFinite(value));
-  return cleaned.length > 1 ? cleaned : fallback;
+/** True if cleanSeries returns usable data */
+function hasRealHistory(values: Array<number | null> | undefined): boolean {
+  return cleanSeries(values) !== null;
 }
 
 /**
@@ -132,7 +129,7 @@ export function HRVCard({ data, history }: CardProps) {
   }
 
   const todayVal = hrv?.avg ?? 0;
-  const historyValues = cleanSeries(history?.hrv30d, fallbackSeries(30, todayVal, 12, 20, 120));
+  const historyValues = cleanSeries(history?.hrv30d) ?? [todayVal];
   const previousValue = history?.previousEntry?.hrvAvg ?? historyValues[historyValues.length - 2] ?? null;
 
   // Use real 30-day baseline from DB if available, else compute from history array
@@ -587,10 +584,9 @@ export function SleepDebtCard({ data, history }: CardProps) {
   }
 
   const { debtHours, direction } = debt;
-  const historyValues = cleanSeries(
-    history?.sleepDebt7d,
-    fallbackSeries(7, Math.round(debtHours * 10) / 10, 0.8, 0, 6).map((value) => parseFloat(value.toFixed(1))),
-  ).map((value) => parseFloat(value.toFixed(1)));
+  const rawHistory = cleanSeries(history?.sleepDebt7d);
+  const historyValues = (rawHistory ?? [Math.round(debtHours * 10) / 10]).map((value) => parseFloat(value.toFixed(1)));
+  const hasHistory = rawHistory !== null;
   const zoneLabel = debtHours <= 0.5 ? 'Repaid' : debtHours <= 1.5 ? 'Mild' : debtHours <= 3 ? 'Moderate' : 'High';
   const zoneColor = debtHours <= 0.5 ? '#34D399' : debtHours <= 1.5 ? '#FBBF24' : '#F87171';
   const arrow = direction === 'increasing' ? '↑' : direction === 'decreasing' ? '↓' : '→';
@@ -723,7 +719,7 @@ export function RestingHRCard({ data, history }: CardProps) {
     );
   }
 
-  const historyValues = cleanSeries(history?.rhr7d, fallbackSeries(7, rhr, 5, 40, 100));
+  const historyValues = cleanSeries(history?.rhr7d) ?? [rhr];
   const trend = historyValues[6]! > historyValues[5]! ? 'rising' : historyValues[6]! < historyValues[5]! ? 'dropping' : 'stable';
   const trendArrow = trend === 'rising' ? '↑' : trend === 'dropping' ? '↓' : '→';
   const trendColor = trend === 'rising' ? '#F87171' : trend === 'dropping' ? '#34D399' : '#9a9a96';
@@ -840,7 +836,7 @@ export function SleepScoreCard({ data, history }: CardProps) {
   const totalH = Math.floor(sleep.durationHours);
   const totalM = Math.round((sleep.durationHours - totalH) * 60);
   const durationStr = totalM > 0 ? `${totalH}h ${totalM}m` : `${totalH}h`;
-  const recentSleepHours = cleanSeries(history?.sleepHours7d, fallbackSeries(7, sleep.durationHours, 0.6, 4, 9));
+  const recentSleepHours = cleanSeries(history?.sleepHours7d) ?? [sleep.durationHours];
   const previousSleep = history?.previousEntry?.sleepHours ?? recentSleepHours[recentSleepHours.length - 2] ?? null;
 
   if (!expanded) {
