@@ -37,39 +37,81 @@ function cleanSeries(values: Array<number | null> | undefined, fallback: number[
   return cleaned.length > 1 ? cleaned : fallback;
 }
 
+/**
+ * buildSleepStepPath — deterministic stepped hypnogram from real stage proportions.
+ *
+ * Uses actual sleep_stages minutes to produce a realistic architecture:
+ * - Deep sleep front-loaded (cycles 1-2, first 40% of night)
+ * - REM back-loaded (cycles 3-4, last 40% of night)
+ * - Core transitions between stages
+ * - Awake at start and end
+ *
+ * Pattern varies per night based on actual deep/REM/awake proportions.
+ * No Math.random() — fully deterministic from data.
+ */
 function buildSleepStepPath(
   stages: { core: number; deep: number; rem: number; awake: number },
   width: number,
   height: number,
 ) {
-  const order = ['awake', 'core', 'deep', 'core', 'rem', 'core', 'deep', 'core', 'rem', 'awake'] as const;
-  const weights = {
-    awake: stages.awake,
-    rem: stages.rem,
-    core: stages.core,
-    deep: stages.deep,
-  };
-  const stageY: Record<(typeof order)[number], number> = {
-    awake: height * 0.16,
-    rem: height * 0.34,
-    core: height * 0.58,
-    deep: height * 0.82,
+  const total = (stages.awake + stages.rem + stages.core + stages.deep) || 1;
+  const deepF  = stages.deep  / total;  // fraction of night in deep
+  const remF   = stages.rem   / total;  // fraction of night in REM
+  const awakeF = stages.awake / total;  // fraction of night awake
+
+  const stageY = {
+    awake: height * 0.10,
+    rem:   height * 0.34,
+    core:  height * 0.62,
+    deep:  height * 0.88,
   };
 
-  const total = Object.values(weights).reduce((sum, value) => sum + value, 0) || 1;
-  const dominant = Object.entries(weights).sort((a, b) => b[1] - a[1]).map(([key]) => key) as Array<(typeof order)[number]>;
-  const points = order.map((stage, index) => {
-    const emphasis = weights[stage] / total;
-    const resolvedStage = emphasis > 0.12 ? stage : dominant[index % dominant.length] ?? 'core';
-    return {
-      x: (index / (order.length - 1)) * width,
-      y: stageY[resolvedStage],
-    };
-  });
+  const SEGS = 24;
+  const pts: Array<{ x: number; y: number }> = [];
 
-  let path = `M ${points[0]!.x} ${points[0]!.y}`;
-  for (let index = 1; index < points.length; index += 1) {
-    path += ` H ${points[index]!.x} V ${points[index]!.y}`;
+  for (let i = 0; i <= SEGS; i++) {
+    const t = i / SEGS; // 0 = sleep onset, 1 = wake
+
+    // Realistic sleep architecture derived from actual proportions:
+    let stage: keyof typeof stageY;
+    if (t < 0.03 || t > 0.97) {
+      // Entry/exit: always awake
+      stage = 'awake';
+    } else if (t < 0.12) {
+      // Descent to deep (first NREM cycle)
+      stage = 'core';
+    } else if (t < 0.12 + deepF * 0.55) {
+      // Deep sleep: proportional slice of first half
+      stage = deepF > 0.08 ? 'deep' : 'core';
+    } else if (t < 0.38) {
+      // Return to core before first REM
+      stage = 'core';
+    } else if (t < 0.38 + remF * 0.35) {
+      // First REM period
+      stage = remF > 0.12 ? 'rem' : 'core';
+    } else if (t < 0.58) {
+      // Second deep dip (shorter — second NREM cycle)
+      stage = deepF > 0.12 ? 'deep' : 'core';
+    } else if (t < 0.72) {
+      // Core + light sleep
+      stage = 'core';
+    } else if (t < 0.72 + remF * 0.45) {
+      // Long REM period (morning — most vivid dreams)
+      stage = remF > 0.15 ? 'rem' : 'core';
+    } else if (t < 0.90) {
+      // Late core
+      stage = 'core';
+    } else {
+      // Pre-wake: awake if enough awake time, else core
+      stage = awakeF > 0.06 ? 'awake' : 'core';
+    }
+
+    pts.push({ x: t * width, y: stageY[stage] });
+  }
+
+  let path = `M ${pts[0]!.x} ${pts[0]!.y}`;
+  for (let i = 1; i < pts.length; i++) {
+    path += ` H ${pts[i]!.x} V ${pts[i]!.y}`;
   }
   return path;
 }
@@ -780,11 +822,15 @@ export function SleepScoreCard({ data, history }: CardProps) {
   const zoneLabel = score >= 80 ? 'Restored' : score >= 65 ? 'Adequate' : score >= 50 ? 'Light' : 'Poor';
   const zoneColor = score >= 80 ? '#34D399' : score >= 65 ? '#FBBF24' : '#F87171';
 
+  // stages are in minutes — convert to real percentages
+  const stageTotal = (sleep.stages.awake + sleep.stages.rem + sleep.stages.core + sleep.stages.deep) || 1;
+  const stagePct = (min: number) => Math.round((min / stageTotal) * 100);
+
   const stageConfig = [
-    { key: 'awake' as const, label: 'Awake', color: '#ff7c25', pct: sleep.stages.awake },
-    { key: 'rem' as const, label: 'REM', color: '#07bea6', pct: sleep.stages.rem },
-    { key: 'core' as const, label: 'Core', color: '#ff60fa', pct: sleep.stages.core },
-    { key: 'deep' as const, label: 'Deep', color: '#3485ff', pct: sleep.stages.deep },
+    { key: 'awake' as const, label: 'Awake', color: '#ff7c25', pct: stagePct(sleep.stages.awake), mins: sleep.stages.awake },
+    { key: 'rem'   as const, label: 'REM',   color: '#07bea6', pct: stagePct(sleep.stages.rem),   mins: sleep.stages.rem   },
+    { key: 'core'  as const, label: 'Core',  color: '#ff60fa', pct: stagePct(sleep.stages.core),  mins: sleep.stages.core  },
+    { key: 'deep'  as const, label: 'Deep',  color: '#3485ff', pct: stagePct(sleep.stages.deep),  mins: sleep.stages.deep  },
   ];
 
   // Stepped hypnogram (simplified — same as SleepCard)

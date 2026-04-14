@@ -44,16 +44,20 @@ export function TheBrief({ message, zone, isLoading, timestamp }: TheBriefProps)
     const text = message ?? DEFAULT_MESSAGE;
     if (!text?.trim()) return;
 
-    // If already playing, stop
-    if (audioState === 'playing' && audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    // If already playing, stop (both Groq audio and browser TTS)
+    if (audioState === 'playing') {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      window.speechSynthesis?.cancel();
       setAudioState('idle');
       return;
     }
 
     setAudioState('loading');
     try {
+      // Try Groq TTS first (higher quality)
       const res = await fetch(`${SUPABASE_FN_URL}/tts`, {
         method: 'POST',
         headers: {
@@ -63,29 +67,40 @@ export function TheBrief({ message, zone, isLoading, timestamp }: TheBriefProps)
         body: JSON.stringify({ text, voice: 'Fritz-PlayAI' }),
       });
 
-      if (!res.ok) throw new Error(`TTS failed: ${res.status}`);
+      if (!res.ok) throw new Error(`TTS ${res.status}`);
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-
       const audio = new Audio(url);
       audioRef.current = audio;
-
       audio.onplay = () => setAudioState('playing');
-      audio.onended = () => {
-        setAudioState('idle');
-        URL.revokeObjectURL(url);
-      };
-      audio.onerror = () => {
-        setAudioState('error');
-        URL.revokeObjectURL(url);
-      };
-
+      audio.onended = () => { setAudioState('idle'); URL.revokeObjectURL(url); };
+      audio.onerror = () => { setAudioState('idle'); URL.revokeObjectURL(url); };
       await audio.play();
-    } catch (err) {
-      console.error('[TheBrief] TTS error:', err);
-      setAudioState('error');
-      setTimeout(() => setAudioState('idle'), 3000);
+    } catch {
+      // Fallback: browser Web Speech API (works offline, no API key needed)
+      if ('speechSynthesis' in window) {
+        const clean = text
+          .replace(/\*([^*]+)\*/g, '$1')
+          .replace(/\n+/g, '. ')
+          .trim();
+        const utterance = new SpeechSynthesisUtterance(clean);
+        utterance.rate = 0.88;
+        utterance.pitch = 1.0;
+        // Prefer a natural English voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const preferred = voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('natural'))
+          || voices.find(v => v.lang === 'en-US')
+          || voices[0];
+        if (preferred) utterance.voice = preferred;
+        utterance.onstart = () => setAudioState('playing');
+        utterance.onend = () => setAudioState('idle');
+        utterance.onerror = () => setAudioState('idle');
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setAudioState('error');
+        setTimeout(() => setAudioState('idle'), 2000);
+      }
     }
   };
 
