@@ -8,7 +8,7 @@
  * Loads ALL dates on mount → user can browse historical data.
  * Shows accumulated intelligence (patterns, spots, learning milestones).
  */
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Sidebar } from './Sidebar.js';
 import { TheBrief } from './TheBrief.js';
 import { ThePatrol } from './ThePatrol.js';
@@ -320,6 +320,9 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
   const [buildResult, setBuildResult] = useState<{ spots_generated: number; baselines_computed: number; patterns_promoted: number; message: string; error?: string } | null>(null);
   const [syncStatuses, setSyncStatuses] = useState<SyncStatus[]>([]);
   const [pendingProposal, setPendingProposal] = useState<WaldoProposal | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -422,6 +425,54 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
       setChatMessages(prev => [...prev, { role: 'waldo', content: 'Connection issue. Try again.' }]);
     } finally { setIsChatting(false); }
   }, [chatInput, isChatting, selectedDate, today, userId]);
+
+  // ─── Voice input — mic button handler ─────────────────────────
+  const handleVoiceInput = useCallback(async () => {
+    if (isRecording) {
+      // Stop recording
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+      audioChunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setIsRecording(false);
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        if (blob.size < 1000) return;
+        setIsChatting(true);
+        try {
+          const res = await fetch(`${cloud.SUPABASE_FN_URL}/voice-transcribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'audio/webm', 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9namdidWRvZWR3eGVieGZneHBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NDg0NTgsImV4cCI6MjA5MDUyNDQ1OH0.z2AZE7K8d1irAx3Jm7jziC0MZj3azZgzgGtb9T2LNvc` },
+            body: blob,
+          });
+          if (res.ok) {
+            const { transcript } = await res.json();
+            if (transcript?.trim()) {
+              setChatInput(transcript.trim());
+              // Auto-send after short delay
+              setTimeout(() => {
+                setChatInput(t => {
+                  if (t.trim()) { handleSendChat(); }
+                  return t;
+                });
+              }, 100);
+            }
+          }
+        } catch(e) { console.error('Voice transcribe failed', e); }
+        setIsChatting(false);
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setIsRecording(true);
+    } catch(e) {
+      alert('Microphone access denied. Please allow microphone in browser settings.');
+    }
+  }, [isRecording, handleSendChat, userId]);
 
   // ─── Proposal polling — check every 30s for new proposals ────────
   useEffect(() => {
@@ -780,6 +831,19 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               placeholder="Ask Waldo anything..."
               disabled={isChatting}
             />
+            <button
+              onClick={handleVoiceInput}
+              title={isRecording ? 'Stop recording' : 'Speak to Waldo'}
+              style={{
+                background: isRecording ? '#EF4444' : 'rgba(26,26,26,0.06)',
+                border: '0.5px solid rgba(26,26,26,0.15)',
+                borderRadius: 10, padding: '10px 14px',
+                cursor: 'pointer', fontSize: 16,
+                animation: isRecording ? 'pulse 1s infinite' : 'none',
+              }}
+            >
+              {isRecording ? '⏹' : '🎙'}
+            </button>
             <button
               className="btn btn-accent"
               onClick={handleSendChat}
