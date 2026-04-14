@@ -327,6 +327,20 @@ export class WaldoAgent extends DurableObject<Env> {
     setState(this.sql, 'interview_step', '0');
     setState(this.sql, 'interview_complete', 'false');
 
+    // Write initial capabilities.md immediately — agent needs self-knowledge from day 1
+    if (this.env.WALDO_WORKSPACE) {
+      void (async () => {
+        try {
+          const { generateCapabilitiesMd, writeWorkspaceFile } = await import('./workspace.js');
+          await writeWorkspaceFile(
+            this.env.WALDO_WORKSPACE, user_id, 'capabilities.md',
+            generateCapabilitiesMd([profile.wearableType ?? 'unknown']),
+          );
+          console.log(`[WaldoAgent] capabilities.md written at provision for ${user_id.slice(0, 8)}`);
+        } catch { /* non-blocking — agent works without it */ }
+      })();
+    }
+
     console.log(`[WaldoAgent] Provisioned for user ${user_id.slice(0, 8)} (${profile.name})`);
 
     return json({
