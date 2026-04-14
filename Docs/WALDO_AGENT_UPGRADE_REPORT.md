@@ -1699,6 +1699,301 @@ Ship fast. The moat is real, but only if we build it before someone with 100x ou
 
 ---
 
+---
+
+## 10. Protocol Landscape + Open-Agents Upgrades (April 2026)
+
+> **Sources:** Cloudflare Agents Week (April 2026), Akka MCP/A2A/ACP explainer, Vercel open-agents repo (vercel-labs/open-agents), MCP spec 2025-11-25, A2A v1.0 spec
+> **Date:** April 14, 2026
+
+### 10.1 New Protocol Landscape — What Waldo Must Implement
+
+Three protocols are now live and converging. All three are relevant to different parts of Waldo:
+
+| Protocol | Owner | What it is | Waldo relevance | Phase |
+|---|---|---|---|---|
+| **MCP** | Anthropic | Tool/resource calling from AI assistants → external servers | Expose getCRS, getCognitiveWindow, getStressLevel as tools other agents can call | Phase 2 |
+| **A2A** | Google (v1.0, 150+ orgs) | Agent-to-agent task delegation with structured lifecycle | Publish Agent Card. Pack tier (multiple users' Waldos coordinate). Future partner integrations (e.g. Lindy, Cursor) call Waldo's body signals | Phase 2–3 |
+| **ACP** | IBM/BeeAI | Async REST agent communication, no SDK required | Evaluate when A2A matures. More enterprise-friendly but lower adoption | Phase 3+ |
+
+**Decision locked:** Build MCP first (single endpoint, immediate value), A2A second (Agent Card, bidirectional), ACP only if enterprise customers demand it.
+
+---
+
+### Upgrade 31 — MCP Server at `/.well-known` (Phase 2, 1 day)
+
+Add two discovery endpoints to the CF Worker index.ts:
+
+```typescript
+// GET /.well-known/mcp.json  → MCP Server Card (tool discovery)
+// GET /.well-known/agent-card.json → A2A Agent Card (agent discovery)
+
+app.get('/.well-known/mcp.json', (req) => {
+  return Response.json({
+    name: "Waldo",
+    version: "1.0",
+    description: "Personal biological intelligence layer",
+    tools: [
+      {
+        name: "getCRS",
+        description: "Get current Cognitive Readiness Score (0-100) for a user",
+        inputSchema: { type: "object", properties: { user_id: { type: "string" } } },
+      },
+      {
+        name: "getCognitiveWindow",
+        description: "Get the user's optimal focus window for today",
+        inputSchema: { type: "object", properties: { user_id: { type: "string" } } },
+      },
+      {
+        name: "getStressLevel",
+        description: "Get current biological stress confidence + recent events",
+        inputSchema: { type: "object", properties: { user_id: { type: "string" } } },
+      },
+      {
+        name: "shouldScheduleNow",
+        description: "Boolean: is this a good time for deep work given body state?",
+        inputSchema: {
+          type: "object",
+          properties: {
+            user_id: { type: "string" },
+            task_difficulty: { type: "number", description: "1-5 cognitive load" },
+          },
+        },
+      },
+    ],
+  });
+});
+```
+
+**Why:** External AI agents (Cursor, Claude Code, Lindy, any MCP client) can now call `getCRS()` before scheduling a task or taking an action on the user's behalf. This is Waldo's strategic moat — every agent in the ecosystem becomes body-aware.
+
+---
+
+### Upgrade 32 — A2A Agent Card (Phase 2, 2 hours)
+
+```typescript
+// GET /.well-known/agent-card.json → A2A spec-compliant discovery
+app.get('/.well-known/agent-card.json', (req) => {
+  return Response.json({
+    id: "waldo-personal-agent",
+    name: "Waldo",
+    description: "Biological intelligence agent. Reads body signals from wearables and acts before the user notices stress, depletion, or burnout.",
+    version: "1.0",
+    serviceEndpoint: "https://waldo-agent.piyushfulper3210.workers.dev/a2a",
+    authentication: { type: "bearer_token" },
+    capabilities: ["health_monitoring", "stress_analysis", "cognitive_state", "schedule_optimization"],
+    skills: [
+      { name: "getCRS", description: "Cognitive Readiness Score" },
+      { name: "getCognitiveWindow", description: "Optimal focus window" },
+      { name: "proposeCalendarAction", description: "Suggest schedule changes based on body state" },
+    ],
+  });
+});
+```
+
+**Why:** Google A2A is v1.0 with 150+ orgs. Publishing an Agent Card means any A2A-compatible orchestrator (Google Workspace AI, Spring AI, CrewAI) can discover and delegate to Waldo. This is the Pack tier foundation.
+
+---
+
+### Upgrade 33 — Cloudflare AIChatAgent Class Evaluation (Phase D+, evaluate)
+
+CF released `AIChatAgent` (extends DurableObject) with built-in persistence, tool dispatch, and resumable streaming. Compared to our custom `agent.ts`:
+
+| Capability | Our agent.ts | AIChatAgent |
+|---|---|---|
+| Message persistence | Manual `addEpisode()` | Automatic |
+| Tool routing | Custom ReAct loop | Built-in |
+| Streaming | Batch response | Resumable async generators |
+| Pre-filter (60% LLM savings) | ✅ Custom | ❌ Not available |
+| Soul files (zone-based personality) | ✅ Custom | ❌ Not available |
+| Memory tiering (5-tier) | ✅ Custom | ❌ Not available |
+| Dreaming Mode / nightly compaction | ✅ Custom | ❌ Not available |
+
+**Decision:** Do NOT migrate to AIChatAgent. Our custom patterns (pre-filter, soul files, zone personality, memory tiering, daily compaction) are more capable than their base class. Monitor for updates — their streaming reconnection pattern (Upgrade 34) is worth cherry-picking independently.
+
+---
+
+### Upgrade 34 — Stream Reconnection (Phase E, 1 day)
+
+From open-agents: clients can reconnect to in-flight agent runs after page refresh or network drop.
+
+```typescript
+// In WaldoAgent DO:
+private activeStreamId: string | null = null;
+
+async startStream(userId: string): Promise<{ streamId: string }> {
+  const streamId = crypto.randomUUID();
+  this.activeStreamId = streamId;
+  setState(this.sql, 'active_stream_id', streamId);
+  return { streamId };
+}
+
+// GET /stream/:streamId → reconnect to existing stream
+async handleStreamReconnect(streamId: string): Promise<Response> {
+  if (this.activeStreamId !== streamId) {
+    return new Response('Stream not found', { status: 404 });
+  }
+  // Resume SSE stream from where it left off
+  return new Response(this.getStreamBuffer(), {
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+```
+
+**Why:** When Waldo is mid-conversation on mobile and the user backgrounds the app, they return to a broken state. Stream reconnection allows resuming exactly where the agent was.
+
+---
+
+### Upgrade 35 — `needsApproval` on Tool Definitions (Phase D, 2 hours)
+
+From open-agents: embed approval logic directly in tool definitions instead of a separate `propose_action` tool.
+
+```typescript
+// Current: propose_action is a separate dedicated tool
+// Better: bake approval into each tool that can have side effects
+
+export const createCalendarEventTool: Tool = {
+  name: 'create_calendar_event',
+  needsApproval: (args) => {
+    // Auto-approve: creating events in next 4 hours (urgent response)
+    // Require approval: anything scheduled more than 1 day ahead
+    const eventDate = new Date(args.start_time);
+    const hoursAhead = (eventDate.getTime() - Date.now()) / 3600000;
+    return hoursAhead > 4;
+  },
+  execute: async (args) => { /* actual calendar API call */ },
+};
+
+export const deferTaskTool: Tool = {
+  name: 'defer_task',
+  needsApproval: (args) => args.defer_days > 3, // >3 days = approval needed
+  execute: async (args) => { /* todoist/google tasks API */ },
+};
+```
+
+**Why:** As we add more tools with side effects (calendar, tasks, email drafts), a single `propose_action` bottleneck doesn't scale. Per-tool approval rules are cleaner and more granular.
+
+---
+
+### Upgrade 36 — Async Generator Streaming for Tool Progress (Phase E, 1 day)
+
+From open-agents: yield intermediate tool states so the UI shows "Running get_crs..." before results arrive.
+
+```typescript
+// Current: tool result returned as batch string
+case 'get_crs': {
+  const row = await queryOne(env, 'crs_scores', params);
+  return JSON.stringify({ score: row.score, zone: row.zone }); // ← batch
+}
+
+// Better: yield progress during long-running tools
+case 'get_trends': {
+  yield { status: 'fetching', tool: 'get_trends', step: '14-day CRS...' };
+  const crs = await queryCrs14d();
+  yield { status: 'fetching', tool: 'get_trends', step: 'email metrics...' };
+  const email = await queryEmail14d();
+  yield { status: 'complete', tool: 'get_trends' };
+  return JSON.stringify({ crs, email, ... });
+}
+```
+
+**Why:** The web console currently shows no feedback during multi-tool agent invocations (sometimes 5-8 seconds). Progressive streaming makes it feel instant.
+
+---
+
+### Upgrade 37 — Usage Accumulation Across ReAct Iterations (Phase D, 2 hours)
+
+From open-agents: track total tokens across all tool calls, not just the final response.
+
+```typescript
+// In runAgentLoop() — currently only final tokens tracked:
+let totalUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0 };
+
+for (let i = 0; i < MAX_ITERATIONS; i++) {
+  const result = await callLLM(messages, options, this.env);
+
+  // ADD THIS — accumulate across all iterations:
+  totalUsage.inputTokens    += result.tokensIn;
+  totalUsage.outputTokens   += result.tokensOut;
+  totalUsage.cacheReadTokens += result.cacheReadTokens;
+}
+
+// Log full usage to agent_logs — enables per-iteration cost breakdown
+void saveAgentLog(userId, triggerType, totalUsage.inputTokens, totalUsage.outputTokens, ...);
+```
+
+**Why:** Currently `agent_logs.total_tokens` only reflects the final iteration. When the agent runs 3 iterations, we're underreporting actual cost by 2-3×. This affects the $0.10/day cap accuracy.
+
+---
+
+### Upgrade 38 — Message Deduplication for Extended Thinking (Phase 2)
+
+From open-agents: strip redundant thinking blocks from message history before sending to Claude.
+
+```typescript
+// When using extended thinking (Claude 3.7+ Sonnet reasoning):
+function dedupeMessageReasoning(messages: Message[]): Message[] {
+  return messages.map(msg => ({
+    ...msg,
+    content: Array.isArray(msg.content)
+      ? msg.content.filter(block =>
+          !(block.type === 'thinking' && isOlderThanCurrentTurn(block))
+        )
+      : msg.content,
+  }));
+}
+
+// Apply before every LLM call:
+const dedupedMessages = dedupeMessageReasoning(messages);
+const result = await callLLM(dedupedMessages, options, env);
+```
+
+**Why:** If we add extended thinking to Constellation queries or weekly deep mining, repeated thinking blocks inflate context 3-5×. Deduplication keeps context lean.
+
+---
+
+### 10.2 Updated Phase Roadmap (Protocol Integration)
+
+```
+Phase 2 additions (from protocol research):
+  ✦ Upgrade 31 — MCP Server Card at /.well-known/mcp.json
+  ✦ Upgrade 32 — A2A Agent Card at /.well-known/agent-card.json
+  ✦ Upgrade 35 — needsApproval on tool definitions
+
+Phase E additions (from open-agents patterns):
+  ✦ Upgrade 34 — Stream reconnection (resume mid-conversation)
+  ✦ Upgrade 36 — Async generator streaming for tool progress
+
+Phase D additions (low-effort, high-value):
+  ✦ Upgrade 37 — Usage accumulation across ReAct iterations (2 hours)
+
+Phase 2+ (evaluate):
+  ✦ Upgrade 33 — AIChatAgent class (DO NOT migrate now — monitor only)
+  ✦ Upgrade 38 — Message deduplication (only if extended thinking added)
+```
+
+### 10.3 What Open-Agents Does Better (Honest Assessment)
+
+| Area | Open-Agents Advantage | Our Response |
+|---|---|---|
+| Multi-agent subagents | Explorer + Executor split, streamed progress | Phase 2: specialist agents (sleep, stress, productivity) |
+| Streaming granularity | Async generators, mid-tool status yields | Upgrade 36 — add to Phase E |
+| Skill marketplace | `.agents/skills/*.md` auto-discovery | Already designed: `agentskills.io` standard in CLAUDE.md |
+| Provider-agnostic model routing | Single gateway for Claude/GPT/Gemini | Already have: DeepSeek + Claude routing in llm.ts |
+
+### 10.4 What We Do Better (Be Clear)
+
+| Area | Waldo Advantage |
+|---|---|
+| Per-user persistent memory | 5-tier (DO SQLite → R2). They use flat PostgreSQL. |
+| Pre-filter savings | 60% LLM call reduction. They have no equivalent. |
+| Nightly intelligence | Dreaming Mode. They don't compact or pre-compute. |
+| Privacy architecture | Health data never in DO/R2 — only derived insights. |
+| Cost efficiency | $0.01/user/day. Their model doesn't publish cost. |
+| Health domain | Body signals, CRS, stress detection — not in their scope. |
+
+---
+
 ## Appendix A: Claude Code Source File Map (Key Files)
 
 | File | What It Does | Waldo Relevance |
