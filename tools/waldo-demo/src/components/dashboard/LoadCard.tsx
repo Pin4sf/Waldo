@@ -51,7 +51,8 @@ export function LoadCard({ data, history }: LoadCardProps) {
   const avgRef = Math.max(1, Math.round((recentStrain.length > 0
     ? recentStrain.reduce((sum, value) => sum + value, 0) / recentStrain.length
     : loadScore * 0.85) * 10) / 10);
-  const previousScore = history?.previousEntry?.strainScore ?? null;
+  // Prefer real yesterday's strain from DB, fall back to history context
+  const previousScore = data.yesterday?.strain ?? history?.previousEntry?.strainScore ?? null;
   const referenceScore = previousScore ?? avgRef;
   const isUp = loadScore >= referenceScore;
 

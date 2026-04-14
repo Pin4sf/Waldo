@@ -92,15 +92,25 @@ export function HRVCard({ data, history }: CardProps) {
   const todayVal = hrv?.avg ?? 0;
   const historyValues = cleanSeries(history?.hrv30d, fallbackSeries(30, todayVal, 12, 20, 120));
   const previousValue = history?.previousEntry?.hrvAvg ?? historyValues[historyValues.length - 2] ?? null;
-  const baselineAvg = Math.round(historyValues.reduce((sum, value) => sum + value, 0) / historyValues.length);
+
+  // Use real 30-day baseline from DB if available, else compute from history array
+  const baselineAvgDb: number | null = hrv?.avg30d ?? null;
+  const baselineAvg = baselineAvgDb ?? Math.round(historyValues.reduce((sum, value) => sum + value, 0) / historyValues.length);
   const baselineLo = Math.round(baselineAvg * 0.85);
   const baselineHi = Math.round(baselineAvg * 1.15);
 
+  // Badge: use DB-computed badge if available
+  const dbBadge = hrv?.badge;
+  const dbPct = hrv?.pctVsBaseline;
   const zone = todayVal >= baselineHi ? 'above' : todayVal >= baselineLo ? 'within' : 'below';
   const compactDelta = previousValue === null ? todayVal - baselineAvg : todayVal - previousValue;
-  const compactLabel = compactDelta <= -3 ? 'Dropping' : compactDelta >= 3 ? 'Rising' : 'Stable';
-  const zoneLabel = zone === 'above' ? 'Strong' : zone === 'within' ? 'Baseline' : 'Low';
-  const zoneColor = zone === 'above' ? '#34D399' : zone === 'within' ? '#FBBF24' : '#F87171';
+  // Figma badge system: Strong | Normal (Stable) | Dipping | Low
+  const badgeMap: Record<string, string> = { strong: 'Strong', normal: 'Stable', dipping: 'Drifting', low: 'Low' };
+  const compactLabel = dbBadge ? badgeMap[dbBadge] ?? 'Stable' : (compactDelta <= -3 ? 'Dropping' : compactDelta >= 3 ? 'Rising' : 'Stable');
+  const zoneLabel = dbBadge === 'strong' ? 'Strong' : dbBadge === 'dipping' ? 'Drifting' : dbBadge === 'low' ? 'Low' : zone === 'above' ? 'Strong' : zone === 'within' ? 'Normal' : 'Low';
+  const zoneColor = (dbBadge === 'strong' || zone === 'above') ? '#34D399' : (dbBadge === 'low') ? '#F87171' : '#FBBF24';
+  // "65ms · −8% baseline" subtitle
+  const pctLabel = dbPct !== null && dbPct !== undefined ? ` · ${dbPct > 0 ? '+' : ''}${dbPct}% vs baseline` : '';
 
   const chartW = 240, chartH = 80, padL = 8, padR = 8, padT = 10, padB = 10;
   const innerW = chartW - padL - padR;
@@ -131,7 +141,7 @@ export function HRVCard({ data, history }: CardProps) {
           <div className="card-compact-text">
             <span className="zone-badge">{compactLabel}</span>
             <h3 className="dash-card-title">HRV</h3>
-            <p className="dash-card-narrative">{crsHrv.factors?.[0] ?? `${todayVal}ms · ${zoneLabel.toLowerCase()} vs baseline.`}</p>
+            <p className="dash-card-narrative">{crsHrv.factors?.[0] ?? `${Math.round(todayVal)}ms${pctLabel}`}</p>
           </div>
           <div className="card-compact-visual">
             <div style={{
@@ -197,7 +207,7 @@ export function HRVCard({ data, history }: CardProps) {
           {todayVal}<span style={{ fontSize: 14, color: '#9a9a96', marginLeft: 4 }}>ms</span>
         </div>
         <p style={{ fontFamily: 'var(--font-body)', fontSize: 13, color: '#6b6b68', textAlign: 'center', margin: 0, lineHeight: 1.4 }}>
-          {crsHrv.factors?.[0] ?? `${todayVal}ms today · baseline ${baselineLo}–${baselineHi}ms`}
+          {crsHrv.factors?.[0] ?? `${Math.round(todayVal)}ms today · baseline ${baselineLo}–${baselineHi}ms${pctLabel}`}
         </p>
       </div>
 

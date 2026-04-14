@@ -153,8 +153,13 @@ export function FormCard({ data, onDrillDown }: FormCardProps) {
             </p>
             <span className="dash-card-meta">
               last read · {nowStr}
+              {crs.pctVsBaseline !== null && crs.pctVsBaseline !== undefined && (
+                <span style={{ marginLeft: 6, color: crs.pctVsBaseline >= 0 ? '#34D399' : '#F59E0B' }}>
+                  · {crs.pctVsBaseline > 0 ? '+' : ''}{crs.pctVsBaseline}% baseline
+                </span>
+              )}
               {primaryDrag && crs.score < 75 && (
-                <span style={{ marginLeft: 8, color: '#F59E0B' }}>· {PILLAR_DRAG_LABEL[primaryDrag] ?? primaryDrag}</span>
+                <span style={{ marginLeft: 6, color: '#F59E0B' }}>· {PILLAR_DRAG_LABEL[primaryDrag] ?? primaryDrag}</span>
               )}
             </span>
           </div>

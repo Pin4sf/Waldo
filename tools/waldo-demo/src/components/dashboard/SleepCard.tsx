@@ -107,10 +107,15 @@ export function SleepCard({ data, history }: SleepCardProps) {
   const durationStr = formatDuration(sleep.durationHours);
   const sleepFactors = crs.sleep?.factors ?? [];
   const narrative = sleepFactors.length > 0 ? sleepFactors[0]! : `${durationStr} total sleep.`;
-  const previousSleepHours = history?.previousEntry?.sleepHours ?? null;
+  // Prefer real yesterday from DB, fall back to history context
+  const previousSleepHours = data.yesterday?.sleepHours ?? history?.previousEntry?.sleepHours ?? null;
   const previousLabel = previousSleepHours ? formatDuration(previousSleepHours) : null;
   const delta = previousSleepHours === null ? null : sleep.durationHours - previousSleepHours;
   const deltaIsPositive = delta === null ? true : delta >= 0;
+  // "−40min vs your usual" from 7-day avg baseline
+  const vsUsualStr = sleep.minutesVsUsual !== null && sleep.minutesVsUsual !== undefined
+    ? (sleep.minutesVsUsual >= 0 ? `+${sleep.minutesVsUsual}min vs usual` : `${sleep.minutesVsUsual}min vs usual`)
+    : null;
   const stageBars = allocateBarStages(sleep.stages).map((stage, index) => {
     const height = [42, 64, 78, 36, 54, 68, 44, 72, 58, 66, 40][index]!;
     const color = STAGE_CONFIG.find((item) => item.key === stage)?.line ?? '#3485ff';
@@ -127,7 +132,7 @@ export function SleepCard({ data, history }: SleepCardProps) {
           <h3 className="dash-card-title">Sleep stages</h3>
           <p className="dash-card-narrative">{narrative}</p>
           <span className="dash-card-meta">
-            Last night · {durationStr} total
+            Last night · {durationStr} total{vsUsualStr ? <span style={{ color: deltaIsPositive ? '#34D399' : '#F59E0B', marginLeft: 4 }}>· {vsUsualStr}</span> : null}
           </span>
         </div>
 

@@ -166,13 +166,20 @@ export async function fetchDates(userId = DEFAULT_USER_ID): Promise<DateEntry[]>
   });
 }
 
-/** Full day data for selected date. */
+/** Full day data for selected date — includes baselines + yesterday comparison. */
 export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<DayResponse> {
+  // Compute yesterday's date for comparison chips
+  const d = new Date(date + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 1);
+  const yesterdayDate = d.toISOString().slice(0, 10);
+
   const [
     { data: crs }, { data: health }, { data: stress },
     { data: calMetrics }, { data: calEvents }, { data: emailMetrics }, { data: taskMetrics },
     { data: masterMetrics }, { data: activity }, { data: patterns },
     { data: waldoActionsRaw },
+    { data: intelligence },
+    { data: yCrs }, { data: yHealth }, { data: yMaster },
   ] = await Promise.all([
     supabase.from('crs_scores').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
     supabase.from('health_snapshots').select('*').eq('user_id', userId).eq('date', date).maybeSingle(),
@@ -187,6 +194,14 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
     supabase.from('patterns').select('*').eq('user_id', userId),
     supabase.from('waldo_actions').select('time, action, reason, type, trace_id')
       .eq('user_id', userId).eq('date', date).order('created_at', { ascending: true }),
+    // Baselines from user_intelligence (for % comparisons + HRV badge)
+    supabase.from('user_intelligence')
+      .select('baselines, crs_patterns, sleep_patterns')
+      .eq('user_id', userId).maybeSingle(),
+    // Yesterday — for "yesterday · X" comparison chips
+    supabase.from('crs_scores').select('score').eq('user_id', userId).eq('date', yesterdayDate).maybeSingle(),
+    supabase.from('health_snapshots').select('sleep_duration_hours').eq('user_id', userId).eq('date', yesterdayDate).maybeSingle(),
+    supabase.from('master_metrics').select('strain').eq('user_id', userId).eq('date', yesterdayDate).maybeSingle(),
   ]);
 
   const stressEvents = (stress ?? []).map((s: any) => ({
@@ -194,6 +209,49 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
     durationMinutes: s.duration_minutes, confidence: s.confidence,
     severity: s.severity, explanation: s.explanation, components: s.components,
   }));
+
+  // ── Compute baselines from user_intelligence ──────────────────
+  const bl = intelligence?.baselines as Record<string, number> | null ?? null;
+  const crsPatterns = intelligence?.crs_patterns as Record<string, number> | null ?? null;
+  const sleepPatterns = intelligence?.sleep_patterns as Record<string, any> | null ?? null;
+
+  const hrv30d: number | null = bl?.hrv30d ?? null;
+  const hrv7d: number | null  = bl?.hrv7d ?? null;
+  const sleep7d: number | null = bl?.sleepDuration7d ?? null;
+  const rhr7d: number | null   = bl?.restingHR7d ?? null;
+  const bedtime7d: number | null = bl?.bedtime7d ?? null;
+  const crs30dAvg: number | null = crsPatterns?.avgScore ?? null;
+
+  // HRV % vs 30d baseline + badge
+  const todayHrv: number | null = health?.hrv_rmssd ?? null;
+  const hrvPct = (todayHrv !== null && hrv30d !== null && hrv30d > 0)
+    ? Math.round(((todayHrv - hrv30d) / hrv30d) * 100)
+    : null;
+  const hrvBadge: 'strong' | 'normal' | 'dipping' | 'low' =
+    hrvPct === null ? 'normal'
+    : hrvPct > 10  ? 'strong'
+    : hrvPct > -5  ? 'normal'
+    : hrvPct > -15 ? 'dipping'
+    : 'low';
+
+  // CRS % vs 30d baseline
+  const todayCrs: number = crs?.score ?? -1;
+  const crsPct = (todayCrs >= 0 && crs30dAvg !== null && crs30dAvg > 0)
+    ? Math.round(((todayCrs - crs30dAvg) / crs30dAvg) * 100)
+    : null;
+
+  // Sleep minutes vs usual
+  const todaySleepH: number | null = health?.sleep_duration_hours ?? null;
+  const sleepMinutesVsUsual = (todaySleepH !== null && sleep7d !== null)
+    ? Math.round((todaySleepH - sleep7d) * 60)
+    : null;
+
+  const baselines = bl ? {
+    hrv7d, hrv30d, sleepDuration7d: sleep7d, restingHR7d: rhr7d,
+    bedtime7d, crs30dAvg,
+    chronotype: (bl.chronotype as unknown as string) ?? sleepPatterns?.chronotype ?? null,
+    daysOfData: Number(bl.daysOfData ?? 0),
+  } : null;
 
   return {
     date,
@@ -208,6 +266,8 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       pillars: crs?.pillars_json ?? null,
       pillarDrag: crs?.pillar_drag_json ?? null,
       summary: crs?.summary ?? '',
+      pctVsBaseline: crsPct,
+      baseline30d: crs30dAvg,
     },
     stress: {
       events: stressEvents,
@@ -221,10 +281,15 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       efficiency: health.sleep_efficiency ?? 0, deepPercent: health.sleep_deep_pct ?? 0,
       remPercent: health.sleep_rem_pct ?? 0, stages: health.sleep_stages ?? { core: 0, deep: 0, rem: 0, awake: 0 },
       bedtime: health.sleep_bedtime ?? '', wakeTime: health.sleep_wake_time ?? '',
+      minutesVsUsual: sleepMinutesVsUsual,
+      avgHours7d: sleep7d,
     } : null,
     hrv: health?.hrv_rmssd ? {
       avg: health.hrv_rmssd, min: health.hrv_rmssd * 0.7,
       max: health.hrv_rmssd * 1.3, count: health.hrv_count,
+      avg30d: hrv30d,
+      pctVsBaseline: hrvPct,
+      badge: hrvBadge,
     } : null,
     activity: {
       steps: health?.steps ?? 0, exerciseMinutes: health?.exercise_minutes ?? 0,
@@ -311,6 +376,12 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
       eveningReview: activity.evening_review ?? null,
       fetchAlertFired: activity.fetch_alert_fired ?? false, tier: activity.tier ?? 'sparse',
     } : null,
+    yesterday: {
+      crs: (yCrs as any)?.score ?? null,
+      sleepHours: (yHealth as any)?.sleep_duration_hours ?? null,
+      strain: (yMaster as any)?.strain?.score ?? null,
+    },
+    baselines,
   } as DayResponse;
 }
 

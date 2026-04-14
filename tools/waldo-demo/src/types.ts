@@ -43,6 +43,18 @@ export interface PillarDrag {
   primary: 'sleep' | 'hrv' | 'circadian' | 'activity' | 'none';
 }
 
+/** Personal baselines derived from user_intelligence.baselines */
+export interface UserBaselines {
+  hrv7d: number | null;           // 7-day rolling avg RMSSD (ms)
+  hrv30d: number | null;          // 30-day rolling avg RMSSD — HRV badge baseline
+  sleepDuration7d: number | null; // 7-day avg sleep hours — "−40min vs your usual"
+  bedtime7d: number | null;       // 7-day avg bedtime in minutes from midnight
+  restingHR7d: number | null;     // 7-day avg resting HR (bpm)
+  crs30dAvg: number | null;       // 30-day avg CRS — Form "−8% baseline"
+  chronotype: string | null;      // 'early' | 'normal' | 'late'
+  daysOfData: number;
+}
+
 export interface DayResponse {
   date: string;
   crs: {
@@ -59,6 +71,9 @@ export interface DayResponse {
     /** Which component is dragging CRS — drives The Brief attribution */
     pillarDrag: PillarDrag | null;
     summary: string;
+    /** "−8% baseline" — (today - 30d avg) / 30d avg × 100, null if no baseline */
+    pctVsBaseline: number | null;
+    baseline30d: number | null;
   };
   stress: {
     events: StressEventData[];
@@ -75,8 +90,22 @@ export interface DayResponse {
     stages: { core: number; deep: number; rem: number; awake: number };
     bedtime: string;
     wakeTime: string;
+    /** "−40min vs your usual" — durationHours vs 7d avg, in minutes */
+    minutesVsUsual: number | null;
+    avgHours7d: number | null;
   } | null;
-  hrv: { avg: number; min: number; max: number; count: number } | null;
+  hrv: {
+    avg: number;
+    min: number;
+    max: number;
+    count: number;
+    /** 30-day avg for baseline band on HRV chart */
+    avg30d: number | null;
+    /** % deviation vs 30d baseline — e.g. -8 = 8% below */
+    pctVsBaseline: number | null;
+    /** HRV badge: strong >+10% | normal ±5% | dipping −5 to −15% | low <−15% */
+    badge: 'strong' | 'normal' | 'dipping' | 'low';
+  } | null;
   activity: {
     steps: number;
     exerciseMinutes: number;
@@ -134,6 +163,14 @@ export interface DayResponse {
   patterns: PatternData[];
   waldoActions: WaldoActionData[];
   dayActivity: DayActivityData | null;
+  /** Yesterday's key metrics for "yesterday · X" comparison chips */
+  yesterday: {
+    crs: number | null;
+    sleepHours: number | null;
+    strain: number | null;
+  } | null;
+  /** Personal baselines from user_intelligence — drives % comparisons and badges */
+  baselines: UserBaselines | null;
 }
 
 export interface PatternData {
