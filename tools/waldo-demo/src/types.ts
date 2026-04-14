@@ -337,6 +337,28 @@ export interface WaldoProposal {
   createdAt: string;
 }
 
+// ─── Trend / Slope data ──────────────────────────────────────────
+
+export type TrendDirection = 'improving' | 'stable' | 'declining';
+
+export interface TrendDimension {
+  key: 'body' | 'schedule' | 'communication' | 'tasks' | 'mood' | 'screen';
+  label: string;
+  weekOneValue: number | null;   // 4 weeks ago (7-day avg)
+  weekFourValue: number | null;  // most recent 7 days avg
+  direction: TrendDirection;
+  unit: string;                  // 'pts', 'MLS', '%', 'tasks', 'score'
+  higherIsBetter: boolean;       // for coloring right dot
+  available: boolean;            // false = source not connected
+}
+
+export interface TrendData {
+  dimensions: TrendDimension[];
+  rangeLabel: string;            // "4-week direction"
+  daysAnalysed: number;
+  overallDirection: TrendDirection;  // majority vote across available dimensions
+}
+
 export interface HealthHistory {
   hrv30d: (number | null)[];       // 30-day HRV avg — for HRVCard baseline chart
   rhr7d: (number | null)[];        // 7-day resting HR — for RestingHRCard sparkline

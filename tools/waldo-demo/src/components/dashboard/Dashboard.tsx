@@ -21,6 +21,7 @@ import { LoadCard } from './LoadCard.js';
 import { HRVCard, CircadianCard, MotionCard, SleepDebtCard, RestingHRCard, SleepScoreCard } from './Tier2Cards.js';
 import { SignalDepthCard } from './SignalDepthCard.js';
 import { TheClose } from './TheClose.js';
+import { TheSlopeCard } from './TheSlopeCard.js';
 import { BodyReadings } from './BodyReadings.js';
 import { FetchCard, spotsToFetchEvents } from './FetchCard.js';
 import type { FetchEvent } from './FetchCard.js';
@@ -30,7 +31,7 @@ import { ConversationHistory } from '../ConversationHistory.js';
 import { ConstellationView } from '../ConstellationView.js';
 import type { DashboardHistoryContext } from './history.js';
 import * as cloud from '../../supabase-api.js';
-import type { DateEntry, DayResponse, WaldoResponse, SpotData, PatternData, SyncStatus, WaldoProposal } from '../../types.js';
+import type { DateEntry, DayResponse, WaldoResponse, SpotData, PatternData, SyncStatus, WaldoProposal, TrendData } from '../../types.js';
 
 type SidebarView = 'home' | 'chat' | 'connectors' | 'fetches' | 'constellations' | 'chats';
 type TimeRange = 'today' | '7d' | '30d' | '3m' | '12m';
@@ -308,6 +309,8 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
   const [isLoadingDates, setIsLoadingDates] = useState(true);
   const [isLoadingDay, setIsLoadingDay] = useState(false);
   const [isLoadingWag, setIsLoadingWag] = useState(false);
+  const [trendData, setTrendData] = useState<TrendData | null>(null);
+  const [isLoadingTrend, setIsLoadingTrend] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'waldo'; content: string }>>([]);
   const [isChatting, setIsChatting] = useState(false);
@@ -653,6 +656,9 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
               onApprove={handleApproveProposal}
               onReject={handleRejectProposal}
             />
+
+            {/* The Slope — 4-week direction dumbbell plot */}
+            <TheSlopeCard data={trendData} isLoading={isLoadingTrend} />
 
             {/* Spots feed — what Waldo noticed */}
             {intelligenceFeed.length > 0 && (

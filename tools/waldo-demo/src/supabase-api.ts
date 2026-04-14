@@ -385,6 +385,186 @@ export async function fetchDay(date: string, userId = DEFAULT_USER_ID): Promise<
   } as DayResponse;
 }
 
+// ─── Trend / Slope ───────────────────────────────────────────────
+
+import type { TrendData, TrendDimension, TrendDirection } from './types.js';
+
+/**
+ * fetchTrend — The Slope card data.
+ *
+ * Queries 56 days (8 weeks) across all 6 dimensions.
+ * Compares week 1 (oldest 7 days) vs week 8 (most recent 7 days).
+ * Returns per-dimension direction: improving | stable | declining.
+ *
+ * Significance threshold: >5% change = directional, else stable.
+ * Higher-is-better: Body, Mood, Screen.
+ * Lower-is-better: Schedule (MLS), Communication (after-hours %), Tasks (overdue).
+ */
+export async function fetchTrend(userId = DEFAULT_USER_ID): Promise<TrendData> {
+  const now = new Date();
+  const date56ago = new Date(now.getTime() - 56 * 86400000).toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+
+  // Week 1 = 56–49 days ago (oldest)   Week 8 = 7–0 days ago (most recent)
+  const w1Start = new Date(now.getTime() - 56 * 86400000).toISOString().slice(0, 10);
+  const w1End   = new Date(now.getTime() - 49 * 86400000).toISOString().slice(0, 10);
+  const w8Start = new Date(now.getTime() -  7 * 86400000).toISOString().slice(0, 10);
+  const w8End   = today;
+
+  const [
+    { data: crsAll }, { data: calAll }, { data: emailAll },
+    { data: taskAll }, { data: moodAll }, { data: screenAll },
+    { data: masterAll },
+  ] = await Promise.all([
+    supabase.from('crs_scores').select('date, score')
+      .eq('user_id', userId).gte('score', 0)
+      .gte('date', date56ago).lte('date', today),
+    supabase.from('calendar_metrics').select('date, meeting_load_score')
+      .eq('user_id', userId)
+      .gte('date', date56ago).lte('date', today),
+    supabase.from('email_metrics').select('date, after_hours_ratio, total_emails')
+      .eq('user_id', userId)
+      .gte('date', date56ago).lte('date', today),
+    supabase.from('task_metrics').select('date, overdue_count, pending_count')
+      .eq('user_id', userId)
+      .gte('date', date56ago).lte('date', today),
+    supabase.from('mood_metrics').select('date, mood_score, avg_valence, avg_energy')
+      .eq('user_id', userId)
+      .gte('date', date56ago).lte('date', today),
+    supabase.from('screen_time_metrics').select('date, productivity_score')
+      .eq('user_id', userId)
+      .gte('date', date56ago).lte('date', today),
+    supabase.from('master_metrics').select('date, cognitive_load')
+      .eq('user_id', userId)
+      .gte('date', date56ago).lte('date', today),
+  ]);
+
+  // ── Helpers ────────────────────────────────────────────────────
+  function weekAvg(rows: Array<Record<string, unknown>> | null, key: string, start: string, end: string): number | null {
+    if (!rows?.length) return null;
+    const vals = rows
+      .filter((r: any) => r.date >= start && r.date <= end)
+      .map((r: any) => Number(r[key]))
+      .filter(v => !isNaN(v) && v >= 0);
+    return vals.length > 0 ? +(vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) : null;
+  }
+
+  function direction(w1: number | null, w8: number | null, higherIsBetter: boolean, threshold = 0.05): TrendDirection {
+    if (w1 === null || w8 === null || w1 === 0) return 'stable';
+    const pct = (w8 - w1) / Math.abs(w1);
+    if (Math.abs(pct) < threshold) return 'stable';
+    const up = pct > 0;
+    return (higherIsBetter ? up : !up) ? 'improving' : 'declining';
+  }
+
+  // ── Body (CRS score — higher = better) ────────────────────────
+  const bodyW1  = weekAvg(crsAll as any, 'score', w1Start, w1End);
+  const bodyW8  = weekAvg(crsAll as any, 'score', w8Start, w8End);
+
+  // ── Schedule (Meeting Load Score — lower = better) ─────────────
+  const schedW1 = weekAvg(calAll as any, 'meeting_load_score', w1Start, w1End);
+  const schedW8 = weekAvg(calAll as any, 'meeting_load_score', w8Start, w8End);
+
+  // ── Communication (after-hours ratio % — lower = better) ───────
+  const commsW1Raw = weekAvg(emailAll as any, 'after_hours_ratio', w1Start, w1End);
+  const commsW8Raw = weekAvg(emailAll as any, 'after_hours_ratio', w8Start, w8End);
+  const commsW1 = commsW1Raw !== null ? +(commsW1Raw * 100).toFixed(1) : null;
+  const commsW8 = commsW8Raw !== null ? +(commsW8Raw * 100).toFixed(1) : null;
+
+  // ── Tasks (overdue count — lower = better) ─────────────────────
+  const tasksW1 = weekAvg(taskAll as any, 'overdue_count', w1Start, w1End);
+  const tasksW8 = weekAvg(taskAll as any, 'overdue_count', w8Start, w8End);
+
+  // ── Mood (mood_score 0-100 — higher = better) ──────────────────
+  // Compute from avg_valence × 0.6 + avg_energy × 0.4 if mood_score absent
+  const moodRows = (moodAll ?? []) as Array<Record<string, any>>;
+  const moodScore = (row: Record<string, any>) => {
+    if (row.mood_score != null) return Number(row.mood_score);
+    const v = Number(row.avg_valence ?? 0), e = Number(row.avg_energy ?? 0);
+    return v > 0 || e > 0 ? Math.round(v * 60 + e * 40) : null;
+  };
+  const moodW1 = moodRows.filter(r => r.date >= w1Start && r.date <= w1End).length > 0
+    ? +(moodRows.filter(r => r.date >= w1Start && r.date <= w1End)
+        .map(moodScore).filter((v): v is number => v !== null)
+        .reduce((s, v, _, a) => s + v / a.length, 0)).toFixed(1)
+    : null;
+  const moodW8 = moodRows.filter(r => r.date >= w8Start && r.date <= w8End).length > 0
+    ? +(moodRows.filter(r => r.date >= w8Start && r.date <= w8End)
+        .map(moodScore).filter((v): v is number => v !== null)
+        .reduce((s, v, _, a) => s + v / a.length, 0)).toFixed(1)
+    : null;
+
+  // ── Screen (productivity_score 0-100 — higher = better) ────────
+  const screenW1 = weekAvg(screenAll as any, 'productivity_score', w1Start, w1End);
+  const screenW8 = weekAvg(screenAll as any, 'productivity_score', w8Start, w8End);
+
+  const dimensions: TrendDimension[] = [
+    {
+      key: 'body', label: 'Body',
+      weekOneValue: bodyW1, weekFourValue: bodyW8,
+      direction: direction(bodyW1, bodyW8, true),
+      unit: 'pts', higherIsBetter: true,
+      available: (crsAll?.length ?? 0) > 0,
+    },
+    {
+      key: 'schedule', label: 'Schedule',
+      weekOneValue: schedW1, weekFourValue: schedW8,
+      direction: direction(schedW1, schedW8, false),
+      unit: 'MLS', higherIsBetter: false,
+      available: (calAll?.length ?? 0) > 0,
+    },
+    {
+      key: 'communication', label: 'Communication',
+      weekOneValue: commsW1, weekFourValue: commsW8,
+      direction: direction(commsW1, commsW8, false),
+      unit: '%', higherIsBetter: false,
+      available: (emailAll?.length ?? 0) > 0,
+    },
+    {
+      key: 'tasks', label: 'Tasks',
+      weekOneValue: tasksW1, weekFourValue: tasksW8,
+      direction: direction(tasksW1, tasksW8, false),
+      unit: 'overdue', higherIsBetter: false,
+      available: (taskAll?.length ?? 0) > 0,
+    },
+    {
+      key: 'mood', label: 'Mood',
+      weekOneValue: moodW1, weekFourValue: moodW8,
+      direction: direction(moodW1, moodW8, true),
+      unit: 'score', higherIsBetter: true,
+      available: (moodAll?.length ?? 0) > 0,
+    },
+    {
+      key: 'screen', label: 'Screen',
+      weekOneValue: screenW1, weekFourValue: screenW8,
+      direction: direction(screenW1, screenW8, true),
+      unit: '%', higherIsBetter: true,
+      available: (screenAll?.length ?? 0) > 0,
+    },
+  ];
+
+  // Overall direction: majority vote among available dimensions
+  const available = dimensions.filter(d => d.available);
+  const improving = available.filter(d => d.direction === 'improving').length;
+  const declining = available.filter(d => d.direction === 'declining').length;
+  const overallDirection: TrendDirection = improving > declining ? 'improving'
+    : declining > improving ? 'declining'
+    : 'stable';
+
+  const allDates = [...new Set([
+    ...(crsAll ?? []).map((r: any) => r.date),
+    ...(calAll ?? []).map((r: any) => r.date),
+    ...(emailAll ?? []).map((r: any) => r.date),
+  ])];
+
+  return {
+    dimensions,
+    rangeLabel: '4-week direction',
+    daysAnalysed: allDates.length,
+    overallDirection,
+  };
+}
+
 // ─── Agent ───────────────────────────────────────────────────────
 
 /**
