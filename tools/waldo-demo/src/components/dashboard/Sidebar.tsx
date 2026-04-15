@@ -5,7 +5,7 @@
  * Fetches, Constellations, Your Chats, Recents
  */
 
-type SidebarView = 'home' | 'chat' | 'connectors' | 'fetches' | 'constellations' | 'chats';
+type SidebarView = 'home' | 'chat' | 'connectors' | 'fetches' | 'constellations' | 'chats' | 'memory';
 
 interface SidebarProps {
   activeView: SidebarView;
@@ -23,6 +23,7 @@ const NAV_ITEMS: Array<{ id: SidebarView; label: string; icon: string }> = [
 const LOWER_ITEMS: Array<{ id: SidebarView; label: string; icon: string }> = [
   { id: 'fetches', label: 'The Patrol', icon: '\u21BB' },
   { id: 'constellations', label: 'Constellations', icon: '\u2728' },
+  { id: 'memory', label: 'Memory', icon: '\u25A6' },
 ];
 
 export function Sidebar({ activeView, onViewChange, userName, onSignOut, recentChats }: SidebarProps) {

@@ -32,9 +32,9 @@ import { ConversationHistory } from '../ConversationHistory.js';
 import { ConstellationView } from '../ConstellationView.js';
 import type { DashboardHistoryContext } from './history.js';
 import * as cloud from '../../supabase-api.js';
-import type { DateEntry, DayResponse, WaldoResponse, SpotData, PatternData, SyncStatus, WaldoProposal, TrendData } from '../../types.js';
+import type { DateEntry, DayResponse, WaldoResponse, SpotData, PatternData, SyncStatus, WaldoProposal, TrendData, CoreMemoryEntry } from '../../types.js';
 
-type SidebarView = 'home' | 'chat' | 'connectors' | 'fetches' | 'constellations' | 'chats';
+type SidebarView = 'home' | 'chat' | 'connectors' | 'fetches' | 'constellations' | 'chats' | 'memory';
 type TimeRange = 'today' | '7d' | '30d' | '3m' | '12m';
 
 interface DashboardProps {
@@ -321,6 +321,8 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
   const [syncStatuses, setSyncStatuses] = useState<SyncStatus[]>([]);
   const [pendingProposal, setPendingProposal] = useState<WaldoProposal | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [memoryEntries, setMemoryEntries] = useState<CoreMemoryEntry[]>([]);
+  const [isLoadingMemory, setIsLoadingMemory] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
@@ -608,6 +610,13 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
   const handleViewChange = (view: SidebarView) => {
     if (view === 'constellations') { setShowConstellation(true); return; }
     setSidebarView(view);
+    // Load memory lazily on first visit
+    if (view === 'memory' && memoryEntries.length === 0 && !isLoadingMemory) {
+      setIsLoadingMemory(true);
+      cloud.fetchCoreMemory(userId)
+        .then(entries => { setMemoryEntries(entries ?? []); setIsLoadingMemory(false); })
+        .catch(() => setIsLoadingMemory(false));
+    }
   };
 
   // ─── Stats for header area ─────────────────────────────────────
@@ -786,7 +795,19 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
 
         {sidebarView === 'fetches' && (
           <div className="dash-center-scroll">
-            {/* Full Patrol log */}
+            {/* Patrol header */}
+            <div className="dash-card" style={{ borderLeft: '3px solid #34D399', marginBottom: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--text-dim)' }}>
+                The Patrol
+              </span>
+              <h3 style={{ fontFamily: 'var(--font-headline)', fontSize: 22, fontWeight: 400, color: 'var(--text)', marginTop: 8, marginBottom: 6 }}>
+                Everything Waldo handled
+              </h3>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                Every proactive action, reactive response, and learning event — logged in order.
+              </p>
+            </div>
+            {/* Full Patrol log for selected date */}
             <ThePatrol
               actions={dayData?.waldoActions ?? []}
               isLoading={isLoadingDay}
@@ -816,6 +837,64 @@ export function Dashboard({ userId, userName, onSignOut }: DashboardProps) {
         {sidebarView === 'chats' && (
           <div className="dash-center-scroll">
             <ConversationHistory userId={userId} />
+          </div>
+        )}
+
+        {sidebarView === 'memory' && (
+          <div className="dash-center-scroll">
+            {/* Memory header */}
+            <div className="dash-card" style={{ borderLeft: '3px solid #7C6BF0' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--text-dim)' }}>
+                Waldo's Memory
+              </span>
+              <h3 style={{ fontFamily: 'var(--font-headline)', fontSize: 22, fontWeight: 400, color: 'var(--text)', marginTop: 8, marginBottom: 6 }}>
+                What Waldo knows about you
+              </h3>
+              <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                These are the preferences, patterns, and facts Waldo has learned over time. Persistent across all conversations.
+              </p>
+            </div>
+
+            {isLoadingMemory ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                <div className="loading" style={{ justifyContent: 'center', marginBottom: 8 }}>
+                  <span className="loading-dot" /><span className="loading-dot" /><span className="loading-dot" />
+                </div>
+                <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>Loading memory...</p>
+              </div>
+            ) : memoryEntries.length === 0 ? (
+              <div className="dash-card" style={{ opacity: 0.6, border: '1px dashed var(--border)', textAlign: 'center', padding: '32px 20px' }}>
+                <span style={{ fontSize: 32, display: 'block', marginBottom: 12 }}>◦</span>
+                <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                  Waldo hasn't learned anything yet. Memory fills as you have conversations and Waldo observes your patterns.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, padding: '0 2px' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{memoryEntries.length} entries</span>
+                </div>
+                {memoryEntries.map((entry, i) => (
+                  <div key={entry.id ?? i} className="dash-card" style={{ padding: '14px 18px', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--text-dim)', display: 'block', marginBottom: 4 }}>
+                          {entry.key.replace(/_/g, ' ')}
+                        </span>
+                        <p style={{ fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
+                          {entry.value}
+                        </p>
+                      </div>
+                      {entry.updatedAt && (
+                        <span style={{ fontSize: 10, color: 'var(--text-dim)', flexShrink: 0, marginTop: 2 }}>
+                          {new Date(entry.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
 

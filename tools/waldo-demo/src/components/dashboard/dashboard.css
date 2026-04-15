@@ -222,7 +222,12 @@
 .time-tab.active {
   background: var(--bg);
   color: var(--text);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  border-bottom: 2px solid var(--accent);
+}
+.time-tab.active:hover {
+  color: var(--text);
 }
 
 .time-tab:disabled:not(.active) {
