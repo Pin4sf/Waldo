@@ -68,17 +68,46 @@ Claude Code is a production-grade agentic system running the same architectural 
 | 29 | **Cross-domain tunnels** | HIGH | Phase 2 | When same entity (e.g., "board meeting") appears across health, calendar, tasks, and communication dimensions, auto-create cross-reference. Feed into Constellation analysis during weekly Dreaming Mode. MemPalace's spatial linking applied to multi-dimensional health intelligence. |
 | 30 | **Temporal fact invalidation** | MEDIUM | D | `valid_from`/`valid_to`/`superseded_by` columns on memory_blocks. Never delete — mark as ended. Enables: evolution rollback, historical queries, temporal pattern discovery. From MemPalace's knowledge graph. |
 
+### From Cloudflare Agents Week (April 2026) — Upgrades 31-38
+
+> **Source:** [Project Think](https://blog.cloudflare.com/project-think/) + [Agents Week](https://blog.cloudflare.com/welcome-to-agents-week/). Full analysis: [cloudflare-agents-week-analysis.md](./cloudflare-agents-week-analysis.md)
+
+| # | Upgrade | Impact | Phase | Status | What |
+|---|---------|--------|-------|--------|------|
+| 31 | **AI Gateway routing** | HIGH | **NOW** | 🔴 **2-line change** | Route `callAnthropic()` + `callDeepSeek()` through `gateway.ai.cloudflare.com`. Gains: cost dashboard, semantic caching (30-40% savings), auto-fallback, rate limit alerts. Zero behavior change. |
+| 32 | **Dynamic Workers / Code Mode** | VERY HIGH | **Phase E — NOW UNBLOCKED** | 🔴 **Open Beta** | Morning Wag deterministic math (cognitive load, trend, sleep debt, focus window) runs as TypeScript function in Dynamic Worker. 81% token reduction. $0.01 → $0.002 per Morning Wag. |
+| 33 | **Fiber checkpointing** | HIGH | Phase E | 🟡 Pattern available | Wrap `runPatrol()` + `runDailyCompaction()` in `runFiber()` with `ctx.stash()` checkpoints. Fixes silent Morning Wag failures when DO is evicted mid-call. |
+| 34 | **Sessions tree** | MEDIUM | Phase F | 🟡 Schema change | Add `parent_id` to `conversation_history`. Morning Wag = separate branch from conversational. FTS5 search across all branches. Non-destructive compaction replaces deletion. |
+| 35 | **MCP server on CF infrastructure** | STRATEGIC | Phase 2 | 🟡 Framework available | Rebuild `mcp-server` EF using Cloudflare's open-source MCP framework. Exposes `getCRS()`, `getStressLevel()`, `getCognitiveWindow()` to any external agent. Platform moat. |
+| 36 | **Sub-agent Facets** | VERY HIGH | Phase 2 | 🟡 Needs Think GA | SleepAnalystAgent + ProductivityAgent as isolated child DOs with typed RPC. WaldoBrain coordinates. Each Facet: own SQLite, own conversation tree, own tools. |
+| 37 | **Think base class migration** | MEDIUM | Phase F/G | 🟡 Wait for GA | Migrate `WaldoAgent extends DurableObject<Env>` → `extends Think<Env>`. Maps: soul→withContext, tools→getTools(), lifecycle→hooks. DON'T migrate yet — Think is Preview. |
+| 38 | **x402 MCP monetization** | HIGH | Phase 3 | ⚪ After MCP server | HTTP 402 payment for agent-to-agent queries. External agents pay $0.0001-0.001 per biological intelligence query. New revenue stream on the platform moat. |
+
 ## 5-Tier Memory Architecture
 
 See [Data Flow & Diagrams](diagrams.md#memory-architecture-5-tier-cognitive-science-mapping) for the full diagram.
 
 ## Cost Model (With All Optimizations)
 
-**$0.01-0.03/user/day** ($0.30-0.90/month) with:
+**Current (no optimizations):** $0.30-0.56/user/month
+
+**Optimized trajectory:**
+
+| Milestone | Per User/Month | 10K Users | What Enables It |
+|---|---|---|---|
+| **Current** | $0.32–0.56 | $3,200–5,600 | — |
+| **+ AI Gateway semantic cache** | $0.22–0.40 | $2,200–4,000 | 30-40% cache hit on repeated patterns |
+| **+ Code Mode (Dynamic Workers)** | $0.08–0.15 | $800–1,500 | 81% token reduction on deterministic calls |
+| **+ Sandbox Python analytics** | $0.06–0.12 | $600–1,200 | Charts/file parsing off the LLM |
+| **+ Anthropic Batch API (overnight)** | $0.04–0.08 | $400–800 | 50% discount on Constellation analysis |
+| **Phase 3 full autonomous** | $0.50–1.00 | $5,000–10,000 | Voice + specialist agents + GEPA |
+
+**Individual optimizations:**
 - Rules pre-filter (60-80% skip) + prompt caching (90% savings on cached tokens)
-- Semantic caching (47-73% reduction for repetitive queries)
-- Code Mode (81% token reduction via Dynamic Workers, Phase E)
-- **Cloudflare Sandbox** (GA April 2026) for Python-based Code Mode, chart rendering, user routines — see [architecture-roadmap.md](./architecture-roadmap.md#the-execution-layer-gap--where-cloudflare-sandbox-fits)
+- Semantic caching via AI Gateway (47-73% reduction for repetitive queries)
+- **Code Mode via Dynamic Workers** (81% token reduction, **Open Beta — ship now**)
+- **AI Gateway routing** (caching + observability + fallback, **2-line change — ship now**)
+- **Cloudflare Sandbox** (GA) for Python analytics, chart rendering, user routines
 - Markdown over JSON (34% savings), CSV for tabular data (40-50% savings)
 - Anthropic Batch API (50% discount) for overnight Constellation analysis
 
@@ -87,17 +116,22 @@ See [Data Flow & Diagrams](diagrams.md#memory-architecture-5-tier-cognitive-scie
 ```mermaid
 graph LR
     NORI["Nori (YC)<br/>SHIPPED<br/>Daily plans, 6+ wearables"] --- GAP["THE GAP:<br/>Proactive + CRS +<br/>Channel delivery +<br/>Evolving memory +<br/>MCP server"]
-    GAP --- WALDO["Waldo<br/>NOT SHIPPED<br/>Best architecture"]
+    GAP --- WALDO["Waldo<br/>Phase D SHIPPED<br/>Best architecture"]
     CHAT["ChatGPT Health<br/>230M users"] --- GAP
     PRANA["Prana (YC W26)<br/>Clinical drift"] --- GAP
+    CF["Cloudflare Think<br/>(Preview — general platform)"] --- GAP
 
     style NORI fill:#fef2f2,stroke:#ef4444
     style GAP fill:#dcfce7,stroke:#22c55e
-    style WALDO fill:#fef3c7,stroke:#f59e0b
+    style WALDO fill:#d1fae5,stroke:#059669
     style CHAT fill:#fef2f2,stroke:#ef4444
     style PRANA fill:#fef2f2,stroke:#ef4444
+    style CF fill:#fef3c7,stroke:#d97706
 ```
 
-> **We have the best architecture. We don't have a product. Ship Phase D.**
+> **We have the best architecture AND a working product. Ship Phase E (Code Mode) + Phase F (onboarding).**
+>
+> **Cloudflare is building the general plumbing. Waldo owns the domain-specific intelligence. These compose — they don't compete.**
 
 > **Full report:** [Docs/WALDO_AGENT_UPGRADE_REPORT.md](https://github.com/Pin4sf/Waldo/blob/main/Docs/WALDO_AGENT_UPGRADE_REPORT.md) (1,739 lines)
+> **Agents Week analysis:** [cloudflare-agents-week-analysis.md](./cloudflare-agents-week-analysis.md)

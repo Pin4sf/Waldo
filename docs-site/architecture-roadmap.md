@@ -224,21 +224,27 @@ See: [scaling-infrastructure.md § Cloudflare Sandbox](./scaling-infrastructure.
 
 ## 32 Metrics — Computation vs Agent Awareness
 
-From `Docs/WALDO_ADAPTER_ECOSYSTEM.md`:
+From `Docs/WALDO_ADAPTER_ECOSYSTEM.md`. **Updated Session 11 — 24/32 now agent-aware.**
 
-| Dimension | Metrics Planned | Computed | Agent Uses |
-|---|---|---|---|
-| **Body** (health) | 10 | 7 | 7 ✅ |
-| **Schedule** (calendar) | 5 | 4 | 2 (via narrative) |
-| **Communication** (email) | 5 | 3 | 1 (via narrative) |
-| **Tasks** | 5 | 4 | 2 (via narrative) |
-| **Mood/Screen** | 4 | 4 | 1 (via narrative) |
-| **Combined Masters** | 3 | 2 (cognitive load, burnout) | 2 ✅ |
-| **TOTAL** | **32** | **24** | **15** |
+| Dimension | Metrics Planned | Computed | Agent Uses | New in S11 |
+|---|---|---|---|---|
+| **Body** (health) | 10 | 7 | 7 ✅ | — |
+| **Schedule** (calendar) | 5 | 4 | **4** ✅ | focus_time_score, schedule_density |
+| **Communication** (email) | 5 | 3 | **3** ✅ | CSI, response_pressure |
+| **Tasks** | 5 | 4 | **4** ✅ | procrastination_index, task_energy_match |
+| **Mood/Screen** | 4 | 4 | **4** ✅ | mood_score, screen_quality, focus_sessions |
+| **Combined Masters** | 3 | 2 (cognitive load, burnout) | **2** ✅ | get_master_metrics tool (new) |
+| **TOTAL** | **32** | **24** | **24** ✅ | +9 from Session 11 |
 
-**Gap analysis:**
-- 8 metrics not yet computed: Circadian Score, Resilience, Recovery-Load Balance, Meeting Cognitive Cost, Response Pressure, Thread Depth, Procrastination Index, Task-Energy Match, Focus Session Count, Waldo Intelligence Score
-- 9 metrics computed but agent uses only via narrative (not as structured tool calls)
+**Remaining gap — not yet computed (8 metrics):**
+- Circadian Score (needs bedtime consistency algorithm)
+- Resilience (14-day stability index)
+- Recovery-Load Balance (as dedicated computed field)
+- Meeting Cognitive Cost (needs meeting transcript analysis)
+- Thread Depth (needs email thread parsing)
+- Waldo Intelligence Score (meta-metric from all 32)
+
+**New tools added Session 11:** `get_screen_time`, `get_master_metrics`, `get_correlations`
 
 ---
 
@@ -315,49 +321,66 @@ Underneath:
 
 ---
 
-## Priority Roadmap (Next 90 Days)
+## Priority Roadmap (Updated April 2026 — Post Agents Week)
 
-### Tier 1 — Ship MVP Beta (2-3 weeks)
+### 🔴 Immediate (this sprint — days, not weeks)
 
-1. **Guided onboarding wizard** (2-3 days) — critical for first-user experience
-2. **Mobile app Supabase sync** (3-5 days) — Health Connect background sync
-3. **WhatsApp active delivery** (1 day) — double channel surface
-4. **Empty states + error handling** (2 days) — polish for real users
-5. **Idempotent message delivery** (1 day) — reliability
+| # | Item | Effort | Unlock |
+|---|---|---|---|
+| 1 | **AI Gateway routing** | 2 lines in llm.ts | Observability + semantic caching + fallback. Zero risk. |
+| 2 | **Guided onboarding wizard** | 2-3 days | Critical for first-user experience. Beta blocker. |
+| 3 | **Fiber checkpoint stopgap** | 1 day | Fix silent Morning Wag failures on DO eviction. |
 
-### Tier 2 — Cost & Intelligence (3-4 weeks)
+### 🟡 Phase E — Cost & Reliability (1-2 weeks)
 
-6. **Cloudflare Sandbox adoption** — Code Mode for Morning Wag pre-compute (1 week)
-7. **Circadian Score + Recovery-Load Balance** (2 days) — missing body metrics
-8. **Pre-Activity Spot** (2 days) — calendar-aware proactive
-9. **Chart generation tool** (`render_chart` via Sandbox) (3 days)
+| # | Item | Effort | Unlock |
+|---|---|---|---|
+| 4 | **Dynamic Workers / Code Mode** | 3-4 days | 81% token reduction. Morning Wag math off the LLM. **Open Beta — ship it.** |
+| 5 | **Mobile app Supabase sync** | 3-5 days | Health Connect background sync loop. Live data. |
+| 6 | **WhatsApp active delivery** | 1 day | Double delivery surface. |
+| 7 | **Pre-Activity Spot** | 2 days | Calendar-aware proactive ("Board call in 35min, running low"). |
 
-### Tier 3 — Automation + Learning (6-8 weeks)
+### 🟢 Phase F — Onboarding & Sessions (2-4 weeks)
 
-10. **Calendar write scopes + move execution** (1 week)
-11. **Task creation automation** (3 days)
-12. **Behavioral self-evolution** (Phase G, 2 weeks)
-13. **A/B soul file testing** (3 days)
-14. **Weekly Constellation report** via Sandbox (3 days)
+| # | Item | Effort | Unlock |
+|---|---|---|---|
+| 8 | **Sessions tree migration** | 3 days | Add parent_id to conversation_history. Branch isolation. |
+| 9 | **WebSocket real-time dashboard** | 3-4 days | Live updates without polling. |
+| 10 | **Circadian Score + Resilience** | 2 days | Remaining body metrics. |
+| 11 | **Chart generation tool** (`render_chart` via Sandbox) | 3 days | Agent draws real charts. |
+| 12 | **Behavioral self-evolution** | 2 weeks | Phase G — feedback → parameter tuning. |
 
-### Tier 4 — Platform (3+ months)
+### ⚪ Phase 2 — Platform (1-3 months)
 
-15. **Waldo as MCP server** for external agents
-16. **A2A protocol** for Pack tier
-17. **Voice interface** (faster-whisper STT + TTS)
-18. **Specialist sub-agents** (sleep, productivity, research)
-19. **GEPA self-improvement** via Sandbox
+| # | Item | Effort | Unlock |
+|---|---|---|---|
+| 13 | **MCP server on CF infrastructure** | 1 week | Use Cloudflare's open-source MCP framework. Platform moat. |
+| 14 | **Sub-agent Facets** (when Think GA) | 2-3 weeks | SleepAgent + ProductivityAgent + WaldoBrain coordinator. |
+| 15 | **Think base class migration** | 1 week | When Think hits GA. Adopts fibers, sessions tree natively. |
+| 16 | **Calendar + email writes** | 1 week | Execute actions, not just propose. |
+| 17 | **Voice interface** | 2 days | faster-whisper STT. "Hey Waldo..." |
+
+### 🔮 Phase 3 — Autonomous OS
+
+| # | Item | When |
+|---|---|---|
+| 18 | **x402 MCP monetization** | After MCP server ships |
+| 19 | **GEPA self-improvement** | After Sandbox Python analytics |
+| 20 | **A2A protocol (Pack tier)** | After MCP server |
+| 21 | **Specialist sub-agents** | After Think GA |
 
 ---
 
 ## Cost Trajectory
 
-| Scenario | Per-User/Month | 10K Users | Unlock |
+| Milestone | Per-User/Month | 10K Users | What Changes |
 |---|---|---|---|
-| **Current** (all LLM calls) | $0.32–0.56 | $3,200–5,600 | — |
-| **+ Code Mode via Sandbox** | $0.12–0.22 | $1,200–2,200 | Same quality, 60% cheaper |
-| **+ Prompt caching + semantic cache** | $0.08–0.15 | $800–1,500 | 75% reduction |
-| **Phase 3 (full autonomous)** | $0.50–1.00 | $5,000–10,000 | Includes voice, specialist agents, GEPA |
+| **Current** | $0.32–0.56 | $3,200–5,600 | — |
+| **+ AI Gateway** (this sprint) | $0.22–0.40 | $2,200–4,000 | Semantic caching 30-40% |
+| **+ Code Mode** (Phase E) | $0.08–0.15 | $800–1,500 | 81% token reduction |
+| **+ Sandbox Python analytics** | $0.06–0.12 | $600–1,200 | Charts + file parsing off LLM |
+| **+ Anthropic Batch API** | $0.04–0.08 | $400–800 | 50% discount overnight |
+| **Phase 3 full autonomous** | $0.50–1.00 | $5,000–10,000 | Voice + specialists + GEPA |
 
 ---
 
@@ -365,11 +388,11 @@ Underneath:
 
 From `Docs/WALDO_STARTUP_COMPETITIVE_LANDSCAPE.md`:
 
-1. **Data moat** — 12 adapters, 22 tables, cross-domain correlations no health-only app has ✅ Built
-2. **Intelligence moat** — R2 workspace + bootstrap + patterns + self-evolution ⚠️ Partial
-3. **Platform moat** — Waldo as MCP server + A2A for other agents ❌ Not built
+1. **Data moat** — 12 adapters, 24/32 metrics agent-aware, cross-domain correlations ✅ **Built**
+2. **Intelligence moat** — R2 workspace + bootstrap + patterns + self-evolution ⚠️ **Partial**
+3. **Platform moat** — Waldo as MCP server + A2A + x402 monetization ❌ **Phase 2**
 
-**The platform moat is the 10x one.** It requires Phase 3 work but is the reason Waldo becomes infrastructure, not a product.
+**The platform moat is the 10x one.** Cloudflare is building general agent infrastructure (Project Think). We own domain-specific health + life intelligence. These compose. Adopt Think for the plumbing. Keep the soul, the CRS engine, and the data flywheel as permanent differentiation.
 
 ---
 

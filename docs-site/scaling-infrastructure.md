@@ -56,9 +56,42 @@ graph TB
 
 **LLM costs dominate** (~$50-200/month at 10K users). Infrastructure cost is noise. But DOs give us capabilities Supabase can't: per-user scheduling, persistent state, real-time WebSocket.
 
+## AI Gateway — Route All LLM Calls (Ship NOW)
+
+> **Status: GA. 2-line change. Zero behavior change. Ship this week.**
+
+Cloudflare AI Gateway is a proxy layer between Waldo's DO and Anthropic/DeepSeek. Route through it to get:
+
+| Feature | Value |
+|---|---|
+| **Cost dashboard** | Every LLM call, tokens, latency, model, cost per user |
+| **Semantic caching** | 30-40% reduction on repeated patterns (Morning Wag same CRS zone each day) |
+| **Auto-fallback** | Anthropic slow → DeepSeek automatically, or any backup model |
+| **Rate limit monitoring** | Alerts before hitting API limits |
+| **Zero added latency** | Runs at Cloudflare edge, co-located with the DO |
+
+**Implementation in `cloudflare/waldo-worker/src/llm.ts`:**
+```typescript
+// BEFORE (line 71):
+const res = await fetch('https://api.anthropic.com/v1/messages', ...);
+
+// AFTER — set CLOUDFLARE_AI_GATEWAY_URL as a wrangler secret:
+const gatewayBase = (env as any).CLOUDFLARE_AI_GATEWAY_URL ?? 'https://api.anthropic.com';
+const res = await fetch(`${gatewayBase}/v1/messages`, ...);
+```
+
+Set once: `wrangler secret put CLOUDFLARE_AI_GATEWAY_URL`
+Value: `https://gateway.ai.cloudflare.com/v1/{account_id}/waldo/anthropic`
+
+Same change for DeepSeek (route through the `deepseek` provider path).
+
+---
+
 ## Code Mode + Dynamic Workers (Phase E)
 
-Claude generates a single TypeScript function instead of multiple tool calls. A Dynamic Worker executes it in isolation.
+> **Status: Dynamic Workers are now Open Beta (April 2026). This is unblocked. Ship it.**
+
+Claude generates a single TypeScript function instead of multiple tool calls. A Dynamic Worker executes it in isolation in milliseconds.
 
 | Pattern | LLM Calls | Tokens | Cost |
 |---------|----------|--------|------|
@@ -66,6 +99,31 @@ Claude generates a single TypeScript function instead of multiple tool calls. A 
 | **Code Mode (1 generated function)** | **1** | **~1,500** | **~$0.001** |
 
 **81% token reduction.** At 10K users, that's $500/month → $95/month in LLM costs.
+
+**What moves to Dynamic Workers:**
+- Cognitive load formula (meetings + email + tasks + sleep debt weights)
+- Trend direction calculation (CRS week-over-week delta)
+- Sleep debt accumulation (14-day weighted rolling)
+- Focus window prediction (calendar gap + circadian peak intersection)
+- Spot generation thresholds (deterministic math, not inference)
+
+**What stays with Claude:**
+- Narrative generation ("Bit of a rough night — your sleep was short by 40 minutes")
+- Cross-domain synthesis (connecting HRV drop to meeting load)
+- Novel pattern recognition
+
+**Code Mode example for Morning Wag:**
+```typescript
+// Dynamic Worker function (runs in ~2ms, zero tokens):
+function computeMorningContext(data: MorningData): MorningContext {
+  const cogLoad = (data.cal.mls / 15) * 30 + data.email.ahRatio * 25 +
+                  Math.min(data.tasks.overdue * 5, 20) + data.sleepDebt * 6;
+  const focusWindow = data.cal.focusGaps.sort((a, b) => b.minutes - a.minutes)[0];
+  const trend = data.crs.delta7d > 3 ? 'building' : data.crs.delta7d < -3 ? 'declining' : 'stable';
+  return { cogLoad: Math.min(100, cogLoad), focusWindow, trend, urgentTask: data.tasks.titles[0] };
+}
+// Then 1 Claude call: narrative from pre-computed facts only
+```
 
 ## Migration Path
 
@@ -178,6 +236,65 @@ ALTER TABLE episodes ADD COLUMN r2_key TEXT;
 ```
 
 > **Full R2 design:** Section 11 of [Docs/WALDO_SCALING_INFRASTRUCTURE.md](https://github.com/Pin4sf/Waldo/blob/main/Docs/WALDO_SCALING_INFRASTRUCTURE.md)
+
+---
+
+## Project Think Compatibility (Phase F/G)
+
+> **Status: Think is in Preview (April 2026). DO NOT migrate yet. Design toward it.**
+> **Full analysis:** [cloudflare-agents-week-analysis.md](./cloudflare-agents-week-analysis.md)
+
+Project Think is Cloudflare's opinionated base class (`Think extends DurableObject`) that provides the same patterns we built manually — but productized. Our `WaldoAgent extends DurableObject<Env>` maps cleanly to Think's lifecycle.
+
+### What Think Provides That We Don't Have
+
+| Think Primitive | Our Gap | Impact |
+|---|---|---|
+| `runFiber()` + `ctx.stash()` | No checkpoint on Morning Wag — silent failures if DO evicted | HIGH |
+| Sessions as trees (`parent_id`) | Flat `conversation_history` — Morning Wag pollutes chat context | MEDIUM |
+| Sub-agent Facets | Monolithic DO — no specialist sub-agents (sleep, productivity) | HIGH (Phase 2) |
+| `withCachedPrompt()` | Manual `cache_control: ephemeral` on soul prompt | LOW (equivalent) |
+
+### Migration Map (When Think Hits GA)
+
+| Waldo Pattern | Think Equivalent |
+|---|---|
+| `loadWorkspaceContext()` in workspace.ts | `configureSession().withContext("profile", ...).withContext("baselines", ...)` |
+| `buildSystemPrompt()` soul + zone + mode | `getSystemPrompt()` override |
+| `getToolsForTrigger(triggerType)` | `getTools()` override with trigger context |
+| Soul prompt caching | `.withCachedPrompt()` |
+| `runPatrol()` | `runFiber("patrol", async (ctx) => { ... ctx.stash(...) })` |
+| `runDailyCompaction()` | `runFiber("compaction", async (ctx) => { ... ctx.stash(...) })` |
+| Sub-agents (Phase 2) | `await this.subAgent(SleepAgent, "sleep-${userId}")` |
+
+### What Stays Custom (Waldo's Moat — Never Delegate to Think)
+
+- **Soul files** (SOUL_BASE, zone modifiers, mode templates) — warm, specific, "Already on it."
+- **CRS 3-pillar engine** (Recovery/CASS/ILAS) — science-grounded, unique IP
+- **Per-trigger tool permissions** — Morning Wag ≠ Fetch Alert ≠ Conversational
+- **Cross-domain narrative builder** — 6-dimension parallel Supabase queries before ReAct
+- **Health data privacy architecture** — health values stay in Supabase, DO stores only derived insights
+- **12-adapter data flywheel** — no general agent framework replicates this
+
+### Fiber Checkpointing Stopgap (Before Think GA)
+
+Until Think is stable, implement durability manually using `agent_state`:
+
+```typescript
+async runPatrol() {
+  const checkpoint = getState(this.sql, 'patrol_checkpoint');
+  const stage = checkpoint ? JSON.parse(checkpoint).stage : 'start';
+
+  if (stage === 'start') {
+    const crs = await fetchCRS(this.userId, this.env);
+    setState(this.sql, 'patrol_checkpoint', JSON.stringify({ stage: 'crs_loaded', crs }));
+  }
+  // If DO is evicted → alarm re-fires → resumes from stage='crs_loaded'
+  // ...
+}
+```
+
+This is the manual equivalent of `ctx.stash()`. Low-fi but effective.
 
 ---
 
