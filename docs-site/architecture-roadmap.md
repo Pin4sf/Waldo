@@ -376,5 +376,6 @@ From `Docs/WALDO_STARTUP_COMPETITIVE_LANDSCAPE.md`:
 > **See also:**
 > - [Scaling Infrastructure](./scaling-infrastructure.md) — DO + R2 + Sandbox architecture
 > - [Agent Intelligence](./agent-intelligence.md) — ReAct loop, memory, hooks
+> - [**Cloudflare Agents Week Analysis**](./cloudflare-agents-week-analysis.md) — Project Think + Dynamic Workers + AI Gateway adoption plan (April 2026)
 > - [Upgrade Report](./upgrade-report.md) — 18 upgrades from agent landscape research
 > - [Master Reference](./master-reference.md) — Complete MVP PRD
