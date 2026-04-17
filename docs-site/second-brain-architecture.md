@@ -635,3 +635,64 @@ The Waldo voice in morning messages should echo this: "Based on your patterns...
 > - [cloudflare-agents-week-analysis.md](./cloudflare-agents-week-analysis.md) — Project Think, Dynamic Workers, AI Gateway
 > - [scaling-infrastructure.md](./scaling-infrastructure.md) — DO + R2 + Sandbox architecture
 > - [architecture-roadmap.md](./architecture-roadmap.md) — Phase-by-phase status and priorities
+
+---
+
+## Appendix: OpenHarness Patterns to Adopt
+
+> **Source:** HKUDS/OpenHarness — 337-file Python harness. Full analysis April 2026.
+
+### 5-Stage Compaction Cascade (We Only Do Stage 4)
+
+OpenHarness compaction is cheap-to-expensive:
+1. **Microcompact** (free) — strip old tool results from `compactable_tools`, keep last 5
+2. **Context collapse** (free) — truncate old TextBlocks to head(900) + tail(500) chars
+3. **Session memory** (free) — 48-line textual summary replaces old messages, keeps 12 recent
+4. **Full LLM compact** (expensive) — only if stages 1-3 didn't solve it
+5. **PTL retry** — drop oldest 20% of rounds, retry up to 3 times
+
+We call LLM compact every night. Stages 1-3 would handle many cases for free. **~40-60% of nightly compaction calls eliminated.**
+
+### Capped Carryover Buckets (LRU Working Memory)
+
+OpenHarness threads `tool_metadata` with capped buckets through every tool call:
+- `read_file_state` (cap 6) — recent file reads with preview
+- `recent_work_log` (cap 10) — chronological action log
+- `recent_verified_work` (cap 10) — confirmed completed steps
+- `async_agent_state` (cap 8) — spawned worker summaries
+
+These survive compaction as `CompactAttachment` objects. **The agent's working focus persists across context resets.**
+
+For Waldo: add `recent_work_log` and `recent_verified_work` buckets to our `tool_metadata` in `runAgentLoop()`. Update after each tool call. Include in compact attachments during nightly compaction.
+
+### Pending Continuation Recovery
+
+`has_pending_continuation()` detects if the conversation ended mid-tool-loop (ToolResultBlocks as last message with no follow-up). `continue_pending()` resumes without injecting a new user message.
+
+For Waldo: before normal patrol, check `agent_state.agent_loop_interrupted`. If set, resume from partial state. Fixes silent Morning Wag failures when DO is evicted during iteration 2 of 3.
+
+### Per-Turn Synthetic Context Injection + Removal
+
+For coordinator turns, OpenHarness injects a synthetic "Coordinator User Context" message listing worker capabilities, then removes it after the model responds — never in conversation history.
+
+For Waldo: inject fresh narrative context (calendar, email, tasks) at the start of each Morning Wag turn without accumulating in episode history. The agent always sees fresh data; episodes remain clean.
+
+### SupportsStreamingMessages Protocol (Provider Abstraction)
+
+OpenHarness depends on a protocol (`SupportsStreamingMessages`) not a concrete class. Any LLM client with `stream_message()` works.
+
+For Waldo: in `llm.ts`, introduce an `LLMClient` interface. Both `callAnthropic()` and `callDeepSeek()` implement it. Future providers (Workers AI, DeepSeek V3, etc.) are drop-ins. This is the LLMProvider adapter pattern from our architecture docs — currently partially implemented.
+
+### Compaction Prompt: Template Output, Not Open-Ended Summarization
+
+OpenHarness coordinator rule: *"Never write 'based on your findings, do X.' Synthesize yourself first, then give specific prompts with exact values and dates."*
+
+Applied to Waldo's bootstrap/nightly compaction: don't give Claude "summarize this data." Give it a structured output template:
+```
+You are analyzing [N] days of health data for [USER].
+Write a compiled truth entry for this memory page:
+  Title: [SPECIFIC TITLE]
+  Format: 1-2 sentences stating the CURRENT UNDERSTANDING with exact numbers.
+  Example: "HRV drops 22-30% on Monday mornings (vs 59 weekly avg). Primary driver: short Sunday sleep (-1.3h). Confirmed across 14 Mondays."
+```
+This is why profile.md is showing 26 bytes — the prompt was too open-ended.
