@@ -1,6 +1,7 @@
-# 18 Upgrades from Claude Code + 2026 Landscape
+# 44 Upgrades from Agent Landscape Research (2026)
 
-> **Source:** Reverse-engineered Claude Code (1,905 TypeScript files, 213MB binary) + comprehensive 2026 agent landscape research + startup competitive analysis (March 31, 2026). + Hermes Agent (April 8, 2026) — 15th system. + MemPalace (April 9, 2026) — 16th system.
+> **Sources:** Claude Code (1,905 TS files) · Hermes Agent (15th system) · MemPalace (16th system) · Cloudflare Agents Week / Project Think · OpenHarness/HKUDS (17th system, April 2026)
+> Full harness design patterns: [harness-design.md](./harness-design.md) | Full Cloudflare analysis: [cloudflare-agents-week-analysis.md](./cloudflare-agents-week-analysis.md) | Full second brain vision: [second-brain-architecture.md](./second-brain-architecture.md)
 
 ## What We Learned
 
@@ -82,6 +83,20 @@ Claude Code is a production-grade agentic system running the same architectural 
 | 36 | **Sub-agent Facets** | VERY HIGH | Phase 2 | 🟡 Needs Think GA | SleepAnalystAgent + ProductivityAgent as isolated child DOs with typed RPC. WaldoBrain coordinates. Each Facet: own SQLite, own conversation tree, own tools. |
 | 37 | **Think base class migration** | MEDIUM | Phase F/G | 🟡 Wait for GA | Migrate `WaldoAgent extends DurableObject<Env>` → `extends Think<Env>`. Maps: soul→withContext, tools→getTools(), lifecycle→hooks. DON'T migrate yet — Think is Preview. |
 | 38 | **x402 MCP monetization** | HIGH | Phase 3 | ⚪ After MCP server | HTTP 402 payment for agent-to-agent queries. External agents pay $0.0001-0.001 per biological intelligence query. New revenue stream on the platform moat. |
+
+### From OpenHarness Analysis (April 2026) — Upgrades 39-44
+
+> **Source:** HKUDS/OpenHarness — 337-file Python harness, MIT. Full analysis: [harness-design.md](./harness-design.md)
+> Key finding: OpenHarness independently arrived at the same architectural decisions as Waldo (DO + SQLite + tool loop). Where they differ reveals our gaps.
+
+| # | Upgrade | Impact | Phase | Status | What |
+|---|---------|--------|-------|--------|------|
+| 39 | **5-stage compaction cascade** | HIGH | **Phase E** | 🔴 **Direct gap** | Replace single nightly LLM compact with cascade: (1) Microcompact — strip old tool results, keep 5 recent (free), (2) Context collapse — truncate old TextBlocks to head+tail (free), (3) Session memory summary — 48-line textual replacement (free), (4) LLM compact — only if stages 1-3 insufficient. **40-60% of nightly LLM compact calls eliminated.** |
+| 40 | **Capped LRU carryover buckets** | HIGH | Phase E | 🔴 **Direct gap** | Structured working memory buckets that survive compaction as `CompactAttachment` objects: `recent_work_log` (cap 10), `recent_verified_work` (cap 10). Updated after each tool call via `_append_capped_unique()`. Replaces our unbounded flat `tool_metadata`. Agent focus persists across context resets. |
+| 41 | **Pending continuation recovery** | HIGH | Phase E | 🔴 **Direct gap** | Detect mid-loop interruptions: if `agent_state` contains `loop_interrupted`, resume from partial tool call state on next alarm re-fire. Fixes silent Morning Wag failures when DO is evicted during iteration 2 of 3. `has_pending_continuation()` pattern from OpenHarness. |
+| 42 | **Per-turn synthetic context injection** | MEDIUM | Phase E | 🟡 Pattern available | Inject fresh narrative (calendar/health/tasks) as a synthetic user message at the start of each Morning Wag turn. Strip it after model responds — never enters conversation history. Matches OpenHarness's coordinator context injection pattern. Agent always sees fresh data without history pollution. |
+| 43 | **Prompt hook type for safety** | MEDIUM | Phase F | 🟡 Design ready | Add a 5th hook type: `PromptHook` — sends tool call payload to an LLM, expects `{ok: true/false, reason: "..."}`. Gate `propose_action` and `execute-proposal` through this. Before executing a calendar move, ask: "Is this safe and reversible?" Cheap 50-token call as an additional safety layer. |
+| 44 | **Structured compaction output template** | HIGH | Phase E | 🔴 **Root cause of thin workspace files** | Replace open-ended "summarize this data" prompts with a strict output template specifying exact format, example values, and minimum detail. Example: "Write a compiled truth entry. Format: 1-2 sentences with exact numbers. EXAMPLE: 'HRV drops 22-30% on Monday mornings (vs 59 weekly avg). Confirmed across 14 Mondays.'" This fixes `profile.md` at 26 bytes and `constellation.md` at 4 bytes. |
 
 ## 5-Tier Memory Architecture
 

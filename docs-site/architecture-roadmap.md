@@ -325,30 +325,35 @@ Underneath:
 
 ### 🔴 Immediate (this sprint — days, not weeks)
 
-| # | Item | Effort | Unlock |
-|---|---|---|---|
-| 1 | **AI Gateway routing** | 2 lines in llm.ts | Observability + semantic caching + fallback. Zero risk. |
-| 2 | **Guided onboarding wizard** | 2-3 days | Critical for first-user experience. Beta blocker. |
-| 3 | **Fiber checkpoint stopgap** | 1 day | Fix silent Morning Wag failures on DO eviction. |
+| # | Item | Effort | Source | Unlock |
+|---|---|---|---|---|
+| 1 | **AI Gateway routing** | 2 lines in llm.ts | Cloudflare | Observability + semantic caching + fallback. Zero risk. |
+| 2 | **Structured compaction output templates** | 1 day | OpenHarness | Fix thin workspace files (profile.md 26 bytes). Template format with example values. |
+| 3 | **Guided onboarding wizard** | 2-3 days | MVP scope | Critical for first-user experience. Beta blocker. |
+| 4 | **Fiber/pending continuation recovery** | 1 day | OpenHarness | Fix silent Morning Wag failures when DO evicted mid-call. Checkpoint to agent_state. |
 
 ### 🟡 Phase E — Cost & Reliability (1-2 weeks)
 
-| # | Item | Effort | Unlock |
-|---|---|---|---|
-| 4 | **Dynamic Workers / Code Mode** | 3-4 days | 81% token reduction. Morning Wag math off the LLM. **Open Beta — ship it.** |
-| 5 | **Mobile app Supabase sync** | 3-5 days | Health Connect background sync loop. Live data. |
-| 6 | **WhatsApp active delivery** | 1 day | Double delivery surface. |
-| 7 | **Pre-Activity Spot** | 2 days | Calendar-aware proactive ("Board call in 35min, running low"). |
+| # | Item | Effort | Source | Unlock |
+|---|---|---|---|---|
+| 5 | **5-stage compaction cascade** | 2 days | OpenHarness | Replace single nightly LLM compact with free stages first (microcompact → session memory). 40-60% fewer LLM compact calls. |
+| 6 | **Capped LRU carryover buckets** | 1 day | OpenHarness | `recent_work_log` + `recent_verified_work` buckets (cap 10). Survive compaction. Agent focus persists across context resets. |
+| 7 | **Dynamic Workers / Code Mode** | 3-4 days | Cloudflare | 81% token reduction. Morning Wag math off the LLM. **Open Beta — ship it.** |
+| 8 | **Per-turn synthetic context injection** | 1 day | OpenHarness | Fresh narrative injected + stripped each turn. Calendar/health always current. Never pollutes history. |
+| 9 | **Mobile app Supabase sync** | 3-5 days | MVP scope | Health Connect background sync loop. Live data. |
+| 10 | **WhatsApp active delivery** | 1 day | MVP scope | Double delivery surface. |
+| 11 | **Pre-Activity Spot** | 2 days | Waldo spec | Calendar-aware proactive ("Board call in 35min, running low"). |
 
 ### 🟢 Phase F — Onboarding & Sessions (2-4 weeks)
 
-| # | Item | Effort | Unlock |
-|---|---|---|---|
-| 8 | **Sessions tree migration** | 3 days | Add parent_id to conversation_history. Branch isolation. |
-| 9 | **WebSocket real-time dashboard** | 3-4 days | Live updates without polling. |
-| 10 | **Circadian Score + Resilience** | 2 days | Remaining body metrics. |
-| 11 | **Chart generation tool** (`render_chart` via Sandbox) | 3 days | Agent draws real charts. |
-| 12 | **Behavioral self-evolution** | 2 weeks | Phase G — feedback → parameter tuning. |
+| # | Item | Effort | Source | Unlock |
+|---|---|---|---|---|
+| 12 | **Sessions tree migration** | 3 days | OpenHarness/Think | Add parent_id to conversation_history. Branch isolation. Morning Wag in its own branch. |
+| 13 | **WebSocket real-time dashboard** | 3-4 days | MVP scope | Live updates without polling. |
+| 14 | **Circadian Score + Resilience** | 2 days | Adapter spec | Remaining body metrics. |
+| 15 | **Prompt hook safety gate** | 1 day | OpenHarness | LLM-powered hook validates `propose_action` before execution. "Is this reversible?" |
+| 16 | **Chart generation tool** (`render_chart` via Sandbox) | 3 days | Sandbox plan | Agent draws real charts. |
+| 17 | **Behavioral self-evolution** | 2 weeks | HyperAgents | Phase G — lineage-tracked evolution with golden test evaluation before applying. |
 
 ### ⚪ Phase 2 — Platform (1-3 months)
 
@@ -400,7 +405,8 @@ From `Docs/WALDO_STARTUP_COMPETITIVE_LANDSCAPE.md`:
 > - [Scaling Infrastructure](./scaling-infrastructure.md) — DO + R2 + Sandbox architecture
 > - [Agent Intelligence](./agent-intelligence.md) — ReAct loop, memory, hooks
 > - [**Cloudflare Agents Week Analysis**](./cloudflare-agents-week-analysis.md) — Project Think + Dynamic Workers + AI Gateway adoption plan (April 2026)
-> - [Upgrade Report](./upgrade-report.md) — 18 upgrades from agent landscape research
+> - [**Harness Design**](./harness-design.md) — 5-stage compaction, carryover buckets, pending continuation, tool architecture (OpenHarness patterns)
+> - [Upgrade Report](./upgrade-report.md) — 44 upgrades from 17 agent systems
 > - [**Second Brain Architecture**](./second-brain-architecture.md) — LLM wiki, compiled truth, HyperAgents self-improvement, DuckDB, Vectorize
 > - [Master Reference](./master-reference.md) — Complete MVP PRD
 
