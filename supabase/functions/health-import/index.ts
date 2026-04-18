@@ -142,9 +142,17 @@ async function upsertBatch(
 ): Promise<{ inserted: number; errors: string[] }> {
   let inserted = 0;
   const errors: string[] = [];
+
+  // For health_snapshots: merge with existing rows so WHOOP/other-source columns are not overwritten.
+  // Strip fields that are null in the incoming row — existing non-null values survive.
+  const prepareRow = (row: Record<string, unknown>) => {
+    if (table !== 'health_snapshots') return row;
+    return Object.fromEntries(Object.entries(row).filter(([, v]) => v !== null && v !== undefined));
+  };
+
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = rows.slice(i, i + BATCH_SIZE);
-    const { error } = await supabase.from(table).upsert(batch, { onConflict });
+    const batch = rows.slice(i, i + BATCH_SIZE).map(prepareRow);
+    const { error } = await supabase.from(table).upsert(batch, { onConflict, ignoreDuplicates: false });
     if (error) {
       errors.push(`batch ${Math.floor(i / BATCH_SIZE)}: ${error.message}`);
     } else {

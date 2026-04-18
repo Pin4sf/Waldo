@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, getTodoistConnectUrl, getStravaConnectUrl, getNotionConnectUrl, getWhoopConnectUrl, triggerWhoopBackfill, triggerSync, disconnectProvider, SUPABASE_FN_URL, supabase } from '../supabase-api.js';
+import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, getTodoistConnectUrl, getStravaConnectUrl, getNotionConnectUrl, getWhoopConnectUrl, triggerWhoopBackfill, triggerPopulateAll, triggerSync, disconnectProvider, SUPABASE_FN_URL, supabase } from '../supabase-api.js';
 import type { SyncStatus } from '../types.js';
 import { HealthUploadPanel } from './HealthUploadPanel.js';
 
@@ -32,6 +32,7 @@ export function IntegrationsPanel({ userId }: Props) {
   const [statuses, setStatuses] = useState<SyncStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncingSet, setSyncingSet] = useState<Set<string>>(new Set());
+  const [populatingAll, setPopulatingAll] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
@@ -50,10 +51,14 @@ export function IntegrationsPanel({ userId }: Props) {
     setSyncingSet(prev => { const next = new Set(prev); next.delete(provider); return next; });
   };
 
-  // Sync all connected providers in parallel
-  const handleSyncAll = () => {
-    const connected = statuses.filter(s => s.connected);
-    connected.forEach(s => handleSync(s.provider));
+  // Populate All — backfill full history for every connected provider
+  const handlePopulateAll = async () => {
+    setPopulatingAll(true);
+    const connected = statuses.filter(s => s.connected).map(s => s.provider);
+    await triggerPopulateAll(userId, connected);
+    await new Promise(r => setTimeout(r, 3000));
+    await refreshStatuses();
+    setPopulatingAll(false);
   };
 
   const handleDisconnect = async (provider: 'google' | 'spotify' | 'todoist' | 'strava' | 'notion') => {
@@ -75,6 +80,25 @@ export function IntegrationsPanel({ userId }: Props) {
 
   return (
     <div style={{ padding: '16px 0' }}>
+
+      {/* ── Populate All ── */}
+      {anyConnected && (
+        <div style={{ padding: '0 0 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+            {statuses.filter(s => s.connected).length} source{statuses.filter(s => s.connected).length !== 1 ? 's' : ''} connected
+          </span>
+          <button
+            className="btn btn-accent"
+            style={{ fontSize: 12, padding: '6px 16px' }}
+            onClick={handlePopulateAll}
+            disabled={populatingAll}
+            title="Backfill full history for all connected providers"
+          >
+            {populatingAll ? 'Populating...' : '⬇ Populate All'}
+          </button>
+        </div>
+      )}
+
       {/* Google Workspace */}
       <div className="debug-section">
         <div className="debug-header" style={{ cursor: 'default' }}>
@@ -82,10 +106,6 @@ export function IntegrationsPanel({ userId }: Props) {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {anyConnected && (
               <>
-                <button className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px', color: 'var(--text-dim)' }}
-                  onClick={handleSyncAll} disabled={syncingSet.size > 0}>
-                  {syncingSet.size > 0 ? 'Syncing...' : 'Sync all'}
-                </button>
                 <button className="btn btn-ghost" style={{ fontSize: 10, padding: '2px 8px', color: '#EF4444' }}
                   onClick={() => handleDisconnect('google')} disabled={disconnecting}>
                   {disconnecting ? 'Disconnecting...' : 'Disconnect'}
@@ -156,8 +176,7 @@ export function IntegrationsPanel({ userId }: Props) {
                   </div>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-dim)', display: 'flex', gap: 12 }}>
-                  <span>Last sync: {timeSince(s.lastSyncAt)}</span>
-                  {s.recordsSynced > 0 && <span>{s.recordsSynced} records</span>}
+                  <span>Last sync: {timeSince(s.lastSyncAt)}{s.recordsSynced > 0 ? ` (${s.recordsSynced.toLocaleString()} records)` : ''}</span>
                   {s.lastError && <span style={{ color: '#EF4444' }}>{s.lastError.slice(0, 60)}</span>}
                 </div>
               </div>
@@ -179,7 +198,7 @@ export function IntegrationsPanel({ userId }: Props) {
           {statuses.find(s => s.provider === 'spotify')?.connected ? (
             <div className="debug-metric">
               <span className="label">Last sync</span>
-              <span className="value">{timeSince(statuses.find(s => s.provider === 'spotify')?.lastSyncAt ?? null)}</span>
+              <span className="value">{timeSince(statuses.find(s => s.provider === 'spotify')?.lastSyncAt ?? null)}{(statuses.find(s => s.provider === 'spotify')?.recordsSynced ?? 0) > 0 ? ` (${statuses.find(s => s.provider === 'spotify')!.recordsSynced.toLocaleString()} records)` : ''}</span>
             </div>
           ) : (
             <>
@@ -229,7 +248,7 @@ export function IntegrationsPanel({ userId }: Props) {
           {statuses.find(s => s.provider === 'todoist')?.connected ? (
             <div className="debug-metric">
               <span className="label">Last sync</span>
-              <span className="value">{timeSince(statuses.find(s => s.provider === 'todoist')?.lastSyncAt ?? null)}</span>
+              <span className="value">{timeSince(statuses.find(s => s.provider === 'todoist')?.lastSyncAt ?? null)}{(statuses.find(s => s.provider === 'todoist')?.recordsSynced ?? 0) > 0 ? ` (${statuses.find(s => s.provider === 'todoist')!.recordsSynced.toLocaleString()} records)` : ''}</span>
             </div>
           ) : (
             <>
@@ -259,11 +278,7 @@ export function IntegrationsPanel({ userId }: Props) {
             <>
               <div className="debug-metric">
                 <span className="label">Last sync</span>
-                <span className="value">{timeSince(statuses.find(s => s.provider === 'whoop')?.lastSyncAt ?? null)}</span>
-              </div>
-              <div className="debug-metric">
-                <span className="label">Records</span>
-                <span className="value">{statuses.find(s => s.provider === 'whoop')?.recordsSynced ?? 0}</span>
+                <span className="value">{timeSince(statuses.find(s => s.provider === 'whoop')?.lastSyncAt ?? null)}{(statuses.find(s => s.provider === 'whoop')?.recordsSynced ?? 0) > 0 ? ` (${statuses.find(s => s.provider === 'whoop')!.recordsSynced.toLocaleString()} records)` : ''}</span>
               </div>
               <button
                 className="btn btn-ghost"
@@ -303,7 +318,7 @@ export function IntegrationsPanel({ userId }: Props) {
           {statuses.find(s => s.provider === 'strava')?.connected ? (
             <div className="debug-metric">
               <span className="label">Last sync</span>
-              <span className="value">{timeSince(statuses.find(s => s.provider === 'strava')?.lastSyncAt ?? null)}</span>
+              <span className="value">{timeSince(statuses.find(s => s.provider === 'strava')?.lastSyncAt ?? null)}{(statuses.find(s => s.provider === 'strava')?.recordsSynced ?? 0) > 0 ? ` (${statuses.find(s => s.provider === 'strava')!.recordsSynced.toLocaleString()} records)` : ''}</span>
             </div>
           ) : (
             <>
@@ -332,7 +347,7 @@ export function IntegrationsPanel({ userId }: Props) {
           {statuses.find(s => s.provider === 'notion')?.connected ? (
             <div className="debug-metric">
               <span className="label">Last sync</span>
-              <span className="value">{timeSince(statuses.find(s => s.provider === 'notion')?.lastSyncAt ?? null)}</span>
+              <span className="value">{timeSince(statuses.find(s => s.provider === 'notion')?.lastSyncAt ?? null)}{(statuses.find(s => s.provider === 'notion')?.recordsSynced ?? 0) > 0 ? ` (${statuses.find(s => s.provider === 'notion')!.recordsSynced.toLocaleString()} records)` : ''}</span>
             </div>
           ) : (
             <>

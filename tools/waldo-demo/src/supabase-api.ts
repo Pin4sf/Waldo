@@ -846,6 +846,42 @@ export async function triggerWhoopBackfill(userId: string): Promise<void> {
   });
 }
 
+/** Backfill ALL connected providers for a user — fires each in parallel, fire-and-forget. */
+export async function triggerPopulateAll(userId: string, connectedProviders: string[]): Promise<void> {
+  const svcKey = (import.meta as any).env?.VITE_SUPABASE_SERVICE_KEY ?? '';
+  const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${svcKey}` };
+  const calls: Promise<void>[] = [];
+
+  if (connectedProviders.includes('whoop')) {
+    calls.push(fetch(`${SUPABASE_FN_URL}/whoop-backfill`, {
+      method: 'POST', headers, body: JSON.stringify({ user_id: userId, mode: 'full' }),
+    }).then(() => {}));
+  }
+  if (connectedProviders.includes('google_calendar') || connectedProviders.includes('google')) {
+    calls.push(fetch(`${SUPABASE_FN_URL}/sync-google-calendar`, {
+      method: 'POST', headers, body: JSON.stringify({ user_id: userId, backfill: true }),
+    }).then(() => {}));
+  }
+  if (connectedProviders.includes('gmail') || connectedProviders.includes('google')) {
+    calls.push(fetch(`${SUPABASE_FN_URL}/sync-gmail`, {
+      method: 'POST', headers, body: JSON.stringify({ user_id: userId, backfill: true }),
+    }).then(() => {}));
+  }
+  if (connectedProviders.includes('strava')) {
+    calls.push(fetch(`${SUPABASE_FN_URL}/sync-strava`, {
+      method: 'POST', headers, body: JSON.stringify({ user_id: userId }),
+    }).then(() => {}));
+  }
+  // Remaining providers: regular sync
+  const others = connectedProviders.filter(p => !['whoop','google','google_calendar','gmail','strava'].includes(p));
+  for (const p of others) {
+    calls.push(fetch(`${SUPABASE_FN_URL}/sync-${p}`, {
+      method: 'POST', headers, body: JSON.stringify({ user_id: userId }),
+    }).then(() => {}));
+  }
+  await Promise.allSettled(calls);
+}
+
 /** Notion connect URL. */
 export function getNotionConnectUrl(userId: string): string {
   return `${SUPABASE_FN_URL}/oauth-notion/connect?user_id=${userId}`;
