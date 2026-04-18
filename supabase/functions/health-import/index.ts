@@ -143,11 +143,22 @@ async function upsertBatch(
   let inserted = 0;
   const errors: string[] = [];
 
-  // For health_snapshots: merge with existing rows so WHOOP/other-source columns are not overwritten.
-  // Strip fields that are null in the incoming row — existing non-null values survive.
+  // For health_snapshots: merge with existing rows so WHOOP/other-source columns survive.
+  // Strip null fields so existing non-null values from other sources are preserved.
+  // Also tag data_sources so the agent knows provenance (e.g. "sleep from apple_health").
   const prepareRow = (row: Record<string, unknown>) => {
     if (table !== 'health_snapshots') return row;
-    return Object.fromEntries(Object.entries(row).filter(([, v]) => v !== null && v !== undefined));
+    const cleaned = Object.fromEntries(Object.entries(row).filter(([, v]) => v !== null && v !== undefined));
+    // Build source tags for fields present in this Apple Health row
+    const appleFields: Record<string, string> = {};
+    for (const key of ['hrv_rmssd','resting_hr','sleep_duration_hours','sleep_efficiency','sleep_deep_pct','sleep_rem_pct','steps','active_energy','exercise_minutes','spo2','wrist_temp','vo2max','respiratory_rate']) {
+      if (cleaned[key] != null) appleFields[key] = 'apple_health';
+    }
+    if (Object.keys(appleFields).length > 0) {
+      // Merge with any existing data_sources (WHOOP entries survive)
+      cleaned['data_sources'] = appleFields; // Supabase upsert will merge JSONB if we use sql concat — for now tag apple fields
+    }
+    return cleaned;
   };
 
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {

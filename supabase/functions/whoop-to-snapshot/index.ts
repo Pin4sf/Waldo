@@ -216,29 +216,45 @@ async function mapWhoopToSnapshot(
 
   if (updates.size === 0) return { daysProcessed: 0 };
 
-  // Fetch existing snapshots to enforce NULL-only writes
+  // Fetch existing snapshots — needed for merge strategy and workout dedup
   const dates = [...updates.keys()];
   const { data: existing } = await supabase
     .from('health_snapshots')
-    .select('date, hrv_rmssd, resting_hr, spo2, wrist_temp, sleep_duration_hours, sleep_efficiency, sleep_deep_pct, sleep_rem_pct, sleep_bedtime, sleep_wake_time, respiratory_rate, active_energy, exercise_minutes')
+    .select('date, hrv_rmssd, resting_hr, spo2, wrist_temp, sleep_duration_hours, sleep_efficiency, sleep_deep_pct, sleep_rem_pct, sleep_bedtime, sleep_wake_time, respiratory_rate, active_energy, exercise_minutes, data_sources')
     .eq('user_id', userId)
     .in('date', dates);
 
   const existingByDate = new Map((existing ?? []).map(e => [e.date as string, e]));
 
-  // Build upsert rows — only write to NULL columns
+  // Source hierarchy for multi-device support:
+  //   WHOOP always wins:  hrv_rmssd, resting_hr, respiratory_rate, spo2
+  //     (WHOOP measures recovery metrics directly; Apple Watch computes from beats)
+  //   NULL-only (first wins): sleep_*, wrist_temp (roughly equal quality)
+  //   Apple Watch wins:   steps, active_energy, exercise_minutes — preserve those
+  //   Workouts: always merge both sources
   const rows: Record<string, unknown>[] = [];
   for (const [date, u] of updates) {
-    const ex = existingByDate.get(date) ?? {};
+    const ex = existingByDate.get(date) as Record<string, unknown> ?? {};
     const row: Record<string, unknown> = { user_id: userId, date };
+    const existingSources = (ex['data_sources'] as Record<string, string>) ?? {};
+    const sources: Record<string, string> = { ...existingSources };
 
-    const setIfNull = (col: string, srcKey: string) => {
-      if ((ex as Record<string, unknown>)[col] == null && u[srcKey] != null) row[col] = u[srcKey];
+    // WHOOP wins regardless of existing value (superior recovery metrics)
+    const setWhoop = (col: string, srcKey: string) => {
+      if (u[srcKey] != null) { row[col] = u[srcKey]; sources[col] = 'whoop'; }
     };
+    // NULL-only: only fill if empty (don't override other sources)
+    const setIfNull = (col: string, srcKey: string, source = 'whoop') => {
+      if (ex[col] == null && u[srcKey] != null) { row[col] = u[srcKey]; sources[col] = source; }
+    };
+    // Never overwrite: preserve Apple Watch / Health Connect activity data
+    const preserve = (col: string) => { /* noop — upsert with ignoreDuplicates=false keeps existing */ };
 
-    setIfNull('hrv_rmssd',            '_hrv_rmssd');
-    setIfNull('resting_hr',           '_resting_hr');
-    setIfNull('spo2',                 '_spo2');
+    setWhoop('hrv_rmssd',        '_hrv_rmssd');
+    setWhoop('resting_hr',       '_resting_hr');
+    setWhoop('respiratory_rate', '_respiratory_rate');
+    setWhoop('spo2',             '_spo2');
+
     setIfNull('wrist_temp',           '_wrist_temp');
     setIfNull('sleep_duration_hours', '_sleep_duration_hours');
     setIfNull('sleep_efficiency',     '_sleep_efficiency');
@@ -246,9 +262,15 @@ async function mapWhoopToSnapshot(
     setIfNull('sleep_rem_pct',        '_sleep_rem_pct');
     setIfNull('sleep_bedtime',        '_sleep_bedtime');
     setIfNull('sleep_wake_time',      '_sleep_wake_time');
-    setIfNull('respiratory_rate',     '_respiratory_rate');
-    setIfNull('active_energy',        '_active_energy');
-    setIfNull('exercise_minutes',     '_exercise_minutes');
+
+    // Apple Watch / Health Connect owns steps/activity — only fill if truly empty
+    setIfNull('active_energy',    '_active_energy');
+    setIfNull('exercise_minutes', '_exercise_minutes');
+    preserve('steps'); // never set steps from WHOOP — Apple Watch steps are authoritative
+
+    if (Object.keys(sources).length > Object.keys(existingSources).length) {
+      row['data_sources'] = sources;
+    }
 
     // Workouts: merge sources rather than overwrite
     if (u['_workouts']) {
