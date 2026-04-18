@@ -50,12 +50,12 @@ function log(level: string, event: string, data: Record<string, unknown> = {}) {
 }
 
 function errorRedirect(message: string): Response {
-  const successUrl = Deno.env.get('OAUTH_REDIRECT_SUCCESS_URL') ?? 'https://waldo.app';
+  const successUrl = Deno.env.get('OAUTH_REDIRECT_SUCCESS_URL') ?? 'https://waldo-sigma.vercel.app';
   return Response.redirect(`${successUrl}?error=${encodeURIComponent(message)}`, 302);
 }
 
 function successRedirect(provider: string): Response {
-  const successUrl = Deno.env.get('OAUTH_REDIRECT_SUCCESS_URL') ?? 'https://waldo.app';
+  const successUrl = Deno.env.get('OAUTH_REDIRECT_SUCCESS_URL') ?? 'https://waldo-sigma.vercel.app';
   return Response.redirect(`${successUrl}?connected=${provider}`, 302);
 }
 

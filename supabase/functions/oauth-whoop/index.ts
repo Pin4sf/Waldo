@@ -81,7 +81,7 @@ Deno.serve(async (req: Request) => {
 
   const clientId     = Deno.env.get('WHOOP_CLIENT_ID');
   const clientSecret = Deno.env.get('WHOOP_CLIENT_SECRET');
-  const appUrl       = Deno.env.get('APP_URL') ?? 'http://localhost:3000';
+  const appUrl       = Deno.env.get('OAUTH_REDIRECT_SUCCESS_URL') ?? Deno.env.get('APP_URL') ?? 'https://waldo-sigma.vercel.app';
 
   // ── GET /connect ─────────────────────────────────────────────
   if (req.method === 'GET' && pathname === '/connect') {
