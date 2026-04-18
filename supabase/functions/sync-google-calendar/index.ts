@@ -116,6 +116,7 @@ async function syncUserCalendar(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   timezone: string,
+  backfill = false,
 ): Promise<{ ok: boolean; eventsInserted: number; daysComputed: number; error?: string }> {
   const token = await getValidGoogleToken(supabase, userId);
   if (!token) {
@@ -123,31 +124,36 @@ async function syncUserCalendar(
     return { ok: false, eventsInserted: 0, daysComputed: 0, error: 'no_token' };
   }
 
-  // Sync window: yesterday to 7 days ahead (rolling window)
-  // Historical data is handled by the bootstrap pipeline, not daily sync
-  const timeMin = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // Backfill: fetch full history (no timeMin); Daily sync: yesterday → +7 days
+  const timeMin = backfill ? undefined : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const timeMax = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const result = await googleFetch(
-    `${GOOGLE_CALENDAR_API}/calendars/primary/events`,
-    token,
-    {
-      timeMin,
-      timeMax,
+  // Paginate to get all events (Google Calendar returns nextPageToken for > 250 events)
+  const events: GoogleEvent[] = [];
+  let pageToken: string | undefined;
+  do {
+    const params: Record<string, string> = {
       singleEvents: 'true',
       orderBy: 'startTime',
       maxResults: '500',
-      fields: 'items(id,summary,start,end,attendees,recurrence,location,status,transparency)',
-    },
-  );
+      fields: 'items(id,summary,start,end,attendees,recurrence,location,status,transparency),nextPageToken',
+      timeMax,
+    };
+    if (timeMin) params['timeMin'] = timeMin;
+    if (pageToken) params['pageToken'] = pageToken;
 
-  if (!result.ok) {
-    const status = result.status === 401 ? 'token_expired' : 'error';
-    await recordSync(supabase, userId, 'google_calendar', status, 0, `API error ${result.status}`);
-    return { ok: false, eventsInserted: 0, daysComputed: 0, error: `API ${result.status}` };
-  }
+    const result = await googleFetch(`${GOOGLE_CALENDAR_API}/calendars/primary/events`, token, params);
 
-  const events = ((result.data as { items?: GoogleEvent[] }).items ?? []);
+    if (!result.ok) {
+      const status = result.status === 401 ? 'token_expired' : 'error';
+      await recordSync(supabase, userId, 'google_calendar', status, 0, `API error ${result.status}`);
+      return { ok: false, eventsInserted: 0, daysComputed: 0, error: `API ${result.status}` };
+    }
+
+    const page = result.data as { items?: GoogleEvent[]; nextPageToken?: string };
+    events.push(...(page.items ?? []));
+    pageToken = page.nextPageToken;
+  } while (pageToken);
 
   // ─── Group events by date and compute metrics ──────────────
   const byDate = new Map<string, GoogleEvent[]>();
@@ -270,6 +276,7 @@ Deno.serve(async (req: Request) => {
 
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const targetUserId: string | null = body.user_id ?? null;
+    const backfill: boolean = body.backfill === true;
 
     // Get users who have Google tokens
     const query = supabase
@@ -298,6 +305,7 @@ Deno.serve(async (req: Request) => {
         supabase,
         row.user_id,
         (row.users as { timezone: string }).timezone ?? 'UTC',
+        backfill,
       )),
     );
 

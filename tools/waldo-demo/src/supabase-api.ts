@@ -831,6 +831,21 @@ export function getStravaConnectUrl(userId: string): string {
   return `${SUPABASE_FN_URL}/oauth-strava/connect?user_id=${userId}`;
 }
 
+export function getWhoopConnectUrl(userId: string): string {
+  return `${SUPABASE_FN_URL}/oauth-whoop/connect?user_id=${userId}`;
+}
+
+export async function triggerWhoopBackfill(userId: string): Promise<void> {
+  await fetch(`${SUPABASE_FN_URL}/whoop-backfill`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${(import.meta as any).env?.VITE_SUPABASE_SERVICE_KEY ?? ''}`,
+    },
+    body: JSON.stringify({ user_id: userId, mode: 'full' }),
+  });
+}
+
 /** Notion connect URL. */
 export function getNotionConnectUrl(userId: string): string {
   return `${SUPABASE_FN_URL}/oauth-notion/connect?user_id=${userId}`;

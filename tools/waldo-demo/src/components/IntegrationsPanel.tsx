@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, getTodoistConnectUrl, getStravaConnectUrl, getNotionConnectUrl, triggerSync, disconnectProvider, SUPABASE_FN_URL, supabase } from '../supabase-api.js';
+import { fetchSyncStatus, getGoogleConnectUrl, getSpotifyConnectUrl, getTodoistConnectUrl, getStravaConnectUrl, getNotionConnectUrl, getWhoopConnectUrl, triggerWhoopBackfill, triggerSync, disconnectProvider, SUPABASE_FN_URL, supabase } from '../supabase-api.js';
 import type { SyncStatus } from '../types.js';
 import { HealthUploadPanel } from './HealthUploadPanel.js';
 
@@ -239,6 +239,51 @@ export function IntegrationsPanel({ userId }: Props) {
               <a href={getTodoistConnectUrl(userId)} target="_blank" rel="noreferrer"
                 className="btn btn-accent" style={{ fontSize: 12, textDecoration: 'none', display: 'inline-block', padding: '8px 16px' }}>
                 Connect Todoist →
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* WHOOP */}
+      <div className="debug-section" style={{ marginTop: 8 }}>
+        <div className="debug-header" style={{ cursor: 'default' }}>
+          <span>WHOOP</span>
+          {statuses.find(s => s.provider === 'whoop')?.connected
+            ? <span style={{ fontSize: 11, color: '#34D399' }}>Connected</span>
+            : <span style={{ fontSize: 11, color: '#9CA3AF' }}>Not connected</span>
+          }
+        </div>
+        <div style={{ padding: '10px 14px' }}>
+          {statuses.find(s => s.provider === 'whoop')?.connected ? (
+            <>
+              <div className="debug-metric">
+                <span className="label">Last sync</span>
+                <span className="value">{timeSince(statuses.find(s => s.provider === 'whoop')?.lastSyncAt ?? null)}</span>
+              </div>
+              <div className="debug-metric">
+                <span className="label">Records</span>
+                <span className="value">{statuses.find(s => s.provider === 'whoop')?.recordsSynced ?? 0}</span>
+              </div>
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 11, marginTop: 8 }}
+                onClick={async () => {
+                  await triggerWhoopBackfill(userId);
+                  alert('Full WHOOP backfill triggered — check sync status in a few minutes.');
+                }}
+              >
+                Re-trigger full backfill
+              </button>
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.6 }}>
+                Recovery score, HRV (RMSSD), sleep stages, respiratory rate, day strain, and skin temperature. The richest wearable data source.
+              </p>
+              <a href={getWhoopConnectUrl(userId)} target="_blank" rel="noreferrer"
+                className="btn btn-accent" style={{ fontSize: 12, textDecoration: 'none', display: 'inline-block', padding: '8px 16px' }}>
+                Connect WHOOP →
               </a>
             </>
           )}

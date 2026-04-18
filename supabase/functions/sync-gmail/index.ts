@@ -37,6 +37,7 @@ async function syncUserGmail(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   timezone: string,
+  backfill = false,
 ): Promise<{ ok: boolean; daysComputed: number; error?: string }> {
   const token = await getValidGoogleToken(supabase, userId);
   if (!token) {
@@ -44,28 +45,34 @@ async function syncUserGmail(
     return { ok: false, daysComputed: 0, error: 'no_token' };
   }
 
-  // Sync last 7 days (rolling window)
-  // Historical backfill is handled by the bootstrap pipeline
-  const after = Math.floor((Date.now() - 7 * 24 * 60 * 60 * 1000) / 1000);
+  // Rolling window for daily sync; 365 days for initial backfill
+  const lookbackDays = backfill ? 365 : 7;
+  const after = Math.floor((Date.now() - lookbackDays * 24 * 60 * 60 * 1000) / 1000);
+  const maxMessages = backfill ? 5000 : 500;
 
-  // List message IDs (metadata only — no subject, no body)
-  const listResult = await googleFetch(
-    `${GMAIL_API}/users/me/messages`,
-    token,
-    {
+  // Paginate message list to get all IDs in the window
+  const messageIds: string[] = [];
+  let pageToken: string | undefined;
+  do {
+    const params: Record<string, string> = {
       q: `after:${after}`,
       maxResults: '500',
-      fields: 'messages(id)',
-    },
-  );
+      fields: 'messages(id),nextPageToken',
+    };
+    if (pageToken) params['pageToken'] = pageToken;
 
-  if (!listResult.ok) {
-    const status = listResult.status === 401 ? 'token_expired' : 'error';
-    await recordSync(supabase, userId, 'gmail', status, 0, `API ${listResult.status}`);
-    return { ok: false, daysComputed: 0, error: `API ${listResult.status}` };
-  }
+    const listResult = await googleFetch(`${GMAIL_API}/users/me/messages`, token, params);
 
-  const messageIds: string[] = ((listResult.data as { messages?: Array<{ id: string }> }).messages ?? []).map(m => m.id);
+    if (!listResult.ok) {
+      const status = listResult.status === 401 ? 'token_expired' : 'error';
+      await recordSync(supabase, userId, 'gmail', status, 0, `API ${listResult.status}`);
+      return { ok: false, daysComputed: 0, error: `API ${listResult.status}` };
+    }
+
+    const page = listResult.data as { messages?: Array<{ id: string }>; nextPageToken?: string };
+    for (const m of page.messages ?? []) messageIds.push(m.id);
+    pageToken = page.nextPageToken;
+  } while (pageToken && messageIds.length < maxMessages);
 
   if (messageIds.length === 0) {
     await recordSync(supabase, userId, 'gmail', 'ok', 0);
@@ -78,7 +85,8 @@ async function syncUserGmail(
   const tzOffset = getTimezoneOffsetMs(timezone);
 
   const BATCH_SIZE = 50;
-  for (let i = 0; i < Math.min(messageIds.length, 200); i += BATCH_SIZE) {
+  const processLimit = backfill ? Math.min(messageIds.length, 2000) : Math.min(messageIds.length, 200);
+  for (let i = 0; i < processLimit; i += BATCH_SIZE) {
     const batch = messageIds.slice(i, i + BATCH_SIZE);
 
     // Fetch each message's metadata (internalDate + labelIds only)
@@ -158,6 +166,7 @@ Deno.serve(async (req: Request) => {
 
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const targetUserId: string | null = body.user_id ?? null;
+    const backfill: boolean = body.backfill === true;
 
     const query = supabase
       .from('oauth_tokens')
@@ -177,7 +186,7 @@ Deno.serve(async (req: Request) => {
 
     const results = await Promise.allSettled(
       tokenRows.map(row => syncUserGmail(
-        supabase, row.user_id, (row.users as { timezone: string }).timezone ?? 'UTC',
+        supabase, row.user_id, (row.users as { timezone: string }).timezone ?? 'UTC', backfill,
       )),
     );
 

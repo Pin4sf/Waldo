@@ -96,23 +96,30 @@ async function syncUserStrava(
     return { ok: false, activities: 0, error: 'no_token' };
   }
 
-  // Fetch activities from last 7 days
-  const after = Math.floor((Date.now() - 7 * 86400000) / 1000);
-  const resp = await fetch(`${STRAVA_API}/athlete/activities?after=${after}&per_page=30`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!resp.ok) {
-    log('error', 'api_failed', { userId, status: resp.status });
-    await supabase.from('sync_log').upsert({
-      user_id: userId, provider: 'strava',
-      last_sync_status: 'error', last_error: `HTTP ${resp.status}`,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,provider' });
-    return { ok: false, activities: 0, error: `HTTP ${resp.status}` };
+  // Fetch up to 1 year of activities with pagination (Strava max per_page=200)
+  const after = Math.floor((Date.now() - 365 * 86400_000) / 1000);
+  const activities: StravaActivity[] = [];
+  let page = 1;
+  while (true) {
+    const resp = await fetch(
+      `${STRAVA_API}/athlete/activities?after=${after}&per_page=200&page=${page}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!resp.ok) {
+      log('error', 'api_failed', { userId, status: resp.status, page });
+      await supabase.from('sync_log').upsert({
+        user_id: userId, provider: 'strava',
+        last_sync_status: 'error', last_error: `HTTP ${resp.status}`,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,provider' });
+      return { ok: false, activities: 0, error: `HTTP ${resp.status}` };
+    }
+    const pageActivities = (await resp.json()) as StravaActivity[];
+    if (pageActivities.length === 0) break;
+    activities.push(...pageActivities);
+    if (pageActivities.length < 200) break;
+    page++;
   }
-
-  const activities = (await resp.json()) as StravaActivity[];
 
   // Group activities by date (local date)
   const byDate = new Map<string, StravaActivity[]>();
